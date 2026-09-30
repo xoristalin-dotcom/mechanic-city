@@ -181,6 +181,30 @@ function makeCar(color=0x252a30){
   const exhaust=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,.2,12),chrome);
   exhaust.rotation.x=Math.PI/2; exhaust.position.set(.72,.48,2.38); g.add(exhaust);
 
+  // Extra body definition: wheel arches, lower sill, front splitter and rear spoiler.
+  const lowerBody=new THREE.Mesh(new RoundedBoxGeometry(2.42,.22,4.0,4,.07),paint);
+  lowerBody.position.set(0,.48,.05); lowerBody.castShadow=true; g.add(lowerBody);
+  for(const x of [-1.29,1.29]){
+    for(const z of [-1.48,1.48]){
+      const arch=new THREE.Mesh(new THREE.TorusGeometry(.46,.065,10,24,Math.PI),trim);
+      arch.rotation.set(0,Math.PI/2,0); arch.position.set(x,.55,z); g.add(arch);
+    }
+  }
+  const splitter=new THREE.Mesh(new RoundedBoxGeometry(2.28,.08,.32,3,.025),trim);
+  splitter.position.set(0,.43,-2.31); g.add(splitter);
+  const spoilerBar=new THREE.Mesh(new RoundedBoxGeometry(1.55,.08,.12,3,.025),trim);
+  spoilerBar.position.set(0,1.2,2.08); g.add(spoilerBar);
+  for(const x of [-.68,.68]){
+    const support=new THREE.Mesh(new THREE.BoxGeometry(.055,.34,.055),trim);
+    support.position.set(x,1.03,2.08); g.add(support);
+  }
+  // Brake calipers add a visible mechanical layer behind the rims.
+  const caliperMat=new THREE.MeshStandardMaterial({color:0xb12a22,metalness:.55,roughness:.3});
+  for(const x of [-1.305,1.305]) for(const z of [-1.48,1.48]){
+    const caliper=new THREE.Mesh(new RoundedBoxGeometry(.07,.22,.16,3,.02),caliperMat);
+    caliper.position.set(x+(x>0?-.14:.14),.42,z); g.add(caliper);
+  }
+
   // Hood crease and side skirts for stronger highlights.
   for(const x of [-.78,.78]){
     const crease=new THREE.Mesh(new THREE.BoxGeometry(.035,.025,1.45),chrome);
@@ -406,9 +430,9 @@ function animate(traffic=[]){
   }
 
   const camDistance=state.speed>.25?10.5:8.5;
-  const target=new THREE.Vector3(car.position.x-Math.sin(car.rotation.y)*camDistance, state.speed>.25?2.45:2.35, car.position.z-Math.cos(car.rotation.y)*camDistance);
+  const target=new THREE.Vector3(car.position.x+Math.sin(car.rotation.y)*camDistance, state.speed>.25?2.45:2.35, car.position.z+Math.cos(car.rotation.y)*camDistance);
   camera.position.lerp(target,.08);
-  const look=new THREE.Vector3(car.position.x-Math.sin(car.rotation.y)*1.5,.78,car.position.z-Math.cos(car.rotation.y)*1.5);
+  const look=new THREE.Vector3(car.position.x-Math.sin(car.rotation.y)*1.8,.78,car.position.z-Math.cos(car.rotation.y)*1.8);
   camera.lookAt(look);
 
   for(const npc of traffic){
