@@ -32,73 +32,50 @@ const state = saved || {money:18500,fuel:72,heat:82,damage:8,car:{name:"Crown 72
 Object.assign(state,{driving:false,speed:0,steer:0,onFoot:false});
 const input={gas:false,left:false,right:false,brake:false}; let lastSaveTick=-1;
 state.posX??=0;state.posZ??=10;state.heading??=0;state.gear??="P";state.time??=14;state.rain??=false;state.job??=null;
-state.car.oil??=42;state.car.coolant??=58;state.car.brakes??=state.car.condition;state.car.battery??=70;state.car.suspension??=state.car.condition;state.car.tires??=state.car.condition;state.car.body??=state.car.condition;
-app.innerHTML=`<div class="game"><main id="viewport"></main><div id="orientation-lock"><div class="rotate-card"><span class="rotate-icon">📱↔️</span><h2>Поверни телефон горизонтально</h2><p>Mechanic City рассчитан на широкий экран.</p></div></div><div class="drive-hud"><div class="hud-top"><div class="round-btn">☰</div><div class="top-icons"><button id="mapBtn">⌖</button><button id="carInfo">⚙</button><button id="menuBtn">⋮</button></div></div><div class="speed-box"><b id="speed">0</b><small>KM/H</small><span id="gear">N</span></div><div class="fuel-box">⛽ <b id="fuel"></b>% &nbsp; 🌡 <b id="heat"></b>° &nbsp; 🕒 <b id="clock"></b></div><div class="mini-map"><div class="map-road"></div><div class="map-dot"></div></div><div class="steering-zone"><button class="steer left" data-drive="left">‹</button><button class="steer right" data-drive="right">›</button></div><div class="pedals"><button class="pedal brake" data-drive="brake">■</button><button class="pedal gas" data-drive="gas">▲</button></div><div class="drive-actions"><button id="horn">◉</button><button id="cameraBtn">▣</button><button id="fuelBtn">⛽</button><button id="serviceBtn">🔧</button><button id="gearBtn">P</button><button id="exitBtn">♙</button></div><div id="message" class="message">Нажми ▲ и поехали</div></div><div id="menu" class="menu hidden"><div class="menu-card"><button data-scene="city">🏙️ Город</button><button data-scene="market">🚘 Рынок</button><button data-scene="junkyard">🛠️ Свалка</button><button data-scene="dealer">🏢 Автосалон</button><button data-scene="garage">🔧 Гараж</button><button data-scene="jobs">💼 Работа</button><button data-scene="settings">⚙️ Настройки</button></div></div><section id="panel" class="panel hidden"></section></div>`;
+state.car.oil??=42;state.car.coolant??=58;state.car.brakes??=state.car.condition;state.car.battery??=70;state.car.suspension??=state.car.condition;state.car.tires??=state.car.condition;state.car.body??=state.car.condition;state.car.doorsOpen??=false;state.car.hoodOpen??=false;state.car.trunkOpen??=false;
+app.innerHTML=`<div class="game"><main id="viewport"></main><div id="orientation-lock"><div class="rotate-card"><span class="rotate-icon">📱↔️</span><h2>Поверни телефон горизонтально</h2><p>Mechanic City рассчитан на широкий экран.</p></div></div><div class="drive-hud"><div class="hud-top"><div class="round-btn">☰</div><div class="top-icons"><button id="mapBtn">⌖</button><button id="carInfo">⚙</button><button id="menuBtn">⋮</button></div></div><div class="speed-box"><b id="speed">0</b><small>KM/H</small><span id="gear">N</span></div><div class="fuel-box">⛽ <b id="fuel"></b>% &nbsp; 🌡 <b id="heat"></b>° &nbsp; 🕒 <b id="clock"></b></div><div class="mini-map"><div class="map-road"></div><div class="map-dot"></div></div><div class="steering-zone"><button class="steer left" data-drive="left">‹</button><button class="steer right" data-drive="right">›</button></div><div class="pedals"><button class="pedal brake" data-drive="brake">■</button><button class="pedal gas" data-drive="gas">▲</button></div><div class="drive-actions"><button id="horn">◉</button><button id="cameraBtn">▣</button><button id="fuelBtn">⛽</button><button id="serviceBtn">🔧</button><button id="doorsBtn">🚪</button><button id="hoodBtn">▱</button><button id="gearBtn">P</button><button id="exitBtn">♙</button></div><div id="message" class="message">Нажми ▲ и поехали</div></div><div id="menu" class="menu hidden"><div class="menu-card"><button data-scene="city">🏙️ Город</button><button data-scene="market">🚘 Рынок</button><button data-scene="junkyard">🛠️ Свалка</button><button data-scene="dealer">🏢 Автосалон</button><button data-scene="garage">🔧 Гараж</button><button data-scene="jobs">💼 Работа</button><button data-scene="settings">⚙️ Настройки</button></div></div><section id="panel" class="panel hidden"></section></div>`;
 const viewport=document.querySelector("#viewport"),speedEl=document.querySelector("#speed"),gearEl=document.querySelector("#gear"),fuelEl=document.querySelector("#fuel"),heatEl=document.querySelector("#heat"),messageEl=document.querySelector("#message"),menu=document.querySelector("#menu"),panel=document.querySelector("#panel"),clockEl=document.querySelector("#clock");
 let renderer,camera,car,scene,clock,traffic=[],trafficLights=[],smoke=[],rainDrops=[],jobMarker=null;let cameraMode=0,camOrbitYaw=0,camOrbitPitch=.18,camDragging=false,camLastX=0,camLastY=0;let physicsWorld=null,vehicleController=null,chassisBody=null,physicsReady=false,physicsError="";const PHYSICS_Y=1.08;const cameraModeNames=["Вид сзади","Вид спереди","От первого лица"];
 async function initPhysics(){await RAPIER.init();}
 function resetPhysics(){if(vehicleController){try{vehicleController.free();}catch{}}vehicleController=null;chassisBody=null;physicsWorld=null;physicsReady=false;}
 function setupVehiclePhysics(){if(!RAPIER||!car)throw new Error("Rapier or car is not ready");resetPhysics();physicsWorld=new RAPIER.World({x:0,y:-9.81,z:0});const ground=RAPIER.ColliderDesc.cuboid(110,.08,110).setFriction(.95);physicsWorld.createCollider(ground);for(const b of[RAPIER.ColliderDesc.cuboid(110,2,.25).setTranslation(0,2,110),RAPIER.ColliderDesc.cuboid(110,2,.25).setTranslation(0,2,-110),RAPIER.ColliderDesc.cuboid(.25,2,110).setTranslation(110,2,0),RAPIER.ColliderDesc.cuboid(.25,2,110).setTranslation(-110,2,0)])physicsWorld.createCollider(b);const desc=RAPIER.RigidBodyDesc.dynamic().setTranslation(state.posX,PHYSICS_Y,state.posZ).setLinearDamping(.08).setAngularDamping(1.5).setCcdEnabled(true).setCanSleep(false);chassisBody=physicsWorld.createRigidBody(desc);const chassis=RAPIER.ColliderDesc.cuboid(1.18,.42,2.18).setMass(1180).setFriction(.78);physicsWorld.createCollider(chassis,chassisBody);vehicleController=physicsWorld.createVehicleController(chassisBody);if(typeof vehicleController.setIndexForwardAxis==="function")vehicleController.setIndexForwardAxis(2);const wheelPos=[[-1.27,-.34,-1.5],[1.27,-.34,-1.5],[-1.27,-.34,1.5],[1.27,-.34,1.5]];for(const p of wheelPos)vehicleController.addWheel({x:p[0],y:p[1],z:p[2]},{x:0,y:-1,z:0},{x:1,y:0,z:0},.34,.39);for(let i=0;i<4;i++){vehicleController.setWheelSuspensionStiffness(i,30);vehicleController.setWheelSuspensionCompression(i,5);vehicleController.setWheelSuspensionRelaxation(i,6);vehicleController.setWheelMaxSuspensionForce(i,12000);if(typeof vehicleController.setWheelMaxSuspensionTravel==="function")vehicleController.setWheelMaxSuspensionTravel(i,.24);vehicleController.setWheelFrictionSlip(i,1.35);if(typeof vehicleController.setWheelSideFrictionStiffness==="function")vehicleController.setWheelSideFrictionStiffness(i,1.45);}physicsReady=true;}
 function setupImportedWheelSteering(model){
-  // The source GLB is one merged mesh, so its baked wheels cannot be
-  // independently rotated. Cover the baked front-wheel faces and place
-  // correctly sized steerable wheels in front of them.
   model.updateMatrixWorld(true);
-  const box=new THREE.Box3().setFromObject(model);
-  const size=box.getSize(new THREE.Vector3());
-  const min=box.min.clone();
-
-  const wheelX=min.x+size.x*.79;
-  const wheelY=min.y+size.y*.25;
-  const sideZ=Math.max(.54,size.z*.34);
-  const tireRadius=Math.max(.23,Math.min(size.y*.18,.31));
-  const tireWidth=Math.max(.13,Math.min(size.z*.10,.20));
-
-  const makeWheel=(z)=>{
-    const pivot=new THREE.Group();
-    pivot.name="ImportedVisibleFrontWheelSteerPivot";
-    pivot.position.set(wheelX,wheelY,z);
-
-    // Opaque body-colored backing hides the non-steerable baked wheel
-    // without changing the merged GLB geometry.
-    const cover=new THREE.Mesh(
-      new THREE.CylinderGeometry(tireRadius*1.08,tireRadius*1.08,tireWidth*.62,28),
-      new THREE.MeshStandardMaterial({color:0x7a3f2e,roughness:.42,metalness:.35})
-    );
-    cover.rotation.x=Math.PI/2;
-    cover.position.z=z<0?-.055:.055;
-    cover.castShadow=false;
-    cover.receiveShadow=true;
-
-    const tire=new THREE.Mesh(
-      new THREE.CylinderGeometry(tireRadius,tireRadius,tireWidth,24),
-      new THREE.MeshStandardMaterial({color:0x17191b,roughness:.82,metalness:.04})
-    );
-    tire.rotation.x=Math.PI/2;
-    tire.castShadow=true;
-    tire.receiveShadow=true;
-
-    const hub=new THREE.Mesh(
-      new THREE.CylinderGeometry(tireRadius*.43,tireRadius*.43,tireWidth*1.08,20),
-      new THREE.MeshStandardMaterial({color:0x777b80,roughness:.38,metalness:.72})
-    );
-    hub.rotation.x=Math.PI/2;
-    hub.castShadow=true;
-    hub.receiveShadow=true;
-
-    const cap=new THREE.Mesh(
-      new THREE.CylinderGeometry(tireRadius*.19,tireRadius*.19,tireWidth*1.12,16),
-      new THREE.MeshStandardMaterial({color:0x22262a,roughness:.35,metalness:.8})
-    );
-    cap.rotation.x=Math.PI/2;
-
-    // Cover sits behind the steerable wheel; the wheel itself is what turns.
-    pivot.add(cover,tire,hub,cap);
-    model.add(pivot);
-    return pivot;
+  const box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3()),min=box.min.clone();
+  const bodyMat=new THREE.MeshStandardMaterial({color:0x7a3f2e,roughness:.42,metalness:.35});
+  const tireMat=new THREE.MeshStandardMaterial({color:0x17191b,roughness:.82,metalness:.04});
+  const hubMat=new THREE.MeshStandardMaterial({color:0x777b80,roughness:.38,metalness:.72});
+  const frontX=min.x+size.x*.79,rearX=min.x+size.x*.21,wheelY=min.y+size.y*.25,sideZ=Math.max(.54,size.z*.34);
+  const radius=Math.max(.23,Math.min(size.y*.18,.31)),width=Math.max(.13,Math.min(size.z*.10,.20)),wheels=[];
+  const wheel=(x,z,front)=>{
+    const p=new THREE.Group();p.name=front?"FrontWheelSteerPivot":"RearWheelPivot";p.position.set(x,wheelY,z);
+    const cover=new THREE.Mesh(new THREE.CylinderGeometry(radius*1.08,radius*1.08,width*.62,28),bodyMat);cover.rotation.x=Math.PI/2;
+    const tire=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,width,24),tireMat);tire.rotation.x=Math.PI/2;tire.castShadow=true;
+    const hub=new THREE.Mesh(new THREE.CylinderGeometry(radius*.43,radius*.43,width*1.08,20),hubMat);hub.rotation.x=Math.PI/2;hub.castShadow=true;
+    p.add(cover,tire,hub);model.add(p);wheels.push(p);
   };
-
-  return [makeWheel(-sideZ),makeWheel(sideZ)];
+  wheel(frontX,-sideZ,true);wheel(frontX,sideZ,true);wheel(rearX,-sideZ,false);wheel(rearX,sideZ,false);
+  const doors=[],doorW=size.x*.22,doorH=size.y*.38,doorT=Math.max(.055,size.z*.035),doorY=min.y+size.y*.43,doorZ=Math.max(.50,size.z*.505);
+  const addDoor=(x,side,front)=>{
+    const p=new THREE.Group();p.name=(front?"Front":"Rear")+(side<0?"Left":"Right")+"DoorHinge";p.position.set(front?x+doorW*.5:x-doorW*.5,doorY,side*doorZ);
+    const panel=new THREE.Mesh(new RoundedBoxGeometry(doorW,doorH,doorT,4,.055),bodyMat);panel.position.x=front?-doorW*.5:doorW*.5;panel.position.z=side<0?doorT*.18:-doorT*.18;panel.castShadow=true;p.add(panel);model.add(p);doors.push({pivot:p,open:0,side,front});
+  };
+  addDoor(min.x+size.x*.63,-1,true);addDoor(min.x+size.x*.63,1,true);addDoor(min.x+size.x*.39,-1,false);addDoor(min.x+size.x*.39,1,false);
+  const hood=new THREE.Group();hood.name="HoodHinge";hood.position.set(min.x+size.x*.77,min.y+size.y*.78,0);
+  const hp=new THREE.Mesh(new RoundedBoxGeometry(size.x*.25,size.y*.075,size.z*.92,4,.045),bodyMat);hp.position.x=-size.x*.125;hp.position.y=.015;hp.castShadow=true;hood.add(hp);model.add(hood);
+  const trunk=new THREE.Group();trunk.name="TrunkHinge";trunk.position.set(min.x+size.x*.22,min.y+size.y*.72,0);
+  const tp=new THREE.Mesh(new RoundedBoxGeometry(size.x*.22,size.y*.065,size.z*.9,4,.04),bodyMat);tp.position.x=size.x*.11;tp.position.y=.015;tp.castShadow=true;trunk.add(tp);model.add(trunk);
+  const steering=new THREE.Group();steering.name="SteeringWheel";steering.position.set(min.x+size.x*.66,min.y+size.y*.48,0);
+  const sw=new THREE.Mesh(new THREE.TorusGeometry(Math.max(.16,radius*.62),Math.max(.035,radius*.09),10,24),hubMat);sw.rotation.y=Math.PI/2;steering.add(sw);model.add(steering);
+  return {wheels,doors,hood,trunk,steering};
+}
+function updateArticulatedCar(dt){
+  const a=car?.userData?.articulation;if(!a)return;
+  const target=state.car.doorsOpen?1:0;
+  for(const d of a.doors){d.open=THREE.MathUtils.damp(d.open,target,7,dt);d.pivot.rotation.y=(d.front?-1:1)*d.side*1.08*d.open;}
+  a.hood.rotation.z=THREE.MathUtils.damp(a.hood.rotation.z,state.car.hoodOpen?-.82:0,7,dt);
+  a.trunk.rotation.z=THREE.MathUtils.damp(a.trunk.rotation.z,state.car.trunkOpen?.72:0,7,dt);
+  a.steering.rotation.x=THREE.MathUtils.damp(a.steering.rotation.x,-state.steer*.62,9,dt);
 }
 function physicsDrive(dt){
  if(!physicsReady||!physicsWorld||!chassisBody){fallbackDrive(dt);return;}
@@ -158,7 +135,7 @@ async function swapToBlenderCrown72(){
    root.userData.wheels=[];
    root.userData.visualOffsetY=0.42;
    root.add(model);
-   root.userData.wheels=setupImportedWheelSteering(model);
+   root.userData.articulation=setupImportedWheelSteering(model);root.userData.wheels=root.userData.articulation.wheels;
    // The imported coupe faces -X, while the game vehicle faces -Z.
    // Rotate only the visual asset so physics and steering keep the normal car axes.
    model.rotation.y=Math.PI/2;
@@ -490,7 +467,7 @@ function animate(traffic=[]){
       }
       if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();}
     }
-    updateJob();
+    updateJob();updateArticulatedCar(dt);
     if(!car?.rotation||!car?.position)return;
     const moving=Math.abs(state.speed)>.25;
     const heading=car.rotation.y;
@@ -699,7 +676,7 @@ try{buildCity();bindControls();stats();msg("▲ газ • руль • ■ то
 catch(err){window.MechanicCityBuildError=String(err?.message||err);console.error("City build failed",err);renderEmergencyScene();}
 return;}stop();document.querySelector(".drive-hud").style.display="none";if(renderer){renderer.dispose();renderer=null;}if(name==="market"){viewport.innerHTML="<div class='cards'><h2>🚘 Рынок автомобилей</h2><p class='muted'>Подержанные машины с разным пробегом и состоянием.</p><article><b>Crown 72</b><span>1972 • 214 320 км • 61%</span><strong>7 900 ₽</strong><button data-buy='7900|Crown 72|61|214320|1972'>Купить</button></article><article><b>Falcon GT</b><span>2012 • 168 500 км • 78%</span><strong>13 600 ₽</strong><button data-buy='13600|Falcon GT|78|168500|2012'>Купить</button></article><article><b>Raven 1.8</b><span>2005 • 301 200 км • 37%</span><strong>3 900 ₽</strong><button data-buy='3900|Raven 1.8|37|301200|2005'>Купить</button></article></div>";}else if(name==="junkyard"){viewport.innerHTML="<div class='cards'><h2>🛠️ Свалка</h2><article><b>Raven Project</b><span>2005 • 342 100 км • 18%</span><strong>1 200 ₽</strong><button data-buy='1200|Raven Project|18|342100|2005'>Забрать</button></article><article><b>Vektor Wreck</b><span>2008 • 256 900 км • 31%</span><strong>2 800 ₽</strong><button data-buy='2800|Vektor Wreck|31|256900|2008'>Забрать</button></article></div>";}else if(name==="dealer"){viewport.innerHTML="<div class='cards'><h2>🏢 Автосалон</h2><p class='muted'>Новые автомобили.</p><article><b>Falcon GT New</b><span>2024 • 98%</span><strong>28 900 ₽</strong><button data-buy='28900|Falcon GT New|98|0|2024'>Купить</button></article><article><b>Crown 72 Custom</b><span>2025 • 96%</span><strong>34 900 ₽</strong><button data-buy='34900|Crown 72 Custom|96|0|2025'>Купить</button></article><article><b>Orion LX Premium</b><span>2026 • 99%</span><strong>44 900 ₽</strong><button data-buy='44900|Orion LX Premium|99|0|2026'>Купить</button></article></div>";}else if(name==="jobs"){viewport.innerHTML="<div class='cards'><h2>💼 Работа</h2><article><b>Доставка запчастей</b><span>Перевези груз через город</span><strong>+900 ₽</strong><button data-job='900'>Взять</button></article><article><b>Перегон автомобиля</b><span>Доставь машину клиента</span><strong>+1 400 ₽</strong><button data-job='1400'>Взять</button></article><article><b>Тест-драйв</b><span>Проедь без серьёзной аварии</span><strong>+650 ₽</strong><button data-job='650'>Взять</button></article></div>";}else if(name==="settings"){viewport.innerHTML="<div class='garage'><h2>⚙️ Настройки</h2><button id='rainToggle'>🌧️ Дождь: "+(state.rain?"ВКЛ":"ВЫКЛ")+"</button><button id='timeToggle'>🕒 Прибавить 4 часа</button><button id='resetGame'>♻️ Сбросить прогресс</button></div>";}else{const c=state.car;viewport.innerHTML="<div class='garage'><h2>🔧 Гараж</h2><div class='carbox'><b>"+c.name+"</b><span>"+c.year+" • "+Math.round(c.mileage).toLocaleString("ru-RU")+" км</span><span>Состояние: "+Math.round(c.condition)+"%</span><span>Повреждения: "+Math.round(state.damage)+"%</span></div><div class='diagnostics'><h3>Диагностика</h3><div>Двигатель <b>"+Math.round(c.engine)+"%</b></div><div>Масло <b>"+Math.round(c.oil)+"%</b></div><div>Охлаждение <b>"+Math.round(c.coolant)+"%</b></div><div>Тормоза <b>"+Math.round(c.brakes)+"%</b></div><div>Аккумулятор <b>"+Math.round(c.battery)+"%</b></div><div>Подвеска <b>"+Math.round(c.suspension)+"%</b></div><div>Шины <b>"+Math.round(c.tires)+"%</b></div></div><div class='parts'><button data-repair='oil|250|20'>🛢️ Масло — 250 ₽</button><button data-repair='coolant|380|22'>❄️ Охлаждение — 380 ₽</button><button data-repair='brakes|700|24'>🛑 Тормоза — 700 ₽</button><button data-repair='battery|520|25'>🔋 Аккумулятор — 520 ₽</button><button data-repair='suspension|900|22'>🛞 Подвеска — 900 ₽</button><button data-repair='tires|650|28'>⭕ Шины — 650 ₽</button><button data-repair='engine|1800|18'>🔩 Двигатель — 1 800 ₽</button><button data-upgrade='turbo|4500'>💨 Турбина — 4 500 ₽</button><button data-upgrade='sportBrakes|1800'>🏁 Спорт-тормоза — 1 800 ₽</button><button data-upgrade='wheels|2200'>✨ Спорт-колёса — 2 200 ₽</button></div></div>";}viewport.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>{const a=b.dataset.buy.split("|");buyCar(+a[0],a[1],+a[2],+a[3],+a[4]);});viewport.querySelectorAll("[data-repair]").forEach(b=>b.onclick=()=>{const a=b.dataset.repair.split("|");repairPart(a[0],+a[1],+a[2]);});viewport.querySelectorAll("[data-upgrade]").forEach(b=>b.onclick=()=>{const a=b.dataset.upgrade.split("|");upgrade(a[0],+a[1]);});viewport.querySelectorAll("[data-job]").forEach(b=>b.onclick=()=>startJob(+b.dataset.job));if(name==="settings"){document.querySelector("#rainToggle").onclick=()=>{state.rain=!state.rain;save();renderScene("settings");};document.querySelector("#timeToggle").onclick=()=>{state.time=(state.time+4)%24;save();renderScene("settings");};document.querySelector("#resetGame").onclick=()=>{localStorage.removeItem("mechanic-city");location.reload();}}}
 function repairPart(key,cost,amount){if(state.money<cost){openPanel("Недостаточно денег","<p>Не хватает денег.</p>");return;}state.money-=cost;state.car[key]=Math.min(100,(state.car[key]||0)+amount);state.car.condition=Math.min(100,state.car.condition+Math.floor(amount/2));state.damage=Math.max(0,100-state.car.condition);save();renderScene("garage");}function upgrade(key,cost){if(state.money<cost){openPanel("Недостаточно денег","<p>Не хватает денег.</p>");return;}if(state.car[key]===true){openPanel("Уже установлено","<p>Эта деталь уже стоит.</p>");return;}state.money-=cost;state.car[key]=true;state.car.condition=Math.min(100,state.car.condition+5);save();renderScene("garage");}function buyCar(price,name,condition,mileage,year){if(state.money<price){openPanel("Недостаточно денег","<p>Не хватает денег.</p>");return;}state.money-=price;state.car={...state.car,name,year,mileage,condition,engine:condition,turbo:false,sportBrakes:false,wheels:"stock",oil:Math.max(35,condition),coolant:Math.max(35,condition),brakes:condition,battery:condition,suspension:condition,tires:condition,body:condition};state.damage=Math.max(0,100-condition);save();openPanel("Автомобиль куплен","<p><b>"+name+"</b> теперь твой.</p><button id='toGarage'>Открыть гараж</button>");document.querySelector("#toGarage").onclick=()=>{panel.classList.add("hidden");renderScene("garage");};}function startJob(reward){if(state.job){openPanel("Заказ уже активен","<p>Сначала закончи текущий заказ.</p>");return;}const targets=[{x:45,z:35,label:"Заправка"},{x:-45,z:35,label:"Сервис"},{x:0,z:70,label:"Северный квартал"},{x:0,z:-70,label:"Южный квартал"},{x:38,z:-35,label:"Парковка"}];const target=targets[Math.floor(Math.random()*targets.length)];state.job={reward,started:Date.now(),startX:state.posX,startZ:state.posZ,targetX:target.x,targetZ:target.z,label:target.label};save();openPanel("Заказ принят","<p>Цель: <b>"+target.label+"</b>. Доедь до жёлтого маркера.</p><button id='startDrive'>Ехать</button>");document.querySelector("#startDrive").onclick=()=>{panel.classList.add("hidden");renderScene("city");msg("💼 Цель: "+target.label+" • +"+reward+" ₽");};}
-document.querySelector("#menuBtn").onclick=()=>menu.classList.toggle("hidden");document.querySelector(".round-btn").onclick=()=>menu.classList.toggle("hidden");document.querySelector("#mapBtn").onclick=()=>openPanel("Карта","<p>Ты находишься в городе. Рынок и гараж доступны через меню ☰.</p>");document.querySelector("#carInfo").onclick=()=>openPanel("Автомобиль",`<p><b>${state.car.name}</b></p><p>Состояние: ${Math.round(state.car.condition)}%</p><p>Двигатель: ${Math.round(state.car.engine)}%</p><p>Масло: ${Math.round(state.car.oil)}%</p><p>Охлаждение: ${Math.round(state.car.coolant)}%</p><p>Повреждения: ${Math.round(state.damage)}%</p><p>Температура: ${Math.round(state.heat)}°C</p>`);document.querySelector("#exitBtn").onclick=exitCar;document.querySelector("#horn").onclick=()=>msg("🔊 Бип!");document.querySelector("#fuelBtn").onclick=()=>{const d=Math.hypot(state.posX-45,state.posZ-35);if(d<14){const cost=Math.ceil((100-state.fuel)*8);if(state.money>=cost){state.money-=cost;state.fuel=100;msg("⛽ Бак заправлен за "+cost+" ₽");save();}else msg("Не хватает денег на топливо.");}else msg("Подъедь к заправке.");};document.querySelector("#serviceBtn").onclick=()=>{const d=Math.hypot(state.posX+45,state.posZ-35);if(d<14){const cost=Math.max(250,Math.ceil(state.damage*45));if(state.money>=cost){state.money-=cost;state.damage=0;state.car.condition=100;state.car.engine=100;state.car.body=100;state.car.oil=100;state.car.coolant=100;state.car.brakes=100;state.car.battery=100;state.car.suspension=100;state.car.tires=100;msg("🔧 Машина полностью обслужена.");save();}else msg("Не хватает денег на сервис.");}else msg("Подъедь к сервису.");};document.querySelector("#gearBtn").onclick=cycleGear;document.querySelector("#cameraBtn").onclick=()=>{cameraMode=(cameraMode+1)%3;camOrbitYaw=0;camOrbitPitch=.18;if(camera){camera.fov=cameraMode===2?82:cameraMode===1?68:62;camera.updateProjectionMatrix();}msg("📷 "+cameraModeNames[cameraMode]);};document.querySelectorAll(".menu [data-scene]").forEach(b=>b.onclick=()=>renderScene(b.dataset.scene));function resizeRenderer(){
+document.querySelector("#menuBtn").onclick=()=>menu.classList.toggle("hidden");document.querySelector(".round-btn").onclick=()=>menu.classList.toggle("hidden");document.querySelector("#mapBtn").onclick=()=>openPanel("Карта","<p>Ты находишься в городе. Рынок и гараж доступны через меню ☰.</p>");document.querySelector("#carInfo").onclick=()=>openPanel("Автомобиль",`<p><b>${state.car.name}</b></p><p>Состояние: ${Math.round(state.car.condition)}%</p><p>Двигатель: ${Math.round(state.car.engine)}%</p><p>Масло: ${Math.round(state.car.oil)}%</p><p>Охлаждение: ${Math.round(state.car.coolant)}%</p><p>Повреждения: ${Math.round(state.damage)}%</p><p>Температура: ${Math.round(state.heat)}°C</p>`);document.querySelector("#exitBtn").onclick=exitCar;document.querySelector("#horn").onclick=()=>msg("🔊 Бип!");document.querySelector("#fuelBtn").onclick=()=>{const d=Math.hypot(state.posX-45,state.posZ-35);if(d<14){const cost=Math.ceil((100-state.fuel)*8);if(state.money>=cost){state.money-=cost;state.fuel=100;msg("⛽ Бак заправлен за "+cost+" ₽");save();}else msg("Не хватает денег на топливо.");}else msg("Подъедь к заправке.");};document.querySelector("#serviceBtn").onclick=()=>{const d=Math.hypot(state.posX+45,state.posZ-35);if(d<14){const cost=Math.max(250,Math.ceil(state.damage*45));if(state.money>=cost){state.money-=cost;state.damage=0;state.car.condition=100;state.car.engine=100;state.car.body=100;state.car.oil=100;state.car.coolant=100;state.car.brakes=100;state.car.battery=100;state.car.suspension=100;state.car.tires=100;msg("🔧 Машина полностью обслужена.");save();}else msg("Не хватает денег на сервис.");}else msg("Подъедь к сервису.");};document.querySelector("#gearBtn").onclick=cycleGear;document.querySelector("#doorsBtn").onclick=()=>{state.car.doorsOpen=!state.car.doorsOpen;save();msg(state.car.doorsOpen?"🚪 Двери открыты":"🚪 Двери закрыты");};document.querySelector("#hoodBtn").onclick=()=>{if(state.car.hoodOpen){state.car.hoodOpen=false;state.car.trunkOpen=true;msg("🧳 Багажник открыт");}else if(state.car.trunkOpen){state.car.trunkOpen=false;msg("🚗 Крышки закрыты");}else{state.car.hoodOpen=true;msg("🔧 Капот открыт");}save();};document.querySelector("#cameraBtn").onclick=()=>{cameraMode=(cameraMode+1)%3;camOrbitYaw=0;camOrbitPitch=.18;if(camera){camera.fov=cameraMode===2?82:cameraMode===1?68:62;camera.updateProjectionMatrix();}msg("📷 "+cameraModeNames[cameraMode]);};document.querySelectorAll(".menu [data-scene]").forEach(b=>b.onclick=()=>renderScene(b.dataset.scene));function resizeRenderer(){
   if(!renderer||!camera)return;
   const w=Math.max(1,viewport.clientWidth),h=Math.max(1,viewport.clientHeight);
   camera.aspect=w/h;camera.updateProjectionMatrix();
