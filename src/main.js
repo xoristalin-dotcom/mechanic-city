@@ -172,6 +172,9 @@ function makeCar(color=0x252a30){
     const h=new THREE.Mesh(new THREE.BoxGeometry(.5,.17,.08),headMat); h.position.set(x,.76,-2.31); g.add(h);
     const t=new THREE.Mesh(new THREE.BoxGeometry(.5,.17,.08),tailMat); t.position.set(x,.76,2.31); g.add(t);
   }
+  const headL=new THREE.SpotLight(0xfff0c4,3.2,28,.42,.5,1.2);
+  headL.position.set(-.72,.78,-2.05); headL.target.position.set(-.72,.62,-8); g.add(headL,headL.target);
+  const headR=headL.clone(); headR.position.x=.72; headR.target.position.x=.72; g.add(headR,headR.target);
   // License plate and rear diffuser.
   const plateMat=new THREE.MeshStandardMaterial({color:0xe6e2d5,roughness:.55});
   const plate=new THREE.Mesh(new THREE.BoxGeometry(.72,.24,.025),plateMat);
@@ -298,7 +301,7 @@ function buildCity(){
   const sun=new THREE.DirectionalLight(0xfff2d6,2.8); sun.position.set(35,55,25); sun.castShadow=true; sun.shadow.mapSize.set(4096,4096); sun.shadow.camera.left=-80; sun.shadow.camera.right=80; sun.shadow.camera.top=80; sun.shadow.camera.bottom=-80; scene.add(sun);
   const fill=new THREE.DirectionalLight(0x9fc5ff,.45); fill.position.set(-40,20,-30); scene.add(fill);
 
-  rainDrops=[];
+  traffic=[]; trafficLights=[]; smoke=[]; rainDrops=[];
   const ground=new THREE.Mesh(new THREE.PlaneGeometry(300,300),new THREE.MeshStandardMaterial({color:0x657067,roughness:.92})); ground.receiveShadow=true;
   ground.rotation.x=-Math.PI/2; scene.add(ground);
 
@@ -384,7 +387,6 @@ function buildCity(){
   car.rotation.y=state.heading;
   scene.add(car);
 
-  traffic=[]; trafficLights=[]; smoke=[];
   for(let i=0;i<9;i++){
     const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4]);
     npc.scale.setScalar(.86);
