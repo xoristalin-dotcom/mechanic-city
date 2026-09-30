@@ -199,18 +199,18 @@ function makeCar(color=0x7a3f2e,detailedLights=true){
  const belt=new THREE.Mesh(new RoundedBoxGeometry(2.82,.055,3.68,5,.018),darkChrome);
  belt.position.set(0,.99,.28); g.add(belt);
  for(const x of[-1.43,1.43]){
-   const sideLine=new THREE.Mesh(new BoxGeometry(.035,.055,3.45),chrome);
+   const sideLine=new THREE.Mesh(new THREE.BoxGeometry(.035,.055,3.45),chrome);
    sideLine.position.set(x,.73,.22); g.add(sideLine);
  }
  for(const x of[-1.35,1.35]) for(const z of[-1.42,1.43]){
-   const arch=new THREE.Mesh(new TorusGeometry(.55,.055,8,18,Math.PI),chrome);
+   const arch=new THREE.Mesh(new THREE.TorusGeometry(.55,.055,8,18,Math.PI),chrome);
    arch.rotation.y=Math.PI/2; arch.position.set(x,.55,z); g.add(arch);
  }
 
  const grille=new THREE.Mesh(new RoundedBoxGeometry(1.35,.30,.075,4,.025),darkChrome);
  grille.position.set(0,.69,-2.55); g.add(grille);
  for(let i=-5;i<=5;i++){
-   const bar=new THREE.Mesh(new BoxGeometry(.055,.20,.035),chrome);
+   const bar=new THREE.Mesh(new THREE.BoxGeometry(.055,.20,.035),chrome);
    bar.position.set(i*.12,.69,-2.595); g.add(bar);
  }
  const frontBumper=new THREE.Mesh(new RoundedBoxGeometry(2.58,.16,.15,5,.035),chrome);
