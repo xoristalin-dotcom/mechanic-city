@@ -211,11 +211,12 @@ function buildCity(){
     const m=new THREE.Mesh(new THREE.BoxGeometry(.08,.035,3.1),new THREE.MeshBasicMaterial({color:0xe8dfbd}));
     m.position.set(x,.09,z);scene.add(m);
   }
-
-    const cross=new THREE.Mesh(new THREE.BoxGeometry(300,.07,8),new THREE.MeshStandardMaterial({color:0x26292c,roughness:.82})); cross.receiveShadow=true;
-    cross.position.set(0,.035,z); scene.add(cross);
+  // Cross streets and intersections.
+  for(let z=-90;z<=90;z+=45){
+    const cross=new THREE.Mesh(new THREE.BoxGeometry(300,.07,8),new THREE.MeshStandardMaterial({color:0x26292c,roughness:.82}));
+    cross.position.set(0,.035,z);cross.receiveShadow=true;scene.add(cross);
     const crossLine=new THREE.Mesh(new THREE.BoxGeometry(300,.03,.12),new THREE.MeshStandardMaterial({color:0xd5d2b9}));
-    crossLine.position.set(0,.075,z); scene.add(crossLine);
+    crossLine.position.set(0,.075,z);scene.add(crossLine);
     addTrafficLight(0,z);
   }
   for(let i=-10;i<=10;i++) addTree(i*11+(i%2)*3,-28-(Math.abs(i)%4)*11,.8+(Math.abs(i)%3)*.18);
