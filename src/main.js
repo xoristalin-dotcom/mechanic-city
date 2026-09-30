@@ -12,7 +12,8 @@ const state = saved || {
 
 Object.assign(state, { driving:false, speed:0, steer:0, onFoot:false });
 const input={gas:false,left:false,right:false,brake:false};
-state.posX ??= 0; state.posZ ??= 10; state.heading ??= 0;
+state.posX ??= 0; state.posZ ??= 10; state.heading ??= 0; state.gear ??= "P"; state.time ??= 14; state.rain ??= false; state.job ??= null;
+state.car.oil ??= 42; state.car.coolant ??= 58; state.car.brakes ??= state.car.condition; state.car.battery ??= 70; state.car.suspension ??= state.car.condition; state.car.tires ??= state.car.condition; state.car.body ??= state.car.condition;
 
 app.innerHTML = `
 <div class="game">
@@ -36,7 +37,7 @@ app.innerHTML = `
       <button class="pedal gas" data-drive="gas">▲</button>
     </div>
     <div class="drive-actions">
-      <button id="horn">◉</button><button id="cameraBtn">▣</button><button id="engineBtn">⚙</button><button id="exitBtn">♙</button>
+      <button id="horn">◉</button><button id="cameraBtn">▣</button><button id="fuelBtn">⛽</button><button id="serviceBtn">🔧</button><button id="gearBtn">P</button><button id="exitBtn">♙</button>
     </div>
     <div id="message" class="message">Нажми ▲ и поехали</div>
   </div>
@@ -371,6 +372,8 @@ document.querySelector("#engineBtn").onclick=()=>msg("Капот открыт: �
 document.querySelector("#exitBtn").onclick=exitCar;
 document.querySelector("#horn").onclick=()=>msg("🔊 Бип!");
 document.querySelector("#gearBtn").onclick=cycleGear;
+document.querySelector("#fuelBtn").onclick=()=>{const d=Math.hypot(state.posX-45,state.posZ-35);if(d<14){const cost=Math.ceil((100-state.fuel)*8);if(state.money>=cost){state.money-=cost;state.fuel=100;msg("⛽ Бак заправлен за "+cost+" ₽");save();}else msg("Не хватает денег на топливо.");}else msg("Подъедь к заправке.");};
+document.querySelector("#serviceBtn").onclick=()=>{const d=Math.hypot(state.posX+45,state.posZ-35);if(d<14){const cost=Math.max(250,Math.ceil(state.damage*45));if(state.money>=cost){state.money-=cost;state.damage=0;state.car.condition=100;state.car.engine=100;state.car.body=100;state.car.oil=100;state.car.coolant=100;state.car.brakes=100;state.car.battery=100;state.car.suspension=100;state.car.tires=100;msg("🔧 Машина полностью обслужена.");save();}else msg("Не хватает денег на сервис.");}else msg("Подъедь к сервису.");};
 document.querySelector("#gearBtn").onclick=cycleGear;
 document.querySelector("#cameraBtn").onclick=()=>{ if(camera){camera.fov=camera.fov===62?78:62;camera.updateProjectionMatrix();} };
 document.querySelectorAll(".menu [data-scene]").forEach(b=>b.onclick=()=>renderScene(b.dataset.scene));
