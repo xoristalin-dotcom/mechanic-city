@@ -45,3 +45,7 @@ button{font:inherit;color:inherit;border:0;outline:none;-webkit-user-select:none
 
 
 .diagnostics{margin-top:12px;padding:15px;border-radius:15px;background:#1a1f24;border:1px solid #ffffff1b}.diagnostics h3{margin:0 0 10px}.diagnostics div{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #ffffff10;color:#b9c0c6}.diagnostics b{color:#fff}.muted{color:#aeb6bd}.cards article,.garage button{touch-action:manipulation}.cards{padding-top:30px}.garage{overflow:auto}.garage>button{display:block;width:100%;padding:14px;margin:10px 0;border-radius:12px;background:#1b2025;border:1px solid #ffffff1b;text-align:left}.carbox{margin-bottom:12px}
+
+html,body,#app,.game{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+button,.steer,.pedal{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+button{cursor:pointer}
