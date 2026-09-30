@@ -268,27 +268,57 @@ function addRain(){
 }
 function addBuilding(x,z,w,h,d,color){
   const g=new THREE.Group();
-  const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness:.82,metalness:.05}));
-  b.position.y=h/2;b.castShadow=true;b.receiveShadow=true;g.add(b);
-  const roof=new THREE.Mesh(new THREE.BoxGeometry(w+.15,.16,d+.15),new THREE.MeshStandardMaterial({color:0x292c2f,roughness:.75}));
-  roof.position.y=h+.08;roof.castShadow=true;g.add(roof);
-  const rows=Math.max(1,Math.floor(h/2));
-  const cols=Math.max(1,Math.floor(w/2));
+  const mat=new THREE.MeshStandardMaterial({color,roughness:.68,metalness:.04});
+  const b=new THREE.Mesh(new RoundedBoxGeometry(w,h,d,3,.08));
+  b.material=mat;b.position.y=h/2;b.castShadow=true;b.receiveShadow=true;g.add(b);
+  const roof=new THREE.Mesh(new RoundedBoxGeometry(w+.22,.18,d+.22,3,.04),new THREE.MeshStandardMaterial({color:0x25282b,roughness:.65,metalness:.15}));
+  roof.position.y=h+.09;roof.castShadow=true;g.add(roof);
+  const rows=Math.max(1,Math.floor(h/1.8)), cols=Math.max(1,Math.floor(w/1.55));
   for(let r=0;r<rows;r++) for(let q=0;q<cols;q++){
-    const win=new THREE.Mesh(new THREE.BoxGeometry(.42,.5,.025),new THREE.MeshStandardMaterial({color:(r+q)%4===0?0xf1c76b:0x27353e,emissive:(r+q)%4===0?0x6b4b16:0x000000,emissiveIntensity:.35}));
-    win.position.set(-w/2+.9+q*1.8,.85+r*1.65,d/2+.014);g.add(win);
-    const win2=win.clone();win2.position.z=-d/2-.014;win2.rotation.y=Math.PI;g.add(win2);
+    const lit=(r*3+q*5)%7<2;
+    const wm=new THREE.MeshStandardMaterial({color:lit?0xffd98a:0x1b2930,emissive:lit?0xffa52b:0x000000,emissiveIntensity:lit?.75:0.05,roughness:.25,metalness:.05});
+    const win=new THREE.Mesh(new RoundedBoxGeometry(.58,.68,.035,2,.04),wm);
+    win.position.set(-w/2+.78+q*(w-1.3)/Math.max(1,cols-1),.9+r*1.55,d/2+.025);g.add(win);
+    const win2=win.clone();win2.position.z=-d/2-.025;win2.rotation.y=Math.PI;g.add(win2);
+    if(q<cols-1){
+      const frame=new THREE.Mesh(new THREE.BoxGeometry(.035,.72,.045),new THREE.MeshStandardMaterial({color:0x34393d,metalness:.35,roughness:.45}));
+      frame.position.set(-w/2+1.08+q*(w-1.3)/Math.max(1,cols-1),.9+r*1.55,d/2+.045);g.add(frame);
+    }
+  }
+  const awning=new THREE.Mesh(new RoundedBoxGeometry(Math.min(w*.7,5),.08,.55,3,.03),new THREE.MeshStandardMaterial({color:0x394047,metalness:.25,roughness:.4}));
+  awning.position.set(0,1.15,d/2+.34);g.add(awning);
+  for(const side of [-1,1]){
+    const ac=new THREE.Mesh(new THREE.BoxGeometry(.65,.35,.45),new THREE.MeshStandardMaterial({color:0x7d8588,metalness:.4,roughness:.5}));
+    ac.position.set(side*(w*.34),h*.72,-d/2-.08);g.add(ac);
   }
   g.position.set(x,0,z);scene.add(g);
 }
+function addParkedCar(x,z,rot=0,color=0x3d4650){
+  const p=makeCar(color);p.scale.setScalar(.68);p.position.set(x,.43,z);p.rotation.y=rot;scene.add(p);
+}
+function addStreetProps(){
+  for(let z=-105;z<=105;z+=15){
+    for(const x of [-8.2,8.2]){
+      const bin=new THREE.Mesh(new RoundedBoxGeometry(.42,.7,.42,3,.06),new THREE.MeshStandardMaterial({color:0x30363a,roughness:.8}));
+      bin.position.set(x,.38,z+(x>0?3:-3));bin.castShadow=true;scene.add(bin);
+    }
+  }
+  for(let i=-5;i<=5;i++){
+    addParkedCar(i*16+5, -18, Math.PI/2, [0x53616c,0x6d3935,0x9a927d][(i+5)%3]);
+    addParkedCar(i*16-5, 18, -Math.PI/2, [0x354b5c,0x707070,0x4d5948][(i+5)%3]);
+  }
+}
 function buildCity(){
   scene=new THREE.Scene();
-  scene.background=new THREE.Color(0x65757d);
-  scene.fog=new THREE.Fog(0x65757d,55,190);
+  const sky=new THREE.Color(state.time>=20||state.time<6?0x101a2b:state.time>=17?0x53606d:0x7893a3);
+  scene.background=sky;
+  scene.fog=new THREE.Fog(sky,48,210);
+  const skyDome=new THREE.Mesh(new THREE.SphereGeometry(260,32,16),new THREE.MeshBasicMaterial({color:sky,side:THREE.BackSide}));
+  scene.add(skyDome);
 
-  camera=new THREE.PerspectiveCamera(62,viewport.clientWidth/viewport.clientHeight,.1,500);
+  camera=new THREE.PerspectiveCamera(58,viewport.clientWidth/viewport.clientHeight,.1,500);
   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,2.5));
+  renderer.setPixelRatio(Math.min(devicePixelRatio,3));
   renderer.shadowMap.enabled=true;
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
@@ -296,9 +326,9 @@ function buildCity(){
   renderer.setSize(viewport.clientWidth,viewport.clientHeight);
   viewport.innerHTML=""; viewport.appendChild(renderer.domElement);
 
-  scene.add(new THREE.HemisphereLight(0xdde8ef,0x26302c,1.8));
+  scene.add(new THREE.HemisphereLight(state.time>=20||state.time<6?0x667da8:0xdde8ef,0x26302c,state.time>=20||state.time<6?1.25:1.8));
   const ambient=new THREE.AmbientLight(0xffffff,.22); scene.add(ambient);
-  const sun=new THREE.DirectionalLight(0xfff2d6,2.8); sun.position.set(35,55,25); sun.castShadow=true; sun.shadow.mapSize.set(4096,4096); sun.shadow.camera.left=-80; sun.shadow.camera.right=80; sun.shadow.camera.top=80; sun.shadow.camera.bottom=-80; scene.add(sun);
+  const sun=new THREE.DirectionalLight(state.time>=20||state.time<6?0x91a9ff:state.time>=17?0xffb36b:0xfff2d6,state.time>=20||state.time<6?.8:2.8); sun.position.set(35,55,25); sun.castShadow=true; sun.shadow.mapSize.set(4096,4096); sun.shadow.camera.left=-80; sun.shadow.camera.right=80; sun.shadow.camera.top=80; sun.shadow.camera.bottom=-80; scene.add(sun);
   const fill=new THREE.DirectionalLight(0x9fc5ff,.45); fill.position.set(-40,20,-30); scene.add(fill);
 
   traffic=[]; trafficLights=[]; smoke=[]; rainDrops=[];
@@ -375,6 +405,7 @@ function buildCity(){
     lamp.position.set(x+3.8,3.82,z);scene.add(lamp);
   }
   if(state.rain)addRain();
+  addStreetProps();
 
   for(let i=-5;i<=5;i++){
     const h=5+Math.random()*9;
