@@ -75,8 +75,9 @@ function physicsDrive(dt){
  car.position.set(p.x,p.y-PHYSICS_Y,p.z);
  car.rotation.y=state.heading;
 
- for(let i=0;i<(car.userData.wheels||[]).length;i++){
+ for(let i=0;i<(car.userData?.wheels||[]).length;i++){
    const w=car.userData.wheels[i];
+   if(!w?.rotation)continue;
    w.rotation.x-=state.speed*dt/.39;
    w.position.y=PHYSICS_Y-.34;
    w.rotation.y=i<2?steerAngle:0;
@@ -313,7 +314,91 @@ window.MechanicCityBuildError=String(err?.message||err);
 console.error("City build failed",err);
 renderEmergencyScene();
 }}
-function animate(traffic=[]){requestAnimationFrame(()=>animate(traffic));if(!renderer)return;const dt=Math.min(clock?.getDelta()||.016,.05);if(state.driving&&state.fuel>0){physicsDrive(dt);state.fuel=Math.max(0,state.fuel-dt*(.018+Math.abs(state.speed)*.014));state.car.oil=Math.max(0,state.car.oil-dt*.004);state.car.coolant=Math.max(0,state.car.coolant-dt*.002);state.heat=Math.min(125,state.heat+dt*(.08+Math.abs(state.speed)*.055));if(state.car.oil<15||state.car.coolant<15)state.damage=Math.min(100,state.damage+dt*.08);state.car.mileage+=Math.abs(state.speed)*dt*.006;if(state.heat>108)state.damage=Math.min(100,state.damage+dt*.06);for(const npc of traffic){const d=car.position.distanceTo(npc.position);if(d<2.25&&Math.abs(state.speed)>.35){state.damage=Math.min(100,state.damage+dt*7);chassisBody?.setLinvel({x:chassisBody.linvel().x*.65,y:chassisBody.linvel().y,z:chassisBody.linvel().z*.65},true);msg("⚠️ Столкновение: кузов повреждён.");}}if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();}}updateJob();const moving=Math.abs(state.speed)>.25;const heading=car.rotation.y;let target,look;if(cameraMode===2){const fx=-Math.sin(heading),fz=-Math.cos(heading);target=new THREE.Vector3(car.position.x+fx*.35,1.32,car.position.z+fz*.35);look=new THREE.Vector3(target.x+fx*8,1.28,target.z+fz*8);camera.position.lerp(target,.22);}else{const behind=cameraMode===0?1:-1;const followDistance=moving?20.5:18.5;const followHeight=moving?6.1:5.4;const horizontal=followDistance*Math.cos(camOrbitPitch);const sx=Math.sin(heading+camOrbitYaw)*horizontal*behind;const sz=Math.cos(heading+camOrbitYaw)*horizontal*behind;target=new THREE.Vector3(car.position.x+sx,followHeight+Math.sin(camOrbitPitch)*followDistance,car.position.z+sz);look=new THREE.Vector3(car.position.x-Math.sin(heading)*2.5,.85,car.position.z-Math.cos(heading)*2.5);camera.position.lerp(target,.13);}camera.lookAt(look);for(const npc of traffic){const travel=dt*npc.userData.trafficSpeed*8;npc.position.z+=travel;for(const w of(npc.userData.wheels||[]))w.rotation.x-=travel/.39;if(npc.position.z>120)npc.position.z=-120;}const cycle=(performance.now()/1000)%12;const green=cycle<6,yellow=cycle>=6&&cycle<7.5;for(const l of trafficLights){l.red.material.color.setHex(green?0x220000:yellow?0x220000:0xff0000);l.yellow.material.color.setHex(yellow?0xffb000:0x332600);l.green.material.color.setHex(green?0x00ff44:0x002200);}updateCarDamage();stats();renderer.render(scene,camera);}
+function animate(traffic=[]){
+  requestAnimationFrame(()=>animate(traffic));
+  if(!renderer||!scene||!camera)return;
+  const dt=Math.min(clock?.getDelta()||.016,.05);
+  try{
+    if(state.driving&&state.fuel>0){
+      physicsDrive(dt);
+      state.fuel=Math.max(0,state.fuel-dt*(.018+Math.abs(state.speed)*.014));
+      state.car.oil=Math.max(0,state.car.oil-dt*.004);
+      state.car.coolant=Math.max(0,state.car.coolant-dt*.002);
+      state.heat=Math.min(125,state.heat+dt*(.08+Math.abs(state.speed)*.055));
+      if(state.car.oil<15||state.car.coolant<15)state.damage=Math.min(100,state.damage+dt*.08);
+      state.car.mileage+=Math.abs(state.speed)*dt*.006;
+      if(state.heat>108)state.damage=Math.min(100,state.damage+dt*.06);
+      for(const npc of traffic){
+        if(!npc?.position||!car?.position)continue;
+        const d=car.position.distanceTo(npc.position);
+        if(d<2.25&&Math.abs(state.speed)>.35){
+          state.damage=Math.min(100,state.damage+dt*7);
+          if(chassisBody){
+            const v=chassisBody.linvel();
+            chassisBody.setLinvel({x:v.x*.65,y:v.y,z:v.z*.65},true);
+          }
+          msg("⚠️ Столкновение: кузов повреждён.");
+        }
+      }
+      if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();}
+    }
+    updateJob();
+    if(!car?.rotation||!car?.position)return;
+    const moving=Math.abs(state.speed)>.25;
+    const heading=car.rotation.y;
+    let target,look;
+    if(cameraMode===2){
+      const fx=-Math.sin(heading),fz=-Math.cos(heading);
+      target=new THREE.Vector3(car.position.x+fx*.35,1.32,car.position.z+fz*.35);
+      look=new THREE.Vector3(target.x+fx*8,1.28,target.z+fz*8);
+      camera.position.lerp(target,.22);
+    }else{
+      const behind=cameraMode===0?1:-1;
+      const followDistance=moving?20.5:18.5;
+      const followHeight=moving?6.1:5.4;
+      const horizontal=followDistance*Math.cos(camOrbitPitch);
+      const sx=Math.sin(heading+camOrbitYaw)*horizontal*behind;
+      const sz=Math.cos(heading+camOrbitYaw)*horizontal*behind;
+      target=new THREE.Vector3(car.position.x+sx,followHeight+Math.sin(camOrbitPitch)*followDistance,car.position.z+sz);
+      look=new THREE.Vector3(car.position.x-Math.sin(heading)*2.5,.85,car.position.z-Math.cos(heading)*2.5);
+      camera.position.lerp(target,.13);
+    }
+    camera.lookAt(look);
+    for(const npc of traffic){
+      if(!npc?.position)continue;
+      const travel=dt*(Number(npc.userData?.trafficSpeed)||0)*8;
+      npc.position.z+=travel;
+      for(const w of(npc.userData?.wheels||[])){
+        if(w?.rotation)w.rotation.x-=travel/.39;
+      }
+      if(npc.position.z>120)npc.position.z=-120;
+    }
+    const cycle=(performance.now()/1000)%12;
+    const green=cycle<6,yellow=cycle>=6&&cycle<7.5;
+    for(const l of trafficLights){
+      if(!l?.red?.material?.color||!l?.yellow?.material?.color||!l?.green?.material?.color)continue;
+      l.red.material.color.setHex(green?0x220000:yellow?0x220000:0xff0000);
+      l.yellow.material.color.setHex(yellow?0xffb000:0x332600);
+      l.green.material.color.setHex(green?0x00ff44:0x002200);
+    }
+    updateCarDamage();
+    stats();
+  }catch(err){
+    window.MechanicCityLastFrameError=String(err?.message||err);
+    if(!window.MechanicCityFrameErrorLogged){
+      window.MechanicCityFrameErrorLogged=true;
+      console.error("Mechanic City frame update failed",err);
+    }
+  }finally{
+    try{renderer.render(scene,camera);}catch(err){
+      window.MechanicCityRenderError=String(err?.message||err);
+      if(!window.MechanicCityRenderErrorLogged){
+        window.MechanicCityRenderErrorLogged=true;
+        console.error("Mechanic City render failed",err);
+      }
+    }
+  }
+}
 function driveOn(){if(state.fuel<=0){msg("⛽ Бак пуст — нужна заправка.");return;}if(state.gear==="P"||state.gear==="N")state.gear="D";state.driving=true;msg("За рулём");}function stop(){state.driving=false;input.gas=input.left=input.right=input.brake=false;if(chassisBody){const v=chassisBody.linvel();chassisBody.setLinvel({x:v.x*.1,y:v.y,z:v.z*.1},true);chassisBody.setAngvel({x:0,y:0,z:0},true);}state.speed=0;save();}function cycleGear(){const gears=["P","R","N","D"];const i=gears.indexOf(state.gear||"P");state.gear=gears[(i+1)%gears.length];if(state.gear==="P")stop();else state.driving=true;msg("Передача: "+state.gear);}function exitCar(){stop();state.onFoot=true;openPanel("Ты вышел из машины",`<p>Можно осмотреть автомобиль или отправиться в гараж.</p><button id="sitBack">Сесть в машину</button><button id="walkGarage">Открыть гараж</button>`);document.querySelector("#sitBack").onclick=()=>{panel.classList.add("hidden");state.onFoot=false;msg("Ты снова в машине.");};document.querySelector("#walkGarage").onclick=()=>{panel.classList.add("hidden");state.onFoot=false;renderScene("garage");};}
 function setupCameraControls(){if(!renderer)return;const el=renderer.domElement;el.style.touchAction="none";el.addEventListener("pointerdown",e=>{if(e.target!==el)return;camDragging=true;camLastX=e.clientX;camLastY=e.clientY;try{el.setPointerCapture(e.pointerId);}catch{}},{passive:true});el.addEventListener("pointermove",e=>{if(!camDragging)return;const dx=e.clientX-camLastX,dy=e.clientY-camLastY;camLastX=e.clientX;camLastY=e.clientY;camOrbitYaw-=dx*.008;camOrbitPitch=THREE.MathUtils.clamp(camOrbitPitch-dy*.005,-.08,.62);},{passive:true});const end=e=>{camDragging=false;try{el.releasePointerCapture(e.pointerId);}catch{}};el.addEventListener("pointerup",end,{passive:true});el.addEventListener("pointercancel",end,{passive:true});}
 function bindControls(){document.querySelectorAll("[data-drive]").forEach(b=>{const v=b.dataset.drive;const start=e=>{e.preventDefault();if(v==="gas"){if(state.gear==="P"||state.gear==="N")state.gear="D";input.gas=true;state.driving=true;}else if(v==="left"){input.left=true;state.driving=true;}else if(v==="right"){input.right=true;state.driving=true;}else if(v==="brake")input.brake=true;};const end=e=>{e.preventDefault();if(v==="gas")input.gas=false;if(v==="left")input.left=false;if(v==="right")input.right=false;if(v==="brake")input.brake=false;};b.addEventListener("pointerdown",start,{passive:false});b.addEventListener("pointerup",end,{passive:false});b.addEventListener("pointercancel",end,{passive:false});b.addEventListener("pointerleave",end);});}
@@ -379,6 +464,8 @@ function installDiagnosticMode(){
       "BuildError: "+(window.MechanicCityBuildError||"none"),
       "RuntimeErrors: "+JSON.stringify(window.MechanicCityRuntimeErrors||[]),
       "EmergencyScene: "+(window.MechanicCityEmergency?"yes":"no"),
+      "LastFrameError: "+(window.MechanicCityLastFrameError||"none"),
+      "RenderError: "+(window.MechanicCityRenderError||"none"),
       "Canvas: "+!!document.querySelector("#viewport canvas"),
       err||""
     ].join("\\n");
