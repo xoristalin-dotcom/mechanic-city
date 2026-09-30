@@ -2,253 +2,250 @@ import * as THREE from "three";
 import "./style.css";
 
 const app = document.querySelector("#app");
-
 const saved = JSON.parse(localStorage.getItem("mechanic-city") || "null");
+
 const state = saved || {
-  money: 18500,
-  fuel: 72,
-  heat: 82,
-  damage: 8,
-  car: {
-    name: "Vektor S",
-    year: 2008,
-    mileage: 214320,
-    engine: 68,
-    condition: 61,
-    turbo: false,
-    sportBrakes: false,
-    wheels: "stock"
-  },
-  scene: "city"
+  money: 18500, fuel: 72, heat: 82, damage: 8,
+  car: { name:"Vektor S", year:2008, mileage:214320, engine:68, condition:61, turbo:false, sportBrakes:false, wheels:"stock" },
+  scene:"city", driving:false, speed:0, posX:0, posZ:10, steer:0, heading:0
 };
 
+Object.assign(state, { driving:false, speed:0, steer:0 });
+state.posX ??= 0; state.posZ ??= 10; state.heading ??= 0;
+
 app.innerHTML = `
-  <div class="game">
-    <div class="topbar">
-      <div><b>MECHANIC CITY</b><span class="sub">prototype 0.1</span></div>
-      <div class="stats"><span>₽ <b id="money"></b></span><span>⛽ <b id="fuel"></b>%</span><span>🌡 <b id="heat"></b>°</span></div>
+<div class="game">
+  <main id="viewport"></main>
+
+  <div class="drive-hud">
+    <div class="hud-top">
+      <div class="round-btn">☰</div>
+      <div class="top-icons"><button id="mapBtn">⌖</button><button id="carInfo">⚙</button><button id="menuBtn">⋮</button></div>
     </div>
-    <main id="viewport"></main>
-    <section class="hud">
-      <div class="mission"><b id="location">ГОРОД</b><span id="message">Нажми на машину или выбери место.</span></div>
-      <div class="actions" id="actions"></div>
-    </section>
-    <div class="drive-controls" id="driveControls"><button data-drive="left">◀</button><button data-drive="brake">■</button><button data-drive="gas">▲</button><button data-drive="right">▶</button></div>
-    <nav class="nav">
-      <button data-scene="city">🏙️<small>Город</small></button>
-      <button data-scene="market">🚘<small>Рынок</small></button>
-      <button data-scene="junkyard">🛠️<small>Свалка</small></button>
-      <button data-scene="garage">🔧<small>Гараж</small></button>
-    </nav>
-  </div>`;
+    <div class="speed-box"><b id="speed">0</b><small>KM/H</small><span id="gear">N</span></div>
+    <div class="fuel-box">⛽ <b id="fuel"></b>% &nbsp; 🌡 <b id="heat"></b>°</div>
+    <div class="mini-map"><div class="map-road"></div><div class="map-dot"></div></div>
 
-const viewport = document.querySelector("#viewport");
-const moneyEl = document.querySelector("#money");
-const fuelEl = document.querySelector("#fuel");
-const heatEl = document.querySelector("#heat");
-const locationEl = document.querySelector("#location");
-const messageEl = document.querySelector("#message");
-const actionsEl = document.querySelector("#actions");
+    <div class="steering-zone">
+      <button class="steer left" data-drive="left">‹</button>
+      <button class="steer right" data-drive="right">›</button>
+    </div>
+    <div class="pedals">
+      <button class="pedal brake" data-drive="brake">■</button>
+      <button class="pedal gas" data-drive="gas">▲</button>
+    </div>
+    <div class="drive-actions">
+      <button id="horn">◉</button><button id="cameraBtn">▣</button><button id="engineBtn">⚙</button>
+    </div>
+    <div id="message" class="message">Нажми ▲ и поехали</div>
+  </div>
 
-function stats() {
-  moneyEl.textContent = state.money.toLocaleString("ru-RU");
-  fuelEl.textContent = Math.round(state.fuel);
-  heatEl.textContent = Math.round(state.heat);
-}
-function msg(t) { messageEl.textContent = t; }
-function button(label, fn, cls="") {
-  const b = document.createElement("button");
-  b.className = "action " + cls; b.textContent = label; b.onclick = fn;
-  actionsEl.appendChild(b);
-}
-function clearActions(){ actionsEl.innerHTML = ""; }
+  <div id="menu" class="menu hidden">
+    <div class="menu-card">
+      <button data-scene="city">🏙️ Город</button>
+      <button data-scene="market">🚘 Рынок</button>
+      <button data-scene="junkyard">🛠️ Свалка</button>
+      <button data-scene="garage">🔧 Гараж</button>
+    </div>
+  </div>
 
-let renderer, camera, car, animationId, cityScene;
+  <section id="panel" class="panel hidden"></section>
+</div>`;
 
-function init3D() {
-  viewport.innerHTML = "";
-  const scene = new THREE.Scene();
-  cityScene = scene;
-  scene.background = new THREE.Color(0x11141a);
-  scene.fog = new THREE.Fog(0x11141a, 35, 130);
+const viewport=document.querySelector("#viewport");
+const speedEl=document.querySelector("#speed");
+const gearEl=document.querySelector("#gear");
+const fuelEl=document.querySelector("#fuel");
+const heatEl=document.querySelector("#heat");
+const messageEl=document.querySelector("#message");
+const menu=document.querySelector("#menu");
+const panel=document.querySelector("#panel");
 
-  camera = new THREE.PerspectiveCamera(58, viewport.clientWidth/viewport.clientHeight, .1, 300);
-  camera.position.set(7, 6, 10);
+let renderer,camera,car,scene,clock;
 
-  renderer = new THREE.WebGLRenderer({antialias:true});
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.setSize(viewport.clientWidth, viewport.clientHeight);
-  viewport.appendChild(renderer.domElement);
-
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x334455, 2.1);
-  scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffffff, 2);
-  sun.position.set(8,15,4); scene.add(sun);
-
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(180,180),
-    new THREE.MeshStandardMaterial({color:0x252a31,roughness:1})
-  );
-  ground.rotation.x=-Math.PI/2; scene.add(ground);
-
-  for(let i=-3;i<=3;i++){
-    const road = new THREE.Mesh(
-      new THREE.BoxGeometry(5,.08,180),
-      new THREE.MeshStandardMaterial({color:0x171a1f})
-    );
-    road.position.x=i*7; road.position.y=.04; scene.add(road);
-  }
-
-  for(let i=-6;i<=6;i++){
-    const building = new THREE.Mesh(
-      new THREE.BoxGeometry(5+Math.random()*4, 4+Math.random()*10, 5+Math.random()*3),
-      new THREE.MeshStandardMaterial({color:0x343941})
-    );
-    building.position.set(i*9, building.geometry.parameters.height/2, -20-Math.random()*25);
-    scene.add(building);
-  }
-
-  car = makeCar();
-  car.position.set(state.posX,.6,state.posZ);
-  scene.add(car);
-
-  viewport.onpointerdown = (e) => {
-    const r = viewport.getBoundingClientRect();
-    const mouse = new THREE.Vector2(
-      ((e.clientX-r.left)/r.width)*2-1,
-      -((e.clientY-r.top)/r.height)*2+1
-    );
-    const ray = new THREE.Raycaster();
-    ray.setFromCamera(mouse,camera);
-    if(ray.intersectObjects(car.children,true).length){
-      msg("Ты осматриваешь машину. Можно открыть капот или поехать.");
-      clearActions();
-      button("Открыть капот", ()=>msg("Капот открыт: температура двигателя " + Math.round(state.heat)+"°C."));
-      button("Ехать", drive, "primary");
-    }
-  };
-
-  function tick(){
-    animationId=requestAnimationFrame(tick);
-    if(car){
-      if(state.driving){
-        const accel = state.steer === 2 ? -0.12 : state.steer === -2 ? 0.12 : 0;
-        car.rotation.y += accel;
-        const throttle = state.steer === 3 ? 0.16 : state.steer === -3 ? -0.07 : 0;
-        state.speed = Math.max(0, Math.min(1.4, state.speed + throttle - 0.025));
-        state.posX += Math.sin(car.rotation.y) * state.speed;
-        state.posZ += Math.cos(car.rotation.y) * state.speed;
-        car.position.set(state.posX,.6,state.posZ);
-        state.fuel=Math.max(0,state.fuel-(0.012+state.speed*0.01));
-        state.heat=Math.min(125,state.heat+0.02+state.speed*0.025);
-        state.car.mileage += state.speed*0.01;
-      }
-      state.heat += 0.012;
-      if(state.heat>110) state.damage=Math.min(100,state.damage+0.01);
-      stats();
-    }
-    renderer.render(scene,camera);
-  }
-  tick();
-
-  window.onresize=()=>{
-    if(!renderer)return;
-    camera.aspect=viewport.clientWidth/viewport.clientHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(viewport.clientWidth,viewport.clientHeight);
-  };
+function save(){ localStorage.setItem("mechanic-city",JSON.stringify(state)); }
+function msg(t){ messageEl.textContent=t; }
+function stats(){
+  speedEl.textContent=Math.round(state.speed*62);
+  gearEl.textContent=state.speed>0.05 ? "D" : "N";
+  fuelEl.textContent=Math.round(state.fuel);
+  heatEl.textContent=Math.round(state.heat);
 }
 
-function makeCar(){
+function makeCar(color=0x252a30){
   const g=new THREE.Group();
-  const body=new THREE.Mesh(
-    new THREE.BoxGeometry(3.2,.7,5.2),
-    new THREE.MeshStandardMaterial({color:0x9b2430,metalness:.35,roughness:.42})
-  );
-  body.position.y=.7; g.add(body);
-  const cabin=new THREE.Mesh(
-    new THREE.BoxGeometry(2.45,.85,2.35),
-    new THREE.MeshStandardMaterial({color:0x17202b,metalness:.1,roughness:.2})
-  );
-  cabin.position.set(0,1.25,.15); g.add(cabin);
-  for(const x of [-1.65,1.65]) for(const z of [-1.65,1.65]){
-    const w=new THREE.Mesh(new THREE.CylinderGeometry(.46,.46,.28,20),
-      new THREE.MeshStandardMaterial({color:0x111111,roughness:1}));
-    w.rotation.z=Math.PI/2; w.position.set(x,0.48,z); g.add(w);
+  const body=new THREE.Mesh(new THREE.BoxGeometry(2.5,.62,4.6),new THREE.MeshStandardMaterial({color,metalness:.55,roughness:.28}));
+  body.position.y=.62; g.add(body);
+  const hood=new THREE.Mesh(new THREE.BoxGeometry(2.25,.18,1.25),new THREE.MeshStandardMaterial({color:0x30353b,metalness:.45,roughness:.25}));
+  hood.position.set(0,.98,-1.45); g.add(hood);
+  const cabin=new THREE.Mesh(new THREE.BoxGeometry(2.05,.8,2.15),new THREE.MeshStandardMaterial({color:0x101820,metalness:.15,roughness:.12}));
+  cabin.position.set(0,1.08,.2); g.add(cabin);
+  for(const x of [-1.3,1.3]) for(const z of [-1.45,1.45]){
+    const w=new THREE.Mesh(new THREE.CylinderGeometry(.38,.38,.25,18),new THREE.MeshStandardMaterial({color:0x090a0c,roughness:1}));
+    w.rotation.z=Math.PI/2; w.position.set(x,.42,z); g.add(w);
   }
   return g;
 }
 
-function drive(){
-  state.fuel=Math.max(0,state.fuel-4);
-  state.heat=Math.min(125,state.heat+9);
-  msg(state.heat>105 ? "⚠️ Двигатель перегревается! Езжай в гараж." : "Ты выехал по городу.");
+function addTree(x,z,s=1){
+  const g=new THREE.Group();
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.14*s,.2*s,2.2*s,8),new THREE.MeshStandardMaterial({color:0x4b3423}));
+  trunk.position.y=1.1*s; g.add(trunk);
+  const crown=new THREE.Mesh(new THREE.SphereGeometry(1.05*s,10,8),new THREE.MeshStandardMaterial({color:0x284b2c,roughness:1}));
+  crown.position.y=2.5*s; g.add(crown); scene.add(g);
+}
+
+function buildCity(){
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x7f8d91);
+  scene.fog=new THREE.Fog(0x7f8d91,45,170);
+
+  camera=new THREE.PerspectiveCamera(62,viewport.clientWidth/viewport.clientHeight,.1,500);
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));
+  renderer.setSize(viewport.clientWidth,viewport.clientHeight);
+  viewport.innerHTML=""; viewport.appendChild(renderer.domElement);
+
+  scene.add(new THREE.HemisphereLight(0xdde8ef,0x41504b,2.0));
+  const sun=new THREE.DirectionalLight(0xffffff,2.2); sun.position.set(30,50,20); scene.add(sun);
+
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(300,300),new THREE.MeshStandardMaterial({color:0x56605c,roughness:1}));
+  ground.rotation.x=-Math.PI/2; scene.add(ground);
+
+  for(let i=-4;i<=4;i++){
+    const road=new THREE.Mesh(new THREE.BoxGeometry(8,.06,300),new THREE.MeshStandardMaterial({color:0x292d30,roughness:.95}));
+    road.position.set(i*13,.03,0); scene.add(road);
+    const line=new THREE.Mesh(new THREE.BoxGeometry(.12,.03,300),new THREE.MeshStandardMaterial({color:0xd5d2b9}));
+    line.position.set(i*13,.075,0); scene.add(line);
+  }
+  for(let i=-10;i<=10;i++) addTree(i*11+(i%2)*3,-28-(Math.abs(i)%4)*11,.8+(Math.abs(i)%3)*.18);
+
+  for(let i=-5;i<=5;i++){
+    const h=5+Math.random()*9;
+    const b=new THREE.Mesh(new THREE.BoxGeometry(7,h,7),new THREE.MeshStandardMaterial({color:0x6d6c67,roughness:1}));
+    b.position.set(i*16,h/2,-70-(i%2)*16); scene.add(b);
+  }
+
+  car=makeCar(0x252b31);
+  car.position.set(state.posX,.55,state.posZ);
+  car.rotation.y=state.heading;
+  scene.add(car);
+
+  const traffic=[];
+  for(let i=0;i<7;i++){
+    const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4]);
+    npc.scale.setScalar(.86);
+    npc.position.set((i%4)*13-19,.55,-12-i*18);
+    npc.rotation.y=Math.PI;
+    scene.add(npc); traffic.push(npc);
+  }
+
+  clock=new THREE.Clock();
+  animate(traffic);
+}
+
+function animate(traffic=[]){
+  requestAnimationFrame(()=>animate(traffic));
+  if(!renderer)return;
+  const dt=Math.min(clock?.getDelta()||.016,.05);
+
+  if(state.driving && state.fuel>0){
+    const turning=state.steer===-1?-1:state.steer===1?1:0;
+    state.heading += turning*dt*(1.25+state.speed*.7);
+    const throttle=state.steer===2?1:0;
+    if(throttle) state.speed=Math.min(1.55,state.speed+dt*.95);
+    else state.speed=Math.max(0,state.speed-dt*.45);
+    state.posX += Math.sin(state.heading)*state.speed*dt*8;
+    state.posZ += Math.cos(state.heading)*state.speed*dt*8;
+    state.fuel=Math.max(0,state.fuel-dt*(.025+state.speed*.012));
+    state.heat=Math.min(125,state.heat+dt*(.12+state.speed*.06));
+    state.car.mileage+=state.speed*dt*.006;
+    if(state.heat>108) state.damage=Math.min(100,state.damage+dt*.06);
+    car.position.set(state.posX,.55,state.posZ);
+    car.rotation.y=state.heading;
+  }
+
+  const target=new THREE.Vector3(
+    car.position.x-Math.sin(car.rotation.y)*9,
+    5.3,
+    car.position.z-Math.cos(car.rotation.y)*9
+  );
+  camera.position.lerp(target,.08);
+  const look=new THREE.Vector3(car.position.x,1.0,car.position.z);
+  camera.lookAt(look);
+
+  for(const npc of traffic) npc.position.z += dt*2.0;
   stats();
+  renderer.render(scene,camera);
+}
+
+function driveOn(){ if(state.fuel<=0){msg("⛽ Бак пуст.");return;} state.driving=true; msg("За рулём. ▲ газ • ‹ › поворот • ■ тормоз"); }
+function stop(){ state.driving=false; state.speed=0; state.steer=0; msg("Машина остановлена."); save(); }
+
+function bindControls(){
+  document.querySelectorAll("[data-drive]").forEach(b=>{
+    const start=()=>{const v=b.dataset.drive; if(v==="gas")state.steer=2; else if(v==="left")state.steer=-1; else if(v==="right")state.steer=1; else stop(); if(v!=="brake")state.driving=true;};
+    const end=()=>{if(b.dataset.drive!=="brake")state.steer=0;};
+    b.addEventListener("pointerdown",start); b.addEventListener("pointerup",end); b.addEventListener("pointercancel",end); b.addEventListener("pointerleave",end);
+  });
+}
+
+function openPanel(title,html){
+  panel.innerHTML=`<div class="panel-card"><button class="close" id="closePanel">×</button><h2>${title}</h2>${html}</div>`;
+  panel.classList.remove("hidden");
+  document.querySelector("#closePanel").onclick=()=>panel.classList.add("hidden");
 }
 
 function renderScene(name){
-  state.scene=name; locationEl.textContent={city:"ГОРОД",market:"РЫНОК Б/У",junkyard:"СВАЛКА",garage:"ГАРАЖ"}[name];
-  clearActions();
-
+  state.scene=name;
+  menu.classList.add("hidden");
   if(name==="city"){
-    init3D();
-    button("🚗 Поехать", drive, "primary");
-    button("🔍 Осмотр", ()=>msg("Состояние: "+state.car.condition+"%. Пробег: "+state.car.mileage.toLocaleString("ru-RU")+" км."));
-    button("🌡 Проверить мотор", ()=>msg("Температура: "+Math.round(state.heat)+"°C."));
-    button("🛑 Остановиться", stopDrive);
-    bindDriveControls();
-  } else if(name==="market"){
-    viewport.innerHTML=`<div class="cards"><h2>Рынок б/у автомобилей</h2>
-      <article><b>Vektor S</b><span>2008 • 214 320 км</span><strong>7 900 ₽</strong><button id="buy1">Купить</button></article>
-      <article><b>Falcon GT</b><span>2012 • 168 500 км</span><strong>13 600 ₽</strong><button id="buy2">Купить</button></article>
-      <article><b>Raven 1.8</b><span>2005 • 301 200 км</span><strong>3 900 ₽</strong><button id="buy3">Купить</button></article>
-    </div>`;
-    document.querySelector("#buy1").onclick=()=>buyCar(7900,"Vektor S",61,214320);
-    document.querySelector("#buy2").onclick=()=>buyCar(13600,"Falcon GT",78,168500);
-    document.querySelector("#buy3").onclick=()=>buyCar(3900,"Raven 1.8",37,301200);
-  } else if(name==="junkyard"){
-    viewport.innerHTML=`<div class="cards"><h2>Свалка</h2>
-      <article><b>Raven 1.8 — проект</b><span>Сильно повреждён • без гарантии</span><strong>1 200 ₽</strong><button id="junk">Забрать</button></article>
-      <article><b>Vektor S — после ДТП</b><span>Двигатель запускается</span><strong>2 800 ₽</strong><button id="junk2">Забрать</button></article>
-    </div>`;
-    document.querySelector("#junk").onclick=()=>buyCar(1200,"Raven 1.8 Project",18,342100);
-    document.querySelector("#junk2").onclick=()=>buyCar(2800,"Vektor S Wreck",31,256900);
-  } else {
-    viewport.innerHTML=`<div class="garage"><h2>🔧 Твой гараж</h2>
-      <div class="carbox"><b>${state.car.name}</b><span>${state.car.year} • ${state.car.mileage.toLocaleString("ru-RU")} км</span><span>Состояние: ${state.car.condition}%</span></div>
-      <div class="parts"><button id="oil">🛢️ Масло — 250 ₽</button><button id="brake">🛑 Спорт-тормоза — 1 800 ₽</button><button id="turbo">💨 Турбина — 4 500 ₽</button><button id="wheels">🛞 Спорт-колёса — 2 200 ₽</button></div>
-    </div>`;
-    document.querySelector("#oil").onclick=()=>repair("Масло",250,8);
-    document.querySelector("#brake").onclick=()=>upgrade("Спорт-тормоза",1800,"sportBrakes");
-    document.querySelector("#turbo").onclick=()=>upgrade("Турбина",4500,"turbo");
-    document.querySelector("#wheels").onclick=()=>upgrade("Спорт-колёса",2200,"wheels");
+    document.querySelector(".drive-hud").style.display="";
+    buildCity(); bindControls(); stats();
+    msg("Нажми ▲ и поезжай по городу.");
+  }else{
+    stop();
+    document.querySelector(".drive-hud").style.display="none";
+    if(renderer){renderer.dispose();renderer=null;}
+    if(name==="market"){
+      viewport.innerHTML=`<div class="cards"><h2>Рынок автомобилей</h2>
+      <article><b>Vektor S</b><span>2008 • 214 320 км</span><strong>7 900 ₽</strong><button data-buy="7900|Vektor S|61|214320">Купить</button></article>
+      <article><b>Falcon GT</b><span>2012 • 168 500 км</span><strong>13 600 ₽</strong><button data-buy="13600|Falcon GT|78|168500">Купить</button></article>
+      <article><b>Raven 1.8</b><span>2005 • 301 200 км</span><strong>3 900 ₽</strong><button data-buy="3900|Raven 1.8|37|301200">Купить</button></article></div>`;
+    }else if(name==="junkyard"){
+      viewport.innerHTML=`<div class="cards"><h2>Свалка</h2><article><b>Raven 1.8 — проект</b><span>Сильно повреждён</span><strong>1 200 ₽</strong><button data-buy="1200|Raven 1.8 Project|18|342100">Забрать</button></article><article><b>Vektor S — после ДТП</b><span>Двигатель запускается</span><strong>2 800 ₽</strong><button data-buy="2800|Vektor S Wreck|31|256900">Забрать</button></article></div>`;
+    }else{
+      viewport.innerHTML=`<div class="garage"><h2>🔧 Гараж</h2><div class="carbox"><b>${state.car.name}</b><span>${state.car.year} • ${Math.round(state.car.mileage).toLocaleString("ru-RU")} км</span><span>Состояние: ${state.car.condition}%</span><span>Температура: ${Math.round(state.heat)}°C</span></div><div class="parts"><button data-repair="Масло|250|8">🛢️ Масло — 250 ₽</button><button data-upgrade="Спорт-тормоза|1800|sportBrakes">🛑 Спорт-тормоза — 1 800 ₽</button><button data-upgrade="Турбина|4500|turbo">💨 Турбина — 4 500 ₽</button><button data-upgrade="Спорт-колёса|2200|wheels">🛞 Спорт-колёса — 2 200 ₽</button></div></div>`;
+    }
+    viewport.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>buyCar(...b.dataset.buy.split("|").map((x,i)=>i===0?Number(x):i>1?Number(x):x)));
+    viewport.querySelectorAll("[data-repair]").forEach(b=>b.onclick=()=>{const [n,c,a]=b.dataset.repair.split("|"); repair(n,+c,+a);});
+    viewport.querySelectorAll("[data-upgrade]").forEach(b=>b.onclick=()=>{const [n,c,k]=b.dataset.upgrade.split("|"); upgrade(n,+c,k);});
   }
-  stats();
 }
 
 function buyCar(price,name,condition,mileage){
   if(state.money<price){msg("Не хватает денег.");return;}
-  state.money-=price; state.car={...state.car,name,year:2008,mileage,condition,engine:condition,turbo:false,sportBrakes:false,wheels:"stock"};
-  localStorage.setItem("mechanic-city", JSON.stringify(state));
-  msg(`${name} куплена. Езжай в гараж для диагностики и ремонта.`);
-  stats();
+  state.money-=price; state.car={...state.car,name,year:name.includes("Falcon")?2012:2008,mileage,condition,engine:condition,turbo:false,sportBrakes:false,wheels:"stock"}; save();
+  openPanel("Машина куплена",`<p>${name} теперь твоя.</p><button id="toGarage">Ехать в гараж</button>`);
+  document.querySelector("#toGarage").onclick=()=>{panel.classList.add("hidden");renderScene("garage");};
 }
 function repair(name,cost,amount){
-  if(state.money<cost){msg("Не хватает денег.");return;}
-  state.money-=cost; state.car.condition=Math.min(100,state.car.condition+amount); state.heat=Math.max(78,state.heat-6);
-  localStorage.setItem("mechanic-city", JSON.stringify(state));
-  msg(`${name} заменено. Состояние машины: ${state.car.condition}%.`);
-  renderScene("garage");
+  if(state.money<cost){openPanel("Недостаточно денег","<p>Не хватает денег.</p>");return;}
+  state.money-=cost; state.car.condition=Math.min(100,state.car.condition+amount); state.heat=Math.max(72,state.heat-6); save(); renderScene("garage");
 }
 function upgrade(name,cost,key){
-  if(state.car[key] && key!=="wheels"){msg("Эта деталь уже установлена.");return;}
-  if(state.money<cost){msg("Не хватает денег.");return;}
-  state.money-=cost; state.car[key]=true; state.car.condition=Math.min(100,state.car.condition+5);
-  msg(`${name} установлены.`);
-  localStorage.setItem("mechanic-city", JSON.stringify(state));
-  renderScene("garage");
+  if(state.car[key] && key!=="wheels"){openPanel("Уже установлено",`<p>${name} уже стоит на машине.</p>`);return;}
+  if(state.money<cost){openPanel("Недостаточно денег","<p>Не хватает денег.</p>");return;}
+  state.money-=cost; state.car[key]=true; state.car.condition=Math.min(100,state.car.condition+5); save(); renderScene("garage");
 }
 
-document.querySelectorAll(".nav button").forEach(b=>b.onclick=()=>renderScene(b.dataset.scene));
+document.querySelector("#menuBtn").onclick=()=>menu.classList.toggle("hidden");
+document.querySelector(".round-btn").onclick=()=>menu.classList.toggle("hidden");
+document.querySelector("#mapBtn").onclick=()=>openPanel("Карта","<p>Ты находишься в городе. Рынок и гараж доступны через меню ☰.</p>");
+document.querySelector("#carInfo").onclick=()=>openPanel("Автомобиль",`<p><b>${state.car.name}</b></p><p>Состояние: ${state.car.condition}%</p><p>Пробег: ${Math.round(state.car.mileage).toLocaleString("ru-RU")} км</p><p>Повреждения: ${Math.round(state.damage)}%</p>`);
+document.querySelector("#engineBtn").onclick=()=>msg("Капот открыт: двигатель "+Math.round(state.heat)+"°C");
+document.querySelector("#horn").onclick=()=>msg("🔊 Бип!");
+document.querySelector("#cameraBtn").onclick=()=>{ if(camera){camera.fov=camera.fov===62?78:62;camera.updateProjectionMatrix();} };
+document.querySelectorAll(".menu [data-scene]").forEach(b=>b.onclick=()=>renderScene(b.dataset.scene));
+window.addEventListener("resize",()=>{if(renderer&&camera){camera.aspect=viewport.clientWidth/viewport.clientHeight;camera.updateProjectionMatrix();renderer.setSize(viewport.clientWidth,viewport.clientHeight);}});
 renderScene("city");
-stats();
