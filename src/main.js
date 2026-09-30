@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import "./style.css";
 
 const app = document.querySelector("#app");
@@ -83,22 +84,22 @@ function stats(){
 function makeCar(color=0x252a30){
   // Detailed low-poly car: designed to stay smooth on mobile Safari.
   const g=new THREE.Group();
-  const paint=new THREE.MeshStandardMaterial({color,metalness:.72,roughness:.2});
+  const paint=new THREE.MeshPhysicalMaterial({color,metalness:.72,roughness:.2,clearcoat:.55,clearcoatRoughness:.16});
   const dark=new THREE.MeshStandardMaterial({color:0x101419,metalness:.25,roughness:.12});
   const chrome=new THREE.MeshStandardMaterial({color:0x9aa2a8,metalness:.9,roughness:.18});
   const glass=new THREE.MeshPhysicalMaterial({color:0x182a35,metalness:.18,roughness:.06,transmission:.18,transparent:true,opacity:.92,clearcoat:.7,clearcoatRoughness:.08});
   const trim=new THREE.MeshStandardMaterial({color:0x080a0c,metalness:.72,roughness:.18});
   const interior=new THREE.MeshStandardMaterial({color:0x17191b,roughness:.72});
   const rubber=new THREE.MeshStandardMaterial({color:0x08090a,roughness:.96});
-  const body=new THREE.Mesh(new THREE.BoxGeometry(2.5,.62,4.6),paint);
+  const body=new THREE.Mesh(new RoundedBoxGeometry(2.5,.62,4.6,5,.12),paint);
   body.position.y=.62; body.castShadow=true; body.receiveShadow=true; g.add(body);
 
-  const hood=new THREE.Mesh(new THREE.BoxGeometry(2.28,.16,1.35),paint);
+  const hood=new THREE.Mesh(new RoundedBoxGeometry(2.28,.16,1.35,4,.045),paint);
   hood.position.set(0,.96,-1.47); hood.castShadow=true; g.add(hood);
-  const trunk=new THREE.Mesh(new THREE.BoxGeometry(2.28,.15,.92),paint);
+  const trunk=new THREE.Mesh(new RoundedBoxGeometry(2.28,.15,.92,4,.04),paint);
   trunk.position.set(0,.94,1.72); trunk.castShadow=true; g.add(trunk);
 
-  const cabin=new THREE.Mesh(new THREE.BoxGeometry(2.05,.76,2.18),dark);
+  const cabin=new THREE.Mesh(new RoundedBoxGeometry(2.05,.76,2.18,5,.16),dark);
   cabin.position.set(0,1.08,.15); cabin.castShadow=true; g.add(cabin);
   // Visible interior: dashboard, seats and steering wheel.
   const dash=new THREE.Mesh(new THREE.BoxGeometry(1.78,.24,.5),interior);
@@ -122,7 +123,7 @@ function makeCar(color=0x252a30){
   }
 
   // Roof pillars / roof panel.
-  const roof=new THREE.Mesh(new THREE.BoxGeometry(1.94,.12,1.98),paint);
+  const roof=new THREE.Mesh(new RoundedBoxGeometry(1.94,.12,1.98,4,.045),paint);
   roof.position.set(0,1.48,.14); roof.castShadow=true; g.add(roof);
   const roofGlass=new THREE.Mesh(new THREE.BoxGeometry(1.18,.035,1.1),glass);
   roofGlass.position.set(0,1.55,.18); g.add(roofGlass);
@@ -260,7 +261,7 @@ function buildCity(){
 
   camera=new THREE.PerspectiveCamera(62,viewport.clientWidth/viewport.clientHeight,.1,500);
   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,1.55));
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2.5));
   renderer.shadowMap.enabled=true;
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
@@ -270,7 +271,7 @@ function buildCity(){
 
   scene.add(new THREE.HemisphereLight(0xdde8ef,0x26302c,1.8));
   const ambient=new THREE.AmbientLight(0xffffff,.22); scene.add(ambient);
-  const sun=new THREE.DirectionalLight(0xfff2d6,2.8); sun.position.set(35,55,25); sun.castShadow=true; sun.shadow.mapSize.set(1024,1024); sun.shadow.camera.left=-80; sun.shadow.camera.right=80; sun.shadow.camera.top=80; sun.shadow.camera.bottom=-80; scene.add(sun);
+  const sun=new THREE.DirectionalLight(0xfff2d6,2.8); sun.position.set(35,55,25); sun.castShadow=true; sun.shadow.mapSize.set(4096,4096); sun.shadow.camera.left=-80; sun.shadow.camera.right=80; sun.shadow.camera.top=80; sun.shadow.camera.bottom=-80; scene.add(sun);
   const fill=new THREE.DirectionalLight(0x9fc5ff,.45); fill.position.set(-40,20,-30); scene.add(fill);
 
   rainDrops=[];
@@ -279,7 +280,7 @@ function buildCity(){
 
   // Main roads plus cross streets, creating real intersections.
   for(let i=-4;i<=4;i++){
-    const road=new THREE.Mesh(new THREE.BoxGeometry(8,.06,300),new THREE.MeshStandardMaterial({color:0x25282b,roughness:.82})); road.receiveShadow=true;
+    const road=new THREE.Mesh(new THREE.BoxGeometry(8,.06,300),new THREE.MeshStandardMaterial({color:state.rain?0x171b1e:0x25282b,roughness:state.rain?.28:.82,metalness:state.rain?.18:0})); road.receiveShadow=true;
     road.position.set(i*13,.03,0); scene.add(road);
     const line=new THREE.Mesh(new THREE.BoxGeometry(.12,.03,300),new THREE.MeshStandardMaterial({color:0xd5d2b9}));
     line.position.set(i*13,.075,0); scene.add(line);
@@ -304,7 +305,7 @@ function buildCity(){
   }
   // Cross streets and intersections.
   for(let z=-90;z<=90;z+=45){
-    const cross=new THREE.Mesh(new THREE.BoxGeometry(300,.07,8),new THREE.MeshStandardMaterial({color:0x26292c,roughness:.82}));
+    const cross=new THREE.Mesh(new THREE.BoxGeometry(300,.07,8),new THREE.MeshStandardMaterial({color:state.rain?0x181c1f:0x26292c,roughness:state.rain?.28:.82,metalness:state.rain?.18:0}));
     cross.position.set(0,.035,z);cross.receiveShadow=true;scene.add(cross);
     const crossLine=new THREE.Mesh(new THREE.BoxGeometry(300,.03,.12),new THREE.MeshStandardMaterial({color:0xd5d2b9}));
     crossLine.position.set(0,.075,z);scene.add(crossLine);
@@ -405,9 +406,9 @@ function animate(traffic=[]){
   }
 
   const camDistance=state.speed>.25?10.5:8.5;
-  const target=new THREE.Vector3(car.position.x-Math.sin(car.rotation.y)*camDistance, state.speed>.25?3.15:3.0, car.position.z-Math.cos(car.rotation.y)*camDistance);
+  const target=new THREE.Vector3(car.position.x-Math.sin(car.rotation.y)*camDistance, state.speed>.25?2.45:2.35, car.position.z-Math.cos(car.rotation.y)*camDistance);
   camera.position.lerp(target,.08);
-  const look=new THREE.Vector3(car.position.x-Math.sin(car.rotation.y)*1.0,.72,car.position.z-Math.cos(car.rotation.y)*1.0);
+  const look=new THREE.Vector3(car.position.x-Math.sin(car.rotation.y)*1.5,.78,car.position.z-Math.cos(car.rotation.y)*1.5);
   camera.lookAt(look);
 
   for(const npc of traffic){
