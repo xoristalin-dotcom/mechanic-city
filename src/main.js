@@ -91,18 +91,18 @@ function makeCar(color=0x252a30, detailedLights=true){
   const trim=new THREE.MeshStandardMaterial({color:0x080a0c,metalness:.72,roughness:.18});
   const interior=new THREE.MeshStandardMaterial({color:0x17191b,roughness:.72});
   const rubber=new THREE.MeshStandardMaterial({color:0x08090a,roughness:.96});
-  const body=new THREE.Mesh(new RoundedBoxGeometry(2.5,.62,4.6,5,.12),paint);
+  const body=new THREE.Mesh(new RoundedBoxGeometry(2.62,.58,4.72,8,.16),paint);
   body.position.y=.62; body.castShadow=true; body.receiveShadow=true; g.add(body);
 
-  const hood=new THREE.Mesh(new RoundedBoxGeometry(2.28,.16,1.35,4,.045),paint);
-  hood.position.set(0,.96,-1.47); hood.castShadow=true; g.add(hood);
-  const trunk=new THREE.Mesh(new RoundedBoxGeometry(2.28,.15,.92,4,.04),paint);
-  trunk.position.set(0,.94,1.72); trunk.castShadow=true; g.add(trunk);
+  const hood=new THREE.Mesh(new RoundedBoxGeometry(2.34,.15,1.48,8,.08),paint);
+  hood.position.set(0,.96,-1.50); hood.rotation.x=-.025; hood.castShadow=true; g.add(hood);
+  const trunk=new THREE.Mesh(new RoundedBoxGeometry(2.34,.15,.96,8,.07),paint);
+  trunk.position.set(0,.94,1.73); trunk.castShadow=true; g.add(trunk);
 
   // Rounded cabin silhouette: smooth roof/shoulders instead of a square box.
-  const cabin=new THREE.Mesh(new THREE.SphereGeometry(1,28,16),dark);
-  cabin.scale.set(1.05,.60,1.22);
-  cabin.position.set(0,1.12,.12); cabin.castShadow=true; g.add(cabin);
+  const cabin=new THREE.Mesh(new THREE.SphereGeometry(1,32,20),dark);
+  cabin.scale.set(1.02,.54,1.20);
+  cabin.position.set(0,1.14,.08); cabin.castShadow=true; g.add(cabin);
   // Visible interior: dashboard, seats and steering wheel.
   const dash=new THREE.Mesh(new THREE.BoxGeometry(1.78,.24,.5),interior);
   dash.position.set(0,1.08,-.58); g.add(dash);
@@ -125,14 +125,25 @@ function makeCar(color=0x252a30, detailedLights=true){
   }
 
   // Roof pillars / roof panel.
-  const roof=new THREE.Mesh(new RoundedBoxGeometry(1.72,.10,1.72,6,.06),paint);
-  roof.position.set(0,1.57,.14); roof.castShadow=true; g.add(roof);
+  const roof=new THREE.Mesh(new RoundedBoxGeometry(1.68,.10,1.68,8,.08),paint);
+  roof.position.set(0,1.53,.10); roof.castShadow=true; g.add(roof);
   const roofGlass=new THREE.Mesh(new THREE.BoxGeometry(1.18,.035,1.1),glass);
   roofGlass.position.set(0,1.55,.18); g.add(roofGlass);
   for(const x of [-.92,.92]){
     for(const z of [-.78,.88]){
       const pillar=new THREE.Mesh(new THREE.BoxGeometry(.09,.7,.09),paint);
       pillar.position.set(x,1.2,z); g.add(pillar);
+    }
+  }
+
+  // Rounded fender shoulders: soften the transition from hood to wheel arches.
+  for(const x of [-1.12,1.12]){
+    for(const z of [-1.46,1.46]){
+      const fender=new THREE.Mesh(new THREE.SphereGeometry(.58,18,12),paint);
+      fender.scale.set(.62,.34,.92);
+      fender.position.set(x,.72,z);
+      fender.castShadow=true;
+      g.add(fender);
     }
   }
 
@@ -475,7 +486,7 @@ function animate(traffic=[]){
   }
 
   const camDistance=state.speed>.25?10.5:8.5;
-  const target=new THREE.Vector3(car.position.x+Math.sin(car.rotation.y)*camDistance, state.speed>.25?3.15:3.05, car.position.z+Math.cos(car.rotation.y)*camDistance);
+  const target=new THREE.Vector3(car.position.x+Math.sin(car.rotation.y)*camDistance, state.speed>.25?3.65:3.45, car.position.z+Math.cos(car.rotation.y)*camDistance);
   camera.position.lerp(target,.08);
   const look=new THREE.Vector3(car.position.x-Math.sin(car.rotation.y)*1.8,1.00,car.position.z-Math.cos(car.rotation.y)*1.8);
   camera.lookAt(look);
