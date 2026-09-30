@@ -73,7 +73,7 @@ function physicsDrive(dt){
  const p=chassisBody.translation();
  state.posX=p.x;
  state.posZ=p.z;
- car.position.set(p.x,p.y-PHYSICS_Y,p.z);
+ car.position.set(p.x,p.y-PHYSICS_Y+(car.userData?.visualOffsetY||0),p.z);
  car.rotation.y=state.heading;
 
  for(let i=0;i<(car.userData?.wheels||[]).length;i++){
@@ -98,6 +98,7 @@ async function swapToBlenderCrown72(){
    root.position.y+=0.42;
    root.rotation.copy(car.rotation);
    root.userData.wheels=[];
+   root.userData.visualOffsetY=0.42;
    root.add(model);
    const old=car; car=root; scene.add(car); scene.remove(old);
    if(physicsReady&&chassisBody){const p=chassisBody.translation();car.position.set(p.x,p.y-PHYSICS_Y,p.z);}
