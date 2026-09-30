@@ -186,29 +186,60 @@ function makeCar(color=0x7a3f2e,detailedLights=true){
  const trunk=new THREE.Mesh(new RoundedBoxGeometry(2.52,.26,1.02,3,.07),paint);
  trunk.position.set(0,.98,1.82); trunk.castShadow=true; g.add(trunk);
 
- // Boxy sedan greenhouse, closer to the simple faceted proportions of Retro Garage.
- const cabin=new THREE.Mesh(new RoundedBoxGeometry(2.10,.74,2.18,3,.09),paint);
- cabin.position.set(0,1.23,.28); cabin.castShadow=true; g.add(cabin);
- const roof=new THREE.Mesh(new RoundedBoxGeometry(1.90,.12,1.82,3,.045),paint);
- roof.position.set(0,1.65,.28); g.add(roof);
+ // Sloped greenhouse: a simple faceted trapezoid instead of a rounded box.
+ const cabinGeo=new THREE.BufferGeometry();
+ cabinGeo.setAttribute("position",new THREE.Float32BufferAttribute([
+   -1.06,.98,-.80,  1.06,.98,-.80,  1.06,.98,1.38,  -1.06,.98,1.38,
+   -.86,1.66,-.43,  .86,1.66,-.43,  .86,1.66,1.08,  -.86,1.66,1.08
+ ],3));
+ cabinGeo.setIndex([
+   0,1,5, 0,5,4,
+   1,2,6, 1,6,5,
+   2,3,7, 2,7,6,
+   3,0,4, 3,4,7,
+   4,5,6, 4,6,7,
+   3,2,1, 3,1,0
+ ]);
+ cabinGeo.computeVertexNormals();
+ const cabin=new THREE.Mesh(cabinGeo,paint);
+ cabin.castShadow=true; cabin.receiveShadow=true; g.add(cabin);
+ const roof=new THREE.Mesh(new THREE.BoxGeometry(1.74,.11,1.64),paint);
+ roof.position.set(0,1.69,.32); roof.rotation.x=0; g.add(roof);
 
- // Large, simple glass panes with clearly visible pillars.
- const windshield=new THREE.Mesh(new RoundedBoxGeometry(1.84,.57,.055,2,.018),glass);
- windshield.position.set(0,1.38,-.73); windshield.rotation.x=-.28; g.add(windshield);
- const rearGlass=windshield.clone(); rearGlass.position.z=1.31; rearGlass.rotation.x=.28; g.add(rearGlass);
- for(const x of[-1.0,1.0]){
-   const sideFront=new THREE.Mesh(new RoundedBoxGeometry(.045,.47,.76,2,.018),glass);
-   sideFront.position.set(x,1.38,-.18); g.add(sideFront);
-   const sideRear=new THREE.Mesh(new RoundedBoxGeometry(.045,.47,.76,2,.018),glass);
-   sideRear.position.set(x,1.38,.72); g.add(sideRear);
+ function quadMesh(vertices,material){
+   const geo=new THREE.BufferGeometry();
+   geo.setAttribute("position",new THREE.Float32BufferAttribute(vertices,3));
+   geo.setIndex([0,1,2,0,2,3]);
+   geo.computeVertexNormals();
+   const m=new THREE.Mesh(geo,material);
+   g.add(m); return m;
  }
- for(const x of[-1.02,1.02]){
-   const pillarA=new THREE.Mesh(new RoundedBoxGeometry(.085,.68,.10,2,.025),paintDark);
-   pillarA.position.set(x,1.31,-.56); pillarA.rotation.z=x<0?-.06:.06; g.add(pillarA);
-   const pillarB=pillarA.clone(); pillarB.position.z=.47; g.add(pillarB);
-   const pillarC=pillarA.clone(); pillarC.position.z=1.13; g.add(pillarC);
+ // Front/rear windshields follow the sloped greenhouse.
+ quadMesh([
+   -.82,1.48,-.51,  .82,1.48,-.51,  .86,1.62,-.42, -.86,1.62,-.42
+ ],glass);
+ quadMesh([
+   -.86,1.62,1.07,  .86,1.62,1.07,  .82,1.48,1.30, -.82,1.48,1.30
+ ],glass);
+ // Large side windows, split by a visible B-pillar.
+ for(const side of[-1,1]){
+   const x=side;
+   quadMesh([
+     x*1.015,1.16,-.38, x*1.015,1.16,.34, x*.82,1.58,.26, x*.82,1.58,-.30
+   ],glass);
+   quadMesh([
+     x*1.015,1.16,.47, x*1.015,1.16,1.18, x*.82,1.58,1.02, x*.82,1.58,.57
+   ],glass);
+   for(const z of[-.34,.50,1.20]){
+     const pillar=new THREE.Mesh(new THREE.BoxGeometry(.085,.68,.085),paintDark);
+     pillar.position.set(side*1.02,1.36,z);
+     pillar.rotation.z=side<0?-.06:.06;
+     g.add(pillar);
+   }
  }
-
+ // Thin roof edge and bright trim make the silhouette read clearly at distance.
+ const roofTrim=new THREE.Mesh(new THREE.BoxGeometry(1.86,.045,1.76),chrome);
+ roofTrim.position.set(0,1.70,.32); g.add(roofTrim);
  // Characteristic bright belt line and door seams.
  const belt=new THREE.Mesh(new THREE.BoxGeometry(2.84,.055,3.42),chrome);
  belt.position.set(0,.99,.24); g.add(belt);
