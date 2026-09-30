@@ -304,12 +304,56 @@ const groundMat=new THREE.MeshStandardMaterial({color:0x50534f,roughness:.96,map
 for(const z of[-70,-35,0,35,70])for(const side of[-1,1]){for(let k=-3;k<=3;k++){const stripe=new THREE.Mesh(new THREE.BoxGeometry(7,.025,.34),new THREE.MeshBasicMaterial({color:0xd9d7cc}));stripe.position.set(k*1.05,.085,z+side*5.05);scene.add(stripe);}}
 const gasBase=new THREE.Mesh(new THREE.BoxGeometry(18,.18,11),new THREE.MeshStandardMaterial({color:0x303438,roughness:.8,map:roadTex}));gasBase.position.set(45,.1,35);gasBase.receiveShadow=true;scene.add(gasBase);const gasRoof=new THREE.Mesh(new THREE.BoxGeometry(16,.35,9),new THREE.MeshStandardMaterial({color:0x4c5256,metalness:.25,roughness:.4,map:metalTex}));gasRoof.position.set(45,4.3,35);gasRoof.castShadow=true;scene.add(gasRoof);for(const x of[40,50]){const col=new THREE.Mesh(new THREE.CylinderGeometry(.16,.16,4.1,10),new THREE.MeshStandardMaterial({color:0x24282b,metalness:.5,roughness:.45,map:metalTex}));col.position.set(x,2.15,31);scene.add(col);}const workshop=new THREE.Mesh(new THREE.BoxGeometry(14,4.5,10),new THREE.MeshStandardMaterial({color:0x454a4d,roughness:.75,map:buildingTex}));workshop.position.set(-45,2.25,35);workshop.castShadow=true;workshop.receiveShadow=true;scene.add(workshop);const workshopDoor=new THREE.Mesh(new THREE.BoxGeometry(5.2,3.1,.08),new THREE.MeshStandardMaterial({color:0x171a1d,metalness:.2,roughness:.35}));workshopDoor.position.set(-45,1.65,29.96);scene.add(workshopDoor);for(let x=-56;x<=-34;x+=5.5){const bay=new THREE.Mesh(new THREE.BoxGeometry(4.2,.03,6.2),new THREE.MeshStandardMaterial({color:0x77736a,roughness:.9,map:sidewalkTex}));bay.position.set(x,.205,35);scene.add(bay);}for(let i=-10;i<=10;i++)addTree(i*11+(i%2)*3,-28-(Math.abs(i)%4)*11,.8+(Math.abs(i)%3)*.18);for(let i=-5;i<=5;i++){addBuilding(i*19,-70,9,6+(Math.abs(i)%4)*2,9,[0x666762,0x4e575d,0x71695f][Math.abs(i)%3]);addBuilding(i*19,70,9,5+(Math.abs(i)%3)*3,9,0x5c6361);}addBuilding(-45,35,10,4.5,8,0x4a5358);addBuilding(45,35,9,3.2,7,0x273b48);addBuilding(45,-35,11,5,9,0x3b5667);
 for(let x=-39;x<=39;x+=13)for(const z of[-48,48]){const pole=new THREE.Mesh(new THREE.CylinderGeometry(.045,.07,3.8,8),new THREE.MeshStandardMaterial({color:0x22262a,metalness:.4,roughness:.55,map:metalTex}));pole.position.set(x+3.8,1.9,z);pole.castShadow=true;scene.add(pole);const lamp=new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),new THREE.MeshStandardMaterial({color:0xffe8ad,emissive:0xffa62b,emissiveIntensity:1.5}));lamp.position.set(x+3.8,3.82,z);scene.add(lamp);}if(state.rain)addRain();addStreetProps();for(let i=-5;i<=5;i++){const h=5+Math.random()*9;const b=new THREE.Mesh(new THREE.BoxGeometry(7,h,7),new THREE.MeshStandardMaterial({color:0x6d6c67,roughness:1,map:buildingTex}));b.position.set(i*16,h/2,-70-(i%2)*16);scene.add(b);}
-car=makeCar(0x252b31);car.position.set(state.posX,0,state.posZ);car.rotation.y=state.heading;scene.add(car);for(let i=0;i<9;i++){const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4],false);npc.scale.setScalar(.86);npc.position.set((i%4)*13-19,0,-12-i*18);npc.userData.speed=1.4+(i%3)*.35;npc.rotation.y=Math.PI;npc.userData.trafficSpeed=.7+(i%3)*.18;scene.add(npc);traffic.push(npc);}createJobMarker();clock=new THREE.Clock();animate(traffic);}
+try{
+car=makeCar(0x252b31);car.position.set(state.posX,0,state.posZ);car.rotation.y=state.heading;scene.add(car);
+for(let i=0;i<9;i++){const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4],false);npc.scale.setScalar(.86);npc.position.set((i%4)*13-19,0,-12-i*18);npc.userData.speed=1.4+(i%3)*.35;npc.rotation.y=Math.PI;npc.userData.trafficSpeed=.7+(i%3)*.18;scene.add(npc);traffic.push(npc);}
+createJobMarker();clock=new THREE.Clock();animate(traffic);
+}catch(err){
+window.MechanicCityBuildError=String(err?.message||err);
+console.error("City build failed",err);
+renderEmergencyScene();
+}}
 function animate(traffic=[]){requestAnimationFrame(()=>animate(traffic));if(!renderer)return;const dt=Math.min(clock?.getDelta()||.016,.05);if(state.driving&&state.fuel>0){physicsDrive(dt);state.fuel=Math.max(0,state.fuel-dt*(.018+Math.abs(state.speed)*.014));state.car.oil=Math.max(0,state.car.oil-dt*.004);state.car.coolant=Math.max(0,state.car.coolant-dt*.002);state.heat=Math.min(125,state.heat+dt*(.08+Math.abs(state.speed)*.055));if(state.car.oil<15||state.car.coolant<15)state.damage=Math.min(100,state.damage+dt*.08);state.car.mileage+=Math.abs(state.speed)*dt*.006;if(state.heat>108)state.damage=Math.min(100,state.damage+dt*.06);for(const npc of traffic){const d=car.position.distanceTo(npc.position);if(d<2.25&&Math.abs(state.speed)>.35){state.damage=Math.min(100,state.damage+dt*7);chassisBody?.setLinvel({x:chassisBody.linvel().x*.65,y:chassisBody.linvel().y,z:chassisBody.linvel().z*.65},true);msg("⚠️ Столкновение: кузов повреждён.");}}if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();}}updateJob();const moving=Math.abs(state.speed)>.25;const heading=car.rotation.y;let target,look;if(cameraMode===2){const fx=-Math.sin(heading),fz=-Math.cos(heading);target=new THREE.Vector3(car.position.x+fx*.35,1.32,car.position.z+fz*.35);look=new THREE.Vector3(target.x+fx*8,1.28,target.z+fz*8);camera.position.lerp(target,.22);}else{const behind=cameraMode===0?1:-1;const followDistance=moving?20.5:18.5;const followHeight=moving?6.1:5.4;const horizontal=followDistance*Math.cos(camOrbitPitch);const sx=Math.sin(heading+camOrbitYaw)*horizontal*behind;const sz=Math.cos(heading+camOrbitYaw)*horizontal*behind;target=new THREE.Vector3(car.position.x+sx,followHeight+Math.sin(camOrbitPitch)*followDistance,car.position.z+sz);look=new THREE.Vector3(car.position.x-Math.sin(heading)*2.5,.85,car.position.z-Math.cos(heading)*2.5);camera.position.lerp(target,.13);}camera.lookAt(look);for(const npc of traffic){const travel=dt*npc.userData.trafficSpeed*8;npc.position.z+=travel;for(const w of(npc.userData.wheels||[]))w.rotation.x-=travel/.39;if(npc.position.z>120)npc.position.z=-120;}const cycle=(performance.now()/1000)%12;const green=cycle<6,yellow=cycle>=6&&cycle<7.5;for(const l of trafficLights){l.red.material.color.setHex(green?0x220000:yellow?0x220000:0xff0000);l.yellow.material.color.setHex(yellow?0xffb000:0x332600);l.green.material.color.setHex(green?0x00ff44:0x002200);}updateCarDamage();stats();renderer.render(scene,camera);}
 function driveOn(){if(state.fuel<=0){msg("⛽ Бак пуст — нужна заправка.");return;}if(state.gear==="P"||state.gear==="N")state.gear="D";state.driving=true;msg("За рулём");}function stop(){state.driving=false;input.gas=input.left=input.right=input.brake=false;if(chassisBody){const v=chassisBody.linvel();chassisBody.setLinvel({x:v.x*.1,y:v.y,z:v.z*.1},true);chassisBody.setAngvel({x:0,y:0,z:0},true);}state.speed=0;save();}function cycleGear(){const gears=["P","R","N","D"];const i=gears.indexOf(state.gear||"P");state.gear=gears[(i+1)%gears.length];if(state.gear==="P")stop();else state.driving=true;msg("Передача: "+state.gear);}function exitCar(){stop();state.onFoot=true;openPanel("Ты вышел из машины",`<p>Можно осмотреть автомобиль или отправиться в гараж.</p><button id="sitBack">Сесть в машину</button><button id="walkGarage">Открыть гараж</button>`);document.querySelector("#sitBack").onclick=()=>{panel.classList.add("hidden");state.onFoot=false;msg("Ты снова в машине.");};document.querySelector("#walkGarage").onclick=()=>{panel.classList.add("hidden");state.onFoot=false;renderScene("garage");};}
 function setupCameraControls(){if(!renderer)return;const el=renderer.domElement;el.style.touchAction="none";el.addEventListener("pointerdown",e=>{if(e.target!==el)return;camDragging=true;camLastX=e.clientX;camLastY=e.clientY;try{el.setPointerCapture(e.pointerId);}catch{}},{passive:true});el.addEventListener("pointermove",e=>{if(!camDragging)return;const dx=e.clientX-camLastX,dy=e.clientY-camLastY;camLastX=e.clientX;camLastY=e.clientY;camOrbitYaw-=dx*.008;camOrbitPitch=THREE.MathUtils.clamp(camOrbitPitch-dy*.005,-.08,.62);},{passive:true});const end=e=>{camDragging=false;try{el.releasePointerCapture(e.pointerId);}catch{}};el.addEventListener("pointerup",end,{passive:true});el.addEventListener("pointercancel",end,{passive:true});}
 function bindControls(){document.querySelectorAll("[data-drive]").forEach(b=>{const v=b.dataset.drive;const start=e=>{e.preventDefault();if(v==="gas"){if(state.gear==="P"||state.gear==="N")state.gear="D";input.gas=true;state.driving=true;}else if(v==="left"){input.left=true;state.driving=true;}else if(v==="right"){input.right=true;state.driving=true;}else if(v==="brake")input.brake=true;};const end=e=>{e.preventDefault();if(v==="gas")input.gas=false;if(v==="left")input.left=false;if(v==="right")input.right=false;if(v==="brake")input.brake=false;};b.addEventListener("pointerdown",start,{passive:false});b.addEventListener("pointerup",end,{passive:false});b.addEventListener("pointercancel",end,{passive:false});b.addEventListener("pointerleave",end);});}
 document.addEventListener("pointerup",()=>{input.gas=input.left=input.right=input.brake=false;},{passive:true});document.addEventListener("pointercancel",()=>{input.gas=input.left=input.right=input.brake=false;},{passive:true});function openPanel(title,html){panel.innerHTML=`<div class="panel-card"><button class="close" id="closePanel">×</button><h2>${title}</h2>${html}</div>`;panel.classList.remove("hidden");document.querySelector("#closePanel").onclick=()=>panel.classList.add("hidden");}
+function installRuntimeErrorCapture(){
+  window.MechanicCityRuntimeErrors=[];
+  window.addEventListener("error",e=>{
+    window.MechanicCityRuntimeErrors.push({
+      type:"error",
+      message:String(e.message||e.error||"unknown"),
+      source:String(e.filename||""),
+      line:e.lineno||0,
+      column:e.colno||0
+    });
+  });
+  window.addEventListener("unhandledrejection",e=>{
+    window.MechanicCityRuntimeErrors.push({
+      type:"unhandledrejection",
+      message:String(e.reason?.message||e.reason||"unknown")
+    });
+  });
+}
+function renderEmergencyScene(){
+  try{
+    scene=new THREE.Scene();
+    scene.background=new THREE.Color(0x7893a3);
+    camera=new THREE.PerspectiveCamera(58,Math.max(1,viewport.clientWidth)/Math.max(1,viewport.clientHeight),.1,260);
+    camera.position.set(10,7,14);
+    camera.lookAt(0,0,0);
+    const hemi=new THREE.HemisphereLight(0xdceeff,0x334033,1.5);scene.add(hemi);
+    const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(8,14,10);scene.add(sun);
+    const ground=new THREE.Mesh(new THREE.PlaneGeometry(100,100),new THREE.MeshStandardMaterial({color:0x50534f,roughness:1}));
+    ground.rotation.x=-Math.PI/2;scene.add(ground);
+    const marker=new THREE.Mesh(new THREE.BoxGeometry(3.2,.7,5.2),new THREE.MeshStandardMaterial({color:0x252b31,roughness:.55,metalness:.2}));
+    marker.position.y=.7;scene.add(marker);
+    renderer.render(scene,camera);
+    window.MechanicCityEmergency=true;
+    if(!window.MechanicCityEmergencyStarted){window.MechanicCityEmergencyStarted=true;clock=new THREE.Clock();animate([]);}
+  }catch(e){window.MechanicCityEmergencyError=String(e?.message||e);}
+}
 function installDiagnosticMode(){
   const p=new URLSearchParams(location.search);
   if(p.get("diag")!=="1")return;
@@ -332,6 +376,9 @@ function installDiagnosticMode(){
       "MechanicCityWebGL: "+JSON.stringify(window.MechanicCityWebGL||null),
       "WebGLError: "+(window.MechanicCityWebGLError||"none"),
       "BootError: "+(window.MechanicCityBootError||"none"),
+      "BuildError: "+(window.MechanicCityBuildError||"none"),
+      "RuntimeErrors: "+JSON.stringify(window.MechanicCityRuntimeErrors||[]),
+      "EmergencyScene: "+(window.MechanicCityEmergency?"yes":"no"),
       "Canvas: "+!!document.querySelector("#viewport canvas"),
       err||""
     ].join("\\n");
@@ -348,4 +395,4 @@ document.querySelector("#menuBtn").onclick=()=>menu.classList.toggle("hidden");d
   renderer.setSize(w,h,false);
 }
 window.addEventListener("resize",resizeRenderer,{passive:true});
-window.addEventListener("orientationchange",()=>setTimeout(resizeRenderer,120),{passive:true});installVisualInspectMode();installDiagnosticMode();renderScene("city");installAITestMode();initPhysics().then(()=>{try{setupVehiclePhysics();msg("🚗 Физика машины активна");}catch(err){physicsReady=false;physicsError=String(err?.message||err);console.error("Vehicle physics setup failed",err);msg("⚠️ Запущен резервный режим управления");}}).catch(err=>{console.error("Rapier init failed",err);msg("⚠️ Физика недоступна, включено безопасное управление");});
+window.addEventListener("orientationchange",()=>setTimeout(resizeRenderer,120),{passive:true});installRuntimeErrorCapture();installVisualInspectMode();installDiagnosticMode();renderScene("city");installAITestMode();initPhysics().then(()=>{try{setupVehiclePhysics();msg("🚗 Физика машины активна");}catch(err){physicsReady=false;physicsError=String(err?.message||err);console.error("Vehicle physics setup failed",err);msg("⚠️ Запущен резервный режим управления");}}).catch(err=>{console.error("Rapier init failed",err);msg("⚠️ Физика недоступна, включено безопасное управление");});
