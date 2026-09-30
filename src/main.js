@@ -81,7 +81,7 @@ function stats(){
   clockEl.textContent=String(Math.floor(state.time)).padStart(2,"0")+":"+String(Math.floor((state.time%1)*60)).padStart(2,"0");
 }
 
-function makeCar(color=0x252a30){
+function makeCar(color=0x252a30, detailedLights=true){
   // Detailed low-poly car: designed to stay smooth on mobile Safari.
   const g=new THREE.Group();
   const paint=new THREE.MeshPhysicalMaterial({color,metalness:.72,roughness:.2,clearcoat:.55,clearcoatRoughness:.16});
@@ -172,9 +172,11 @@ function makeCar(color=0x252a30){
     const h=new THREE.Mesh(new THREE.BoxGeometry(.5,.17,.08),headMat); h.position.set(x,.76,-2.31); g.add(h);
     const t=new THREE.Mesh(new THREE.BoxGeometry(.5,.17,.08),tailMat); t.position.set(x,.76,2.31); g.add(t);
   }
-  const headL=new THREE.SpotLight(0xfff0c4,3.2,28,.42,.5,1.2);
-  headL.position.set(-.72,.78,-2.05); headL.target.position.set(-.72,.62,-8); g.add(headL,headL.target);
-  const headR=headL.clone(); headR.position.x=.72; headR.target.position.x=.72; g.add(headR,headR.target);
+  if(detailedLights){
+    const headL=new THREE.SpotLight(0xfff0c4,3.2,28,.42,.5,1.2);
+    headL.position.set(-.72,.78,-2.05); headL.target.position.set(-.72,.62,-8); g.add(headL,headL.target);
+    const headR=headL.clone(); headR.position.x=.72; headR.target.position.x=.72; g.add(headR,headR.target);
+  }
   // License plate and rear diffuser.
   const plateMat=new THREE.MeshStandardMaterial({color:0xe6e2d5,roughness:.55});
   const plate=new THREE.Mesh(new THREE.BoxGeometry(.72,.24,.025),plateMat);
@@ -294,7 +296,15 @@ function addBuilding(x,z,w,h,d,color){
   g.position.set(x,0,z);scene.add(g);
 }
 function addParkedCar(x,z,rot=0,color=0x3d4650){
-  const p=makeCar(color);p.scale.setScalar(.68);p.position.set(x,.43,z);p.rotation.y=rot;scene.add(p);
+  const g=new THREE.Group();
+  const paint=new THREE.MeshStandardMaterial({color,metalness:.55,roughness:.28});
+  const dark=new THREE.MeshStandardMaterial({color:0x11161a,roughness:.55});
+  const body=new THREE.Mesh(new RoundedBoxGeometry(1.7,.42,3.15,3,.08),paint); body.position.y=.42; body.castShadow=true; g.add(body);
+  const cabin=new THREE.Mesh(new RoundedBoxGeometry(1.42,.48,1.5,3,.1),dark); cabin.position.set(0,.72,.12); cabin.castShadow=true; g.add(cabin);
+  for(const x of [-.88,.88]) for(const z of [-1.02,1.02]){
+    const w=new THREE.Mesh(new THREE.CylinderGeometry(.25,.25,.14,10),dark); w.rotation.z=Math.PI/2; w.position.set(x,.28,z); g.add(w);
+  }
+  g.position.set(x,.28,z);g.rotation.y=rot;scene.add(g);
 }
 function addStreetProps(){
   for(let z=-105;z<=105;z+=15){
@@ -318,7 +328,7 @@ function buildCity(){
 
   camera=new THREE.PerspectiveCamera(58,viewport.clientWidth/viewport.clientHeight,.1,500);
   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,3));
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
   renderer.shadowMap.enabled=true;
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
@@ -328,7 +338,7 @@ function buildCity(){
 
   scene.add(new THREE.HemisphereLight(state.time>=20||state.time<6?0x667da8:0xdde8ef,0x26302c,state.time>=20||state.time<6?1.25:1.8));
   const ambient=new THREE.AmbientLight(0xffffff,.22); scene.add(ambient);
-  const sun=new THREE.DirectionalLight(state.time>=20||state.time<6?0x91a9ff:state.time>=17?0xffb36b:0xfff2d6,state.time>=20||state.time<6?.8:2.8); sun.position.set(35,55,25); sun.castShadow=true; sun.shadow.mapSize.set(4096,4096); sun.shadow.camera.left=-80; sun.shadow.camera.right=80; sun.shadow.camera.top=80; sun.shadow.camera.bottom=-80; scene.add(sun);
+  const sun=new THREE.DirectionalLight(state.time>=20||state.time<6?0x91a9ff:state.time>=17?0xffb36b:0xfff2d6,state.time>=20||state.time<6?.8:2.8); sun.position.set(35,55,25); sun.castShadow=true; sun.shadow.mapSize.set(2048,2048); sun.shadow.camera.left=-80; sun.shadow.camera.right=80; sun.shadow.camera.top=80; sun.shadow.camera.bottom=-80; scene.add(sun);
   const fill=new THREE.DirectionalLight(0x9fc5ff,.45); fill.position.set(-40,20,-30); scene.add(fill);
 
   traffic=[]; trafficLights=[]; smoke=[]; rainDrops=[];
@@ -419,7 +429,7 @@ function buildCity(){
   scene.add(car);
 
   for(let i=0;i<9;i++){
-    const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4]);
+    const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4],false);
     npc.scale.setScalar(.86);
     npc.position.set((i%4)*13-19,.55,-12-i*18);npc.userData.speed=1.4+(i%3)*.35;
     npc.rotation.y=Math.PI;
