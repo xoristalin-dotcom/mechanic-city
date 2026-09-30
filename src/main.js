@@ -293,6 +293,30 @@ function buildCity(){
     const crossLine=new THREE.Mesh(new THREE.BoxGeometry(300,.03,.12),new THREE.MeshStandardMaterial({color:0xd5d2b9}));
     crossLine.position.set(0,.075,z);scene.add(crossLine);
     addTrafficLight(0,z);
+    // Crosswalks on both sides of each intersection.
+    for(const side of [-1,1]){
+      for(let k=-3;k<=3;k++){
+        const stripe=new THREE.Mesh(new THREE.BoxGeometry(7,.025,.34),new THREE.MeshBasicMaterial({color:0xd9d7cc}));
+        stripe.position.set(k*1.05,.085,z+side*5.05);scene.add(stripe);
+      }
+    }
+  }
+  // Small visual landmarks: gas station, workshop and parking lot.
+  const gasBase=new THREE.Mesh(new THREE.BoxGeometry(18,.18,11),new THREE.MeshStandardMaterial({color:0x303438,roughness:.8}));
+  gasBase.position.set(45,.1,35);gasBase.receiveShadow=true;scene.add(gasBase);
+  const gasRoof=new THREE.Mesh(new THREE.BoxGeometry(16,.35,9),new THREE.MeshStandardMaterial({color:0x4c5256,metalness:.25,roughness:.4}));
+  gasRoof.position.set(45,4.3,35);gasRoof.castShadow=true;scene.add(gasRoof);
+  for(const x of [40,50]){
+    const col=new THREE.Mesh(new THREE.CylinderGeometry(.16,.16,4.1,10),new THREE.MeshStandardMaterial({color:0x24282b,metalness:.5,roughness:.45}));
+    col.position.set(x,2.15,31);scene.add(col);
+  }
+  const workshop=new THREE.Mesh(new THREE.BoxGeometry(14,4.5,10),new THREE.MeshStandardMaterial({color:0x454a4d,roughness:.75}));
+  workshop.position.set(-45,2.25,35);workshop.castShadow=true;workshop.receiveShadow=true;scene.add(workshop);
+  const workshopDoor=new THREE.Mesh(new THREE.BoxGeometry(5.2,3.1,.08),new THREE.MeshStandardMaterial({color:0x171a1d,metalness:.2,roughness:.35}));
+  workshopDoor.position.set(-45,1.65,29.96);scene.add(workshopDoor);
+  for(let x=-56;x<=-34;x+=5.5){
+    const bay=new THREE.Mesh(new THREE.BoxGeometry(4.2,.03,6.2),new THREE.MeshStandardMaterial({color:0x77736a,roughness:.9}));
+    bay.position.set(x,.205,35);scene.add(bay);
   }
   for(let i=-10;i<=10;i++) addTree(i*11+(i%2)*3,-28-(Math.abs(i)%4)*11,.8+(Math.abs(i)%3)*.18);
   for(let i=-5;i<=5;i++){addBuilding(i*19,-70,9,6+(Math.abs(i)%4)*2,9,[0x666762,0x4e575d,0x71695f][Math.abs(i)%3]);addBuilding(i*19,70,9,5+(Math.abs(i)%3)*3,9,0x5c6361);}
