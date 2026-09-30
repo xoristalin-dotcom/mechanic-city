@@ -84,16 +84,20 @@ function makeCar(color=0x252a30){
   // Simple damage/visual state is attached to each car.
 
   const g=new THREE.Group();
-  const body=new THREE.Mesh(new THREE.BoxGeometry(2.5,.62,4.6),new THREE.MeshStandardMaterial({color,metalness:.55,roughness:.28}));
+  const body=new THREE.Mesh(new THREE.BoxGeometry(2.5,.62,4.6),new THREE.MeshStandardMaterial({color,metalness:.62,roughness:.22})); body.castShadow=true;body.receiveShadow=true;
   body.position.y=.62; g.add(body);
   const hood=new THREE.Mesh(new THREE.BoxGeometry(2.25,.18,1.25),new THREE.MeshStandardMaterial({color:0x30353b,metalness:.45,roughness:.25}));
   hood.position.set(0,.98,-1.45); g.add(hood);
-  const cabin=new THREE.Mesh(new THREE.BoxGeometry(2.05,.8,2.15),new THREE.MeshStandardMaterial({color:0x101820,metalness:.15,roughness:.12}));
+  const cabin=new THREE.Mesh(new THREE.BoxGeometry(2.05,.8,2.15),new THREE.MeshStandardMaterial({color:0x101820,metalness:.3,roughness:.08,transparent:true,opacity:.93}));
   cabin.position.set(0,1.08,.2); g.add(cabin);
   for(const x of [-1.3,1.3]) for(const z of [-1.45,1.45]){
     const w=new THREE.Mesh(new THREE.CylinderGeometry(.38,.38,.25,18),new THREE.MeshStandardMaterial({color:0x090a0c,roughness:1}));
-    w.rotation.z=Math.PI/2; w.position.set(x,.42,z); g.add(w);
+    w.rotation.z=Math.PI/2; w.position.set(x,.42,z); w.castShadow=true; g.add(w);
   }
+  const headMat=new THREE.MeshStandardMaterial({color:0xfff3cf,emissive:0xffd36a,emissiveIntensity:.8});
+  for(const x of [-.78,.78]){const h=new THREE.Mesh(new THREE.BoxGeometry(.48,.16,.08),headMat);h.position.set(x,.76,-2.31);g.add(h);}
+  const tailMat=new THREE.MeshStandardMaterial({color:0x8b1118,emissive:0x4d0005,emissiveIntensity:.7});
+  for(const x of [-.78,.78]){const h=new THREE.Mesh(new THREE.BoxGeometry(.48,.16,.08),tailMat);h.position.set(x,.76,2.31);g.add(h);}
   const damageMark=new THREE.Mesh(new THREE.BoxGeometry(.18,.03,.7),new THREE.MeshStandardMaterial({color:0x6b1d22}));
   damageMark.position.set(1.25,.93,-.3); damageMark.rotation.z=-.15; damageMark.visible=false; g.add(damageMark);
   g.userData.damageMark=damageMark;
@@ -120,7 +124,7 @@ function addTree(x,z,s=1){
   const g=new THREE.Group();
   const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.14*s,.2*s,2.2*s,8),new THREE.MeshStandardMaterial({color:0x4b3423}));
   trunk.position.y=1.1*s; g.add(trunk);
-  const crown=new THREE.Mesh(new THREE.SphereGeometry(1.05*s,10,8),new THREE.MeshStandardMaterial({color:0x284b2c,roughness:1}));
+  const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(1.12*s,1),new THREE.MeshStandardMaterial({color:0x2e5732,roughness:.95})); crown.castShadow=true;
   crown.position.y=2.5*s; g.add(crown); scene.add(g);
 }
 
@@ -145,8 +149,19 @@ function addRain(){
   }
 }
 function addBuilding(x,z,w,h,d,color){
-  const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness:1}));
-  b.position.set(x,h/2,z);scene.add(b);
+  const g=new THREE.Group();
+  const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness:.82,metalness:.05}));
+  b.position.y=h/2;b.castShadow=true;b.receiveShadow=true;g.add(b);
+  const roof=new THREE.Mesh(new THREE.BoxGeometry(w+.15,.16,d+.15),new THREE.MeshStandardMaterial({color:0x292c2f,roughness:.75}));
+  roof.position.y=h+.08;roof.castShadow=true;g.add(roof);
+  const rows=Math.max(1,Math.floor(h/2));
+  const cols=Math.max(1,Math.floor(w/2));
+  for(let r=0;r<rows;r++) for(let q=0;q<cols;q++){
+    const win=new THREE.Mesh(new THREE.BoxGeometry(.42,.5,.025),new THREE.MeshStandardMaterial({color:(r+q)%4===0?0xf1c76b:0x27353e,emissive:(r+q)%4===0?0x6b4b16:0x000000,emissiveIntensity:.35}));
+    win.position.set(-w/2+.9+q*1.8,.85+r*1.65,d/2+.014);g.add(win);
+    const win2=win.clone();win2.position.z=-d/2-.014;win2.rotation.y=Math.PI;g.add(win2);
+  }
+  g.position.set(x,0,z);scene.add(g);
 }
 function buildCity(){
   scene=new THREE.Scene();
@@ -154,27 +169,50 @@ function buildCity(){
   scene.fog=new THREE.Fog(0x7f8d91,45,170);
 
   camera=new THREE.PerspectiveCamera(62,viewport.clientWidth/viewport.clientHeight,.1,500);
-  renderer=new THREE.WebGLRenderer({antialias:true});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,1.7));
+  renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.55));
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=1.08;
   renderer.setSize(viewport.clientWidth,viewport.clientHeight);
   viewport.innerHTML=""; viewport.appendChild(renderer.domElement);
 
-  scene.add(new THREE.HemisphereLight(0xdde8ef,0x41504b,2.0));
-  const sun=new THREE.DirectionalLight(0xffffff,2.2); sun.position.set(30,50,20); scene.add(sun);
+  scene.add(new THREE.HemisphereLight(0xdde8ef,0x34413d,1.65));
+  const sun=new THREE.DirectionalLight(0xfff2d6,2.8); sun.position.set(35,55,25); sun.castShadow=true; sun.shadow.mapSize.set(1024,1024); sun.shadow.camera.left=-80; sun.shadow.camera.right=80; sun.shadow.camera.top=80; sun.shadow.camera.bottom=-80; scene.add(sun);
+  const fill=new THREE.DirectionalLight(0x9fc5ff,.45); fill.position.set(-40,20,-30); scene.add(fill);
 
   rainDrops=[];
-  const ground=new THREE.Mesh(new THREE.PlaneGeometry(300,300),new THREE.MeshStandardMaterial({color:0x56605c,roughness:1}));
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(300,300),new THREE.MeshStandardMaterial({color:0x657067,roughness:.92})); ground.receiveShadow=true;
   ground.rotation.x=-Math.PI/2; scene.add(ground);
 
   // Main roads plus cross streets, creating real intersections.
   for(let i=-4;i<=4;i++){
-    const road=new THREE.Mesh(new THREE.BoxGeometry(8,.06,300),new THREE.MeshStandardMaterial({color:0x292d30,roughness:.95}));
+    const road=new THREE.Mesh(new THREE.BoxGeometry(8,.06,300),new THREE.MeshStandardMaterial({color:0x25282b,roughness:.82})); road.receiveShadow=true;
     road.position.set(i*13,.03,0); scene.add(road);
     const line=new THREE.Mesh(new THREE.BoxGeometry(.12,.03,300),new THREE.MeshStandardMaterial({color:0xd5d2b9}));
     line.position.set(i*13,.075,0); scene.add(line);
   }
+  // Sidewalk strips along the main roads.
+  for(let x=-52;x<=52;x+=13){
+    for(const side of [-1,1]){
+      const s=new THREE.Mesh(new THREE.BoxGeometry(.9,.12,300),new THREE.MeshStandardMaterial({color:0x8d8b82,roughness:.88}));
+      s.position.set(x+side*4.55,.08,0);s.receiveShadow=true;scene.add(s);
+    }
+  }
   for(let z=-90;z<=90;z+=45){
-    const cross=new THREE.Mesh(new THREE.BoxGeometry(300,.07,8),new THREE.MeshStandardMaterial({color:0x292d30,roughness:.95}));
+    for(const side of [-1,1]){
+      const s=new THREE.Mesh(new THREE.BoxGeometry(300,.12,.9),new THREE.MeshStandardMaterial({color:0x8d8b82,roughness:.88}));
+      s.position.set(0,.08,z+side*4.55);s.receiveShadow=true;scene.add(s);
+    }
+  }
+  // Dashed lane separators.
+  for(let x=-39;x<=39;x+=13) for(let z=-135;z<135;z+=7){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(.08,.035,3.1),new THREE.MeshBasicMaterial({color:0xe8dfbd}));
+    m.position.set(x,.09,z);scene.add(m);
+  }
+
+    const cross=new THREE.Mesh(new THREE.BoxGeometry(300,.07,8),new THREE.MeshStandardMaterial({color:0x26292c,roughness:.82})); cross.receiveShadow=true;
     cross.position.set(0,.035,z); scene.add(cross);
     const crossLine=new THREE.Mesh(new THREE.BoxGeometry(300,.03,.12),new THREE.MeshStandardMaterial({color:0xd5d2b9}));
     crossLine.position.set(0,.075,z); scene.add(crossLine);
@@ -185,6 +223,13 @@ function buildCity(){
   addBuilding(-45,35,10,4.5,8,0x4a5358);
   addBuilding(45,35,9,3.2,7,0x273b48);
   addBuilding(45,-35,11,5,9,0x3b5667);
+  // Street lights.
+  for(let x=-39;x<=39;x+=13) for(const z of [-48,48]){
+    const pole=new THREE.Mesh(new THREE.CylinderGeometry(.045,.07,3.8,8),new THREE.MeshStandardMaterial({color:0x22262a,metalness:.4,roughness:.55}));
+    pole.position.set(x+3.8,1.9,z);pole.castShadow=true;scene.add(pole);
+    const lamp=new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),new THREE.MeshStandardMaterial({color:0xffe8ad,emissive:0xffa62b,emissiveIntensity:1.5}));
+    lamp.position.set(x+3.8,3.82,z);scene.add(lamp);
+  }
   if(state.rain)addRain();
 
   for(let i=-5;i<=5;i++){
@@ -243,11 +288,8 @@ function animate(traffic=[]){
     car.rotation.y=state.heading;
   }
 
-  const target=new THREE.Vector3(
-    car.position.x+Math.sin(car.rotation.y)*9,
-    5.3,
-    car.position.z+Math.cos(car.rotation.y)*9
-  );
+  const camDistance=state.speed>.25?10.5:8.5;
+  const target=new THREE.Vector3(car.position.x+Math.sin(car.rotation.y)*camDistance, state.speed>.25?4.5:4.9, car.position.z+Math.cos(car.rotation.y)*camDistance);
   camera.position.lerp(target,.08);
   const look=new THREE.Vector3(car.position.x,1.0,car.position.z);
   camera.lookAt(look);
