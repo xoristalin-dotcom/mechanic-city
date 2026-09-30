@@ -150,7 +150,7 @@ function animate(traffic=[]){
   const dt=Math.min(clock?.getDelta()||.016,.05);
 
   if(state.driving && state.fuel>0){
-    const turning=state.steer===-1?-1:state.steer===1?1:0;
+    const turning=state.steer===-1?1:state.steer===1?-1:0;
     state.heading += turning*dt*(1.25+state.speed*.7);
     const throttle=state.steer===2?1:0;
     if(throttle) state.speed=Math.min(1.55,state.speed+dt*.95);
@@ -186,7 +186,7 @@ function bindControls(){
   document.querySelectorAll("[data-drive]").forEach(b=>{
     const start=()=>{const v=b.dataset.drive; if(v==="gas")state.steer=2; else if(v==="left")state.steer=-1; else if(v==="right")state.steer=1; else stop(); if(v!=="brake")state.driving=true;};
     const end=()=>{if(b.dataset.drive!=="brake")state.steer=0;};
-    b.addEventListener("pointerdown",start); b.addEventListener("pointerup",end); b.addEventListener("pointercancel",end); b.addEventListener("pointerleave",end);
+    b.addEventListener("pointerdown",e=>{e.preventDefault();start();},{passive:false}); b.addEventListener("pointerup",e=>{e.preventDefault();end();},{passive:false}); b.addEventListener("pointercancel",e=>{e.preventDefault();end();},{passive:false}); b.addEventListener("pointerleave",end);
   });
 }
 
