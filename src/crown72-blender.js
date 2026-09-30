@@ -1,10 +1,11 @@
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
+
 export async function loadCrown72Blender(){
-  const response=await fetch("/models/crown72-v4.glb.gz",{cache:"force-cache"});
-  if(!response.ok) throw new Error("Crown 72 Blender asset HTTP "+response.status);
-  if(!("DecompressionStream" in globalThis)) throw new Error("gzip decompression is not supported");
-  const compressed=await response.arrayBuffer();
-  const stream=new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"));
-  const buffer=await new Response(stream).arrayBuffer();
-  return new Promise((resolve,reject)=>new GLTFLoader().parse(buffer,"/",g=>resolve(g.scene),reject));
+  const response=await fetch("/models/crown72-v4.glb",{cache:"no-store"});
+  if(!response.ok) throw new Error("Crown 72 model HTTP "+response.status);
+  const buffer=await response.arrayBuffer();
+  const loader=new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  return new Promise((resolve,reject)=>loader.parse(buffer,"/",g=>resolve(g.scene),reject));
 }
