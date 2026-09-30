@@ -90,13 +90,15 @@ function fallbackDrive(dt){const throttle=input.gas&&(state.gear==="D"||state.ge
 async function swapToBlenderCrown72(){
  try{
    const model=await loadCrown72Blender();
-   model.name="Crown72_Blender";
+   model.name="Crown72_BlenderAsset";
    model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
-   const wheels=[];
-   model.traverse(o=>{if(o.name.includes("Wheel_")&&o.name.includes("_Tire"))wheels.push(o);});
-   if(wheels.length>=4){model.userData.wheels=wheels.slice(0,4);}
-   model.position.copy(car.position); model.rotation.copy(car.rotation);
-   const old=car; car=model; scene.add(car); scene.remove(old);
+   const root=new THREE.Group();
+   root.name="Crown72_Blender";
+   root.position.copy(car.position);
+   root.rotation.copy(car.rotation);
+   root.userData.wheels=[];
+   root.add(model);
+   const old=car; car=root; scene.add(car); scene.remove(old);
    if(physicsReady&&chassisBody){const p=chassisBody.translation();car.position.set(p.x,p.y-PHYSICS_Y,p.z);}
    msg("🚗 Blender-модель Crown 72 загружена");
  }catch(err){window.MechanicCityDebugLog?.({type:"blender-model",message:String(err?.message||err),stack:String(err?.stack||"")});console.warn("Blender Crown 72 load failed; procedural fallback remains.",err);}
