@@ -43,3 +43,5 @@ button{font:inherit;color:inherit;border:0;outline:none;-webkit-user-select:none
 .carbox{padding:18px;border-radius:16px;background:#1a1f24;border:1px solid #ffffff1b;display:flex;flex-direction:column;gap:7px}.carbox b{font-size:23px}.carbox span{color:#b1bac2;font-size:13px}.parts{display:grid;gap:9px;margin-top:13px}.parts button{padding:14px;text-align:left;background:#1a1f24;border:1px solid #ffffff1b;border-radius:12px}
 
 
+
+.diagnostics{margin-top:12px;padding:15px;border-radius:15px;background:#1a1f24;border:1px solid #ffffff1b}.diagnostics h3{margin:0 0 10px}.diagnostics div{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #ffffff10;color:#b9c0c6}.diagnostics b{color:#fff}.muted{color:#aeb6bd}.cards article,.garage button{touch-action:manipulation}.cards{padding-top:30px}.garage{overflow:auto}.garage>button{display:block;width:100%;padding:14px;margin:10px 0;border-radius:12px;background:#1b2025;border:1px solid #ffffff1b;text-align:left}.carbox{margin-bottom:12px}
