@@ -266,8 +266,9 @@ function animate(traffic=[]){
   renderer.render(scene,camera);
 }
 
-function driveOn(){ if(state.fuel<=0){msg("⛽ Бак пуст.");return;} state.driving=true; msg("За рулём. ▲ газ • ‹ › поворот • ■ тормоз"); }
-function stop(){ state.driving=false; state.speed=0; input.gas=input.left=input.right=input.brake=false; msg("Машина остановлена."); save(); }
+function driveOn(){ if(state.fuel<=0){msg("⛽ Бак пуст — нужна заправка.");return;} if(state.gear==="P"||state.gear==="N")state.gear="D"; state.driving=true; msg("За рулём"); }
+function stop(){ state.driving=false; state.speed=0; input.gas=input.left=input.right=input.brake=false; save(); }
+function cycleGear(){ const gears=["P","R","N","D"]; const i=gears.indexOf(state.gear||"P"); state.gear=gears[(i+1)%gears.length]; if(state.gear==="P")stop(); else state.driving=true; msg("Передача: "+state.gear); }
 function exitCar(){
   stop(); state.onFoot=true;
   openPanel("Ты вышел из машины",`<p>Можно осмотреть автомобиль или отправиться в гараж.</p><button id="sitBack">Сесть в машину</button><button id="walkGarage">Открыть гараж</button>`);
@@ -369,6 +370,7 @@ document.querySelector("#carInfo").onclick=()=>openPanel("Автомобиль",
 document.querySelector("#engineBtn").onclick=()=>msg("Капот открыт: двигатель "+Math.round(state.heat)+"°C • повреждение "+Math.round(state.damage)+"%");
 document.querySelector("#exitBtn").onclick=exitCar;
 document.querySelector("#horn").onclick=()=>msg("🔊 Бип!");
+document.querySelector("#gearBtn").onclick=cycleGear;
 document.querySelector("#gearBtn").onclick=cycleGear;
 document.querySelector("#cameraBtn").onclick=()=>{ if(camera){camera.fov=camera.fov===62?78:62;camera.updateProjectionMatrix();} };
 document.querySelectorAll(".menu [data-scene]").forEach(b=>b.onclick=()=>renderScene(b.dataset.scene));
