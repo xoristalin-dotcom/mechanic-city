@@ -99,8 +99,10 @@ function makeCar(color=0x252a30, detailedLights=true){
   const trunk=new THREE.Mesh(new RoundedBoxGeometry(2.28,.15,.92,4,.04),paint);
   trunk.position.set(0,.94,1.72); trunk.castShadow=true; g.add(trunk);
 
-  const cabin=new THREE.Mesh(new RoundedBoxGeometry(2.05,.76,2.18,5,.16),dark);
-  cabin.position.set(0,1.08,.15); cabin.castShadow=true; g.add(cabin);
+  // Rounded cabin silhouette: smooth roof/shoulders instead of a square box.
+  const cabin=new THREE.Mesh(new THREE.SphereGeometry(1,28,16),dark);
+  cabin.scale.set(1.05,.60,1.22);
+  cabin.position.set(0,1.12,.12); cabin.castShadow=true; g.add(cabin);
   // Visible interior: dashboard, seats and steering wheel.
   const dash=new THREE.Mesh(new THREE.BoxGeometry(1.78,.24,.5),interior);
   dash.position.set(0,1.08,-.58); g.add(dash);
@@ -117,14 +119,14 @@ function makeCar(color=0x252a30, detailedLights=true){
   const windshield=new THREE.Mesh(new THREE.BoxGeometry(1.84,.54,.035),glass);
   windshield.position.set(0,1.22,-.92); windshield.rotation.x=-.16; g.add(windshield);
   const rearGlass=windshield.clone(); rearGlass.position.z=1.16; rearGlass.rotation.x=.16; g.add(rearGlass);
-  for(const x of [-1.035,1.035]){
-    const side=new THREE.Mesh(new THREE.BoxGeometry(.035,.5,1.72),glass);
-    side.position.set(x,1.18,.12); g.add(side);
+  for(const x of [-1.055,1.055]){
+    const side=new THREE.Mesh(new RoundedBoxGeometry(.035,.40,1.58,4,.035),glass);
+    side.position.set(x,1.20,.10); g.add(side);
   }
 
   // Roof pillars / roof panel.
-  const roof=new THREE.Mesh(new RoundedBoxGeometry(1.94,.12,1.98,4,.045),paint);
-  roof.position.set(0,1.48,.14); roof.castShadow=true; g.add(roof);
+  const roof=new THREE.Mesh(new RoundedBoxGeometry(1.72,.10,1.72,6,.06),paint);
+  roof.position.set(0,1.57,.14); roof.castShadow=true; g.add(roof);
   const roofGlass=new THREE.Mesh(new THREE.BoxGeometry(1.18,.035,1.1),glass);
   roofGlass.position.set(0,1.55,.18); g.add(roofGlass);
   for(const x of [-.92,.92]){
@@ -473,9 +475,9 @@ function animate(traffic=[]){
   }
 
   const camDistance=state.speed>.25?10.5:8.5;
-  const target=new THREE.Vector3(car.position.x+Math.sin(car.rotation.y)*camDistance, state.speed>.25?2.45:2.35, car.position.z+Math.cos(car.rotation.y)*camDistance);
+  const target=new THREE.Vector3(car.position.x+Math.sin(car.rotation.y)*camDistance, state.speed>.25?3.15:3.05, car.position.z+Math.cos(car.rotation.y)*camDistance);
   camera.position.lerp(target,.08);
-  const look=new THREE.Vector3(car.position.x-Math.sin(car.rotation.y)*1.8,.78,car.position.z-Math.cos(car.rotation.y)*1.8);
+  const look=new THREE.Vector3(car.position.x-Math.sin(car.rotation.y)*1.8,1.00,car.position.z-Math.cos(car.rotation.y)*1.8);
   camera.lookAt(look);
 
   for(const npc of traffic){
