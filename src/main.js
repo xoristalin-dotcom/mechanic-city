@@ -435,8 +435,8 @@ function animate(traffic=[]){
       camera.position.lerp(target,.22);
     }else{
       const behind=cameraMode===0?1:-1;
-      const followDistance=moving?22.5:20.5;
-      const followHeight=moving?6.5:5.8;
+      const followDistance=moving?15.5:14.0;
+      const followHeight=moving?7.8:7.0;
       const horizontal=followDistance*Math.cos(camOrbitPitch);
       const sx=Math.sin(heading+camOrbitYaw)*horizontal*behind;
       const sz=Math.cos(heading+camOrbitYaw)*horizontal*behind;
