@@ -405,9 +405,9 @@ function animate(traffic=[]){
   }
 
   const camDistance=state.speed>.25?10.5:8.5;
-  const target=new THREE.Vector3(car.position.x+Math.sin(car.rotation.y)*camDistance, state.speed>.25?4.5:4.9, car.position.z+Math.cos(car.rotation.y)*camDistance);
+  const target=new THREE.Vector3(car.position.x-Math.sin(car.rotation.y)*camDistance, state.speed>.25?3.15:3.0, car.position.z-Math.cos(car.rotation.y)*camDistance);
   camera.position.lerp(target,.08);
-  const look=new THREE.Vector3(car.position.x,1.0,car.position.z);
+  const look=new THREE.Vector3(car.position.x-Math.sin(car.rotation.y)*1.0,.72,car.position.z-Math.cos(car.rotation.y)*1.0);
   camera.lookAt(look);
 
   for(const npc of traffic){
