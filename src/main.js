@@ -52,11 +52,15 @@ function setupImportedWheelSteering(model){
   // The source model is normalized by crown72-blender.js to ~4.95 m long.
   // Its source front is -X and width is Z; these ratios keep the wheels in
   // place if the asset is regenerated at a slightly different scale.
-  const wheelX=min.x+size.x*.205;
-  const wheelY=min.y+size.y*.285;
-  const sideZ=Math.max(.58,size.z*.36);
-  const tireRadius=Math.max(.30,Math.min(size.y*.255,.39));
-  const tireWidth=Math.max(.16,Math.min(size.z*.13,.25));
+  // The first pass placed these on the rear axle. The source asset's
+  // opposite longitudinal end is the actual front axle.
+  const wheelX=min.x+size.x*.79;
+  const wheelY=min.y+size.y*.25;
+  const sideZ=Math.max(.54,size.z*.34);
+  // Keep the helper wheels close to the baked wheel size so they do not look
+  // oversized when the imported body has a tall bounding box.
+  const tireRadius=Math.max(.24,Math.min(size.y*.18,.32));
+  const tireWidth=Math.max(.13,Math.min(size.z*.10,.20));
 
   const makeWheel=(z)=>{
     const pivot=new THREE.Group();
