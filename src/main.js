@@ -3,7 +3,7 @@ import "./style.css";
 
 const app = document.querySelector("#app");
 
-const state = {
+const saved = JSON.parse(localStorage.getItem("mechanic-city") || "null");\nconst state = saved || {
   money: 18500,
   fuel: 72,
   heat: 82,
@@ -32,6 +32,7 @@ app.innerHTML = `
       <div class="mission"><b id="location">ГОРОД</b><span id="message">Нажми на машину или выбери место.</span></div>
       <div class="actions" id="actions"></div>
     </section>
+    <div class="drive-controls" id="driveControls"><button data-drive="left">◀</button><button data-drive="brake">■</button><button data-drive="gas">▲</button><button data-drive="right">▶</button></div>
     <nav class="nav">
       <button data-scene="city">🏙️<small>Город</small></button>
       <button data-scene="market">🚘<small>Рынок</small></button>
@@ -61,11 +62,12 @@ function button(label, fn, cls="") {
 }
 function clearActions(){ actionsEl.innerHTML = ""; }
 
-let renderer, camera, car, animationId;
+let renderer, camera, car, animationId, cityScene;
 
 function init3D() {
   viewport.innerHTML = "";
   const scene = new THREE.Scene();
+  cityScene = scene;
   scene.background = new THREE.Color(0x11141a);
   scene.fog = new THREE.Fog(0x11141a, 35, 130);
 
@@ -106,7 +108,7 @@ function init3D() {
   }
 
   car = makeCar();
-  car.position.set(0,.6,5);
+  car.position.set(state.posX,.6,state.posZ);
   scene.add(car);
 
   viewport.onpointerdown = (e) => {
@@ -128,7 +130,7 @@ function init3D() {
   function tick(){
     animationId=requestAnimationFrame(tick);
     if(car){
-      car.rotation.y += 0.0008;
+      if(state.driving){\n        const accel = state.steer === 2 ? -0.12 : state.steer === -2 ? 0.12 : 0;\n        car.rotation.y += accel;\n        const throttle = state.steer === 3 ? 0.16 : state.steer === -3 ? -0.07 : 0;\n        state.speed = Math.max(0, Math.min(1.4, state.speed + throttle - 0.025));\n        state.posX += Math.sin(car.rotation.y) * state.speed;\n        state.posZ += Math.cos(car.rotation.y) * state.speed;\n        car.position.set(state.posX,.6,state.posZ);\n        state.fuel=Math.max(0,state.fuel-(0.012+state.speed*0.01));\n        state.heat=Math.min(125,state.heat+0.02+state.speed*0.025);\n        state.car.mileage += state.speed*0.01;\n      }
       state.heat += 0.012;
       if(state.heat>110) state.damage=Math.min(100,state.damage+0.01);
       stats();
@@ -180,7 +182,7 @@ function renderScene(name){
     init3D();
     button("🚗 Поехать", drive, "primary");
     button("🔍 Осмотр", ()=>msg("Состояние: "+state.car.condition+"%. Пробег: "+state.car.mileage.toLocaleString("ru-RU")+" км."));
-    button("🌡 Проверить мотор", ()=>msg("Температура: "+Math.round(state.heat)+"°C."));
+    button("🌡 Проверить мотор", ()=>msg("Температура: "+Math.round(state.heat)+"°C."));\n    button("🛑 Остановиться", stopDrive);\n    bindDriveControls();
   } else if(name==="market"){
     viewport.innerHTML=`<div class="cards"><h2>Рынок б/у автомобилей</h2>
       <article><b>Vektor S</b><span>2008 • 214 320 км</span><strong>7 900 ₽</strong><button id="buy1">Купить</button></article>
@@ -218,7 +220,7 @@ function buyCar(price,name,condition,mileage){
 }
 function repair(name,cost,amount){
   if(state.money<cost){msg("Не хватает денег.");return;}
-  state.money-=cost; state.car.condition=Math.min(100,state.car.condition+amount); state.heat=Math.max(78,state.heat-6);
+  state.money-=cost; state.car.condition=Math.min(100,state.car.condition+amount); state.heat=Math.max(78,state.heat-6);\n  localStorage.setItem("mechanic-city", JSON.stringify(state));
   msg(`${name} заменено. Состояние машины: ${state.car.condition}%.`);
   renderScene("garage");
 }
@@ -226,7 +228,7 @@ function upgrade(name,cost,key){
   if(state.car[key] && key!=="wheels"){msg("Эта деталь уже установлена.");return;}
   if(state.money<cost){msg("Не хватает денег.");return;}
   state.money-=cost; state.car[key]=true; state.car.condition=Math.min(100,state.car.condition+5);
-  msg(`${name} установлены.`);
+  msg(`${name} установлены.`);\n  localStorage.setItem("mechanic-city", JSON.stringify(state));
   renderScene("garage");
 }
 
