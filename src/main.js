@@ -311,12 +311,22 @@ for(let i=0;i<9;i++){const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4
 createJobMarker();clock=new THREE.Clock();animate(traffic);
 }catch(err){
 window.MechanicCityBuildError=String(err?.message||err);
+window.MechanicCityDebugLog?.({type:"build",message:window.MechanicCityBuildError,stack:String(err?.stack||"")});
 console.error("City build failed",err);
 renderEmergencyScene();
 }}
 function animate(traffic=[]){
   requestAnimationFrame(()=>animate(traffic));
   if(!renderer||!scene||!camera)return;
+  if(window.MechanicCityDebug){
+    const now=performance.now();
+    window.MechanicCityDebug.frameCount++;
+    if(window.MechanicCityDebug.lastFrameAt){
+      const inst=1000/Math.max(1,now-window.MechanicCityDebug.lastFrameAt);
+      window.MechanicCityDebug.fps=window.MechanicCityDebug.fps?window.MechanicCityDebug.fps*.9+inst*.1:inst;
+    }
+    window.MechanicCityDebug.lastFrameAt=now;
+  }
   const dt=Math.min(clock?.getDelta()||.016,.05);
   try{
     if(state.driving&&state.fuel>0){
@@ -385,6 +395,7 @@ function animate(traffic=[]){
     stats();
   }catch(err){
     window.MechanicCityLastFrameError=String(err?.message||err);
+    window.MechanicCityDebugLog?.({type:"frame",message:window.MechanicCityLastFrameError,stack:String(err?.stack||"")});
     if(!window.MechanicCityFrameErrorLogged){
       window.MechanicCityFrameErrorLogged=true;
       console.error("Mechanic City frame update failed",err);
@@ -392,6 +403,7 @@ function animate(traffic=[]){
   }finally{
     try{renderer.render(scene,camera);}catch(err){
       window.MechanicCityRenderError=String(err?.message||err);
+      window.MechanicCityDebugLog?.({type:"render",message:window.MechanicCityRenderError,stack:String(err?.stack||"")});
       if(!window.MechanicCityRenderErrorLogged){
         window.MechanicCityRenderErrorLogged=true;
         console.error("Mechanic City render failed",err);
@@ -404,22 +416,81 @@ function setupCameraControls(){if(!renderer)return;const el=renderer.domElement;
 function bindControls(){document.querySelectorAll("[data-drive]").forEach(b=>{const v=b.dataset.drive;const start=e=>{e.preventDefault();if(v==="gas"){if(state.gear==="P"||state.gear==="N")state.gear="D";input.gas=true;state.driving=true;}else if(v==="left"){input.left=true;state.driving=true;}else if(v==="right"){input.right=true;state.driving=true;}else if(v==="brake")input.brake=true;};const end=e=>{e.preventDefault();if(v==="gas")input.gas=false;if(v==="left")input.left=false;if(v==="right")input.right=false;if(v==="brake")input.brake=false;};b.addEventListener("pointerdown",start,{passive:false});b.addEventListener("pointerup",end,{passive:false});b.addEventListener("pointercancel",end,{passive:false});b.addEventListener("pointerleave",end);});}
 document.addEventListener("pointerup",()=>{input.gas=input.left=input.right=input.brake=false;},{passive:true});document.addEventListener("pointercancel",()=>{input.gas=input.left=input.right=input.brake=false;},{passive:true});function openPanel(title,html){panel.innerHTML=`<div class="panel-card"><button class="close" id="closePanel">×</button><h2>${title}</h2>${html}</div>`;panel.classList.remove("hidden");document.querySelector("#closePanel").onclick=()=>panel.classList.add("hidden");}
 function installRuntimeErrorCapture(){
-  window.MechanicCityRuntimeErrors=[];
+  const key="mechanic-city-debug-log";
+  let saved=[];
+  try{saved=JSON.parse(localStorage.getItem(key)||"[]");if(!Array.isArray(saved))saved=[];}catch{}
+  window.MechanicCityRuntimeErrors=saved.slice(-80);
+  const push=(entry)=>{
+    const item={time:new Date().toISOString(),...entry};
+    window.MechanicCityRuntimeErrors.push(item);
+    if(window.MechanicCityRuntimeErrors.length>80)window.MechanicCityRuntimeErrors.shift();
+    try{localStorage.setItem(key,JSON.stringify(window.MechanicCityRuntimeErrors));}catch{}
+    window.MechanicCityDebug?.refresh?.();
+  };
+  window.MechanicCityDebugLog=push;
   window.addEventListener("error",e=>{
-    window.MechanicCityRuntimeErrors.push({
+    push({
       type:"error",
       message:String(e.message||e.error||"unknown"),
       source:String(e.filename||""),
       line:e.lineno||0,
-      column:e.colno||0
+      column:e.colno||0,
+      stack:String(e.error?.stack||"")
     });
   });
   window.addEventListener("unhandledrejection",e=>{
-    window.MechanicCityRuntimeErrors.push({
+    push({
       type:"unhandledrejection",
-      message:String(e.reason?.message||e.reason||"unknown")
+      message:String(e.reason?.message||e.reason||"unknown"),
+      stack:String(e.reason?.stack||"")
     });
   });
+  window.addEventListener("webglcontextlost",()=>{
+    push({type:"webglcontextlost",message:"WebGL context lost"});
+  },true);
+  window.addEventListener("webglcontextrestored",()=>{
+    push({type:"webglcontextrestored",message:"WebGL context restored"});
+  },true);
+  window.MechanicCityDebugClear=()=>{
+    window.MechanicCityRuntimeErrors=[];
+    try{localStorage.removeItem(key);}catch{}
+    window.MechanicCityDebug?.refresh?.();
+  };
+  window.MechanicCityDebug={
+    version:1,
+    startedAt:new Date().toISOString(),
+    frameCount:0,
+    lastFrameAt:0,
+    fps:0,
+    refresh:()=>{},
+    getReport:()=>{
+      const r=renderer?.info;
+      return {
+        time:new Date().toISOString(),
+        url:location.href,
+        ua:navigator.userAgent,
+        viewport:{width:innerWidth,height:innerHeight,dpr:devicePixelRatio},
+        webgl:window.MechanicCityWebGL||null,
+        webglError:window.MechanicCityWebGLError||null,
+        bootError:window.MechanicCityBootError||null,
+        buildError:window.MechanicCityBuildError||null,
+        emergency:!!window.MechanicCityEmergency,
+        emergencyError:window.MechanicCityEmergencyError||null,
+        frameError:window.MechanicCityLastFrameError||null,
+        renderError:window.MechanicCityRenderError||null,
+        physics:{ready:!!physicsReady,error:physicsError||null},
+        scene:state?.scene||null,
+        sceneChildren:scene?.children?.length??0,
+        traffic:traffic?.length??0,
+        car:{exists:!!car,wheels:car?.userData?.wheels?.length??0},
+        camera:camera?{x:+camera.position.x.toFixed(2),y:+camera.position.y.toFixed(2),z:+camera.position.z.toFixed(2),fov:camera.fov}:null,
+        renderer:r?{calls:r.render.calls,triangles:r.render.triangles,points:r.render.points,lines:r.render.lines,geometries:r.memory.geometries,textures:r.memory.textures}:null,
+        frames:window.MechanicCityDebug.frameCount,
+        fps:window.MechanicCityDebug.fps,
+        errors:window.MechanicCityRuntimeErrors.slice(-20)
+      };
+    }
+  };
 }
 function renderEmergencyScene(){
   try{
@@ -441,37 +512,48 @@ function renderEmergencyScene(){
 }
 function installDiagnosticMode(){
   const p=new URLSearchParams(location.search);
-  if(p.get("diag")!=="1")return;
-  const show=()=>{
-    const el=document.createElement("pre");
-    el.id="diag";
-    el.style.cssText="position:fixed;inset:16px;z-index:99999;margin:0;padding:18px;border-radius:16px;background:#101416ee;color:#fff;font:14px/1.55 -apple-system,BlinkMacSystemFont,sans-serif;white-space:pre-wrap;overflow:auto";
-    const glCanvas=document.createElement("canvas");
-    let gl2=null,gl1=null,err="";
-    try{gl2=glCanvas.getContext("webgl2");}catch(e){err+="webgl2: "+e.message+"\\n";}
-    try{gl1=glCanvas.getContext("webgl");}catch(e){err+="webgl: "+e.message+"\\n";}
-    el.textContent=[
-      "MECHANIC CITY — GRAPHICS DIAGNOSTIC",
-      "UA: "+navigator.userAgent,
-      "Viewport: "+innerWidth+" × "+innerHeight+" DPR "+devicePixelRatio,
-      "WebGL2: "+(!!gl2),
-      "WebGL1: "+(!!gl1),
-      "Renderer: "+(gl2||gl1)?.getParameter((gl2||gl1).RENDERER),
-      "Version: "+(gl2||gl1)?.getParameter((gl2||gl1).VERSION),
-      "MechanicCityWebGL: "+JSON.stringify(window.MechanicCityWebGL||null),
-      "WebGLError: "+(window.MechanicCityWebGLError||"none"),
-      "BootError: "+(window.MechanicCityBootError||"none"),
-      "BuildError: "+(window.MechanicCityBuildError||"none"),
-      "RuntimeErrors: "+JSON.stringify(window.MechanicCityRuntimeErrors||[]),
-      "EmergencyScene: "+(window.MechanicCityEmergency?"yes":"no"),
-      "LastFrameError: "+(window.MechanicCityLastFrameError||"none"),
-      "RenderError: "+(window.MechanicCityRenderError||"none"),
-      "Canvas: "+!!document.querySelector("#viewport canvas"),
-      err||""
-    ].join("\\n");
-    document.body.appendChild(el);
+  const enabled=p.get("diag")==="1"||p.get("debug")==="1"||localStorage.getItem("mechanic-city-debug")==="1";
+  if(!enabled)return;
+  localStorage.setItem("mechanic-city-debug","1");
+  const el=document.createElement("div");
+  el.id="debug-panel";
+  el.style.cssText="position:fixed;inset:10px;z-index:99999;pointer-events:none;color:#fff;font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;";
+  el.innerHTML="<div id='debug-card' style='pointer-events:auto;max-height:calc(100vh - 20px);overflow:auto;background:#080b0df2;border:1px solid #73818a;border-radius:12px;padding:12px;box-shadow:0 8px 30px #0008;white-space:pre-wrap'><b>MECHANIC CITY — LIVE DEBUG</b><div id='debug-text'></div><div style='margin-top:8px;display:flex;gap:6px;flex-wrap:wrap'><button id='debug-copy'>COPY REPORT</button><button id='debug-clear'>CLEAR ERRORS</button><button id='debug-close'>CLOSE</button></div></div>";
+  document.body.appendChild(el);
+  const textEl=document.querySelector("#debug-text");
+  const fmt=(v)=>v==null?"none":typeof v==="string"?v:JSON.stringify(v,null,2);
+  const refresh=()=>{
+    const r=window.MechanicCityDebug?.getReport?.()||{};
+    const last=(r.errors||[]).slice(-8);
+    textEl.textContent=[
+      "URL: "+location.pathname+location.search,
+      "Viewport: "+innerWidth+"×"+innerHeight+" DPR "+devicePixelRatio,
+      "WebGL: "+fmt(r.webgl),
+      "Build: "+fmt(r.buildError),
+      "Boot: "+fmt(r.bootError),
+      "Physics: "+(r.physics?.ready?"READY":"FALLBACK")+" "+fmt(r.physics?.error),
+      "Emergency: "+r.emergency+" "+fmt(r.emergencyError),
+      "Frame: "+fmt(r.frameError),
+      "Render: "+fmt(r.renderError),
+      "Scene: "+r.scene+" children="+r.sceneChildren+" traffic="+r.traffic,
+      "Car: exists="+r.car?.exists+" wheels="+r.car?.wheels,
+      "Camera: "+fmt(r.camera),
+      "Renderer: "+fmt(r.renderer),
+      "FPS: "+r.fps+" frames="+r.frames,
+      "ERRORS (last 8):",
+      last.length?last.map(x=>new Date(x.time).toLocaleTimeString()+" ["+x.type+"] "+x.message+(x.line?(" @"+x.line+":"+x.column):"")).join("\n"):"none"
+    ].join("\n");
   };
-  setTimeout(show,1200);
+  window.MechanicCityDebug.refresh=refresh;
+  document.querySelector("#debug-copy").onclick=async()=>{
+    const report=JSON.stringify(window.MechanicCityDebug.getReport(),null,2);
+    try{await navigator.clipboard.writeText(report);msg("📋 Отладочный отчёт скопирован");}
+    catch{prompt("Скопируй отчёт:",report);}
+  };
+  document.querySelector("#debug-clear").onclick=()=>window.MechanicCityDebugClear?.();
+  document.querySelector("#debug-close").onclick=()=>{localStorage.removeItem("mechanic-city-debug");el.remove();};
+  refresh();
+  setInterval(refresh,500);
 }
 function renderScene(name){state.scene=name;menu.classList.add("hidden");if(name==="city"){
 document.querySelector(".drive-hud").style.display="";
@@ -486,4 +568,4 @@ document.querySelector("#menuBtn").onclick=()=>menu.classList.toggle("hidden");d
   renderer.setSize(w,h,false);
 }
 window.addEventListener("resize",resizeRenderer,{passive:true});
-window.addEventListener("orientationchange",()=>setTimeout(resizeRenderer,120),{passive:true});installRuntimeErrorCapture();installVisualInspectMode();installDiagnosticMode();renderScene("city");installAITestMode();initPhysics().then(()=>{try{setupVehiclePhysics();msg("🚗 Физика машины активна");}catch(err){physicsReady=false;physicsError=String(err?.message||err);console.error("Vehicle physics setup failed",err);msg("⚠️ Запущен резервный режим управления");}}).catch(err=>{console.error("Rapier init failed",err);msg("⚠️ Физика недоступна, включено безопасное управление");});
+window.addEventListener("orientationchange",()=>setTimeout(resizeRenderer,120),{passive:true});installRuntimeErrorCapture();installVisualInspectMode();installDiagnosticMode();renderScene("city");installAITestMode();initPhysics().then(()=>{try{setupVehiclePhysics();msg("🚗 Физика машины активна");}catch(err){physicsReady=false;physicsError=String(err?.message||err);window.MechanicCityDebugLog?.({type:"physics",message:physicsError,stack:String(err?.stack||"")});console.error("Vehicle physics setup failed",err);msg("⚠️ Запущен резервный режим управления");}}).catch(err=>{physicsError=String(err?.message||err);window.MechanicCityDebugLog?.({type:"physics-init",message:physicsError,stack:String(err?.stack||"")});console.error("Rapier init failed",err);msg("⚠️ Физика недоступна, включено безопасное управление");});
