@@ -3,7 +3,8 @@ import "./style.css";
 
 const app = document.querySelector("#app");
 
-const saved = JSON.parse(localStorage.getItem("mechanic-city") || "null");\nconst state = saved || {
+const saved = JSON.parse(localStorage.getItem("mechanic-city") || "null");
+const state = saved || {
   money: 18500,
   fuel: 72,
   heat: 82,
@@ -215,6 +216,7 @@ function renderScene(name){
 function buyCar(price,name,condition,mileage){
   if(state.money<price){msg("Не хватает денег.");return;}
   state.money-=price; state.car={...state.car,name,year:2008,mileage,condition,engine:condition,turbo:false,sportBrakes:false,wheels:"stock"};
+  localStorage.setItem("mechanic-city", JSON.stringify(state));
   msg(`${name} куплена. Езжай в гараж для диагностики и ремонта.`);
   stats();
 }
