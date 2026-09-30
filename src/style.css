@@ -1,3 +1,45 @@
-*{box-sizing:border-box}html,body,#app{margin:0;width:100%;height:100%;overflow:hidden;font-family:Inter,system-ui,-apple-system,sans-serif;background:#101216;color:#fff}button{font:inherit;color:inherit;border:0}.game{height:100%;display:flex;flex-direction:column;background:#101216}.topbar{height:62px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;background:rgba(10,12,15,.94);border-bottom:1px solid #292e35;z-index:4}.topbar b{letter-spacing:.08em}.sub{display:block;color:#7d8794;font-size:10px;margin-top:2px}.stats{display:flex;gap:10px;font-size:12px}.stats span{padding:7px 8px;background:#1b2027;border-radius:9px}.stats b{font-size:13px}.game main{position:relative;flex:1;min-height:0}.game main canvas{width:100%;height:100%;display:block}.hud{position:absolute;left:10px;right:10px;bottom:78px;z-index:3;pointer-events:none}.mission{pointer-events:auto;display:flex;flex-direction:column;gap:3px;padding:10px 12px;background:rgba(11,14,18,.78);backdrop-filter:blur(12px);border:1px solid #343b45;border-radius:12px}.mission b{font-size:11px;letter-spacing:.08em;color:#c7d0db}.mission span{font-size:12px;color:#e6e9ed}.actions{display:flex;gap:7px;overflow-x:auto;margin-top:8px;pointer-events:auto}.action{white-space:nowrap;background:#262c34;border:1px solid #3a424c;padding:9px 12px;border-radius:10px}.action.primary{background:#e7e9ec;color:#101216;border-color:#fff}.nav{height:68px;background:#111419;border-top:1px solid #2b3037;display:grid;grid-template-columns:repeat(4,1fr);z-index:5;padding-bottom:env(safe-area-inset-bottom)}.nav button{background:none;color:#aab1bb;font-size:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}.nav small{font-size:10px}.cards,.garage{height:100%;padding:18px;overflow:auto;background:radial-gradient(circle at 50% 0,#252b34,#101216 65%)}h2{font-size:22px;margin:0 0 16px}.cards article{display:grid;grid-template-columns:1fr auto;gap:5px 12px;padding:15px;margin-bottom:10px;border:1px solid #333a44;background:#191e25;border-radius:14px}.cards article b{font-size:17px}.cards article span{font-size:12px;color:#929aa6}.cards article strong{text-align:right;grid-row:1/3}.cards article button{grid-column:1/-1;background:#e8eaed;color:#11151a;padding:10px;border-radius:10px;margin-top:7px}.garage{padding-bottom:100px}.carbox{padding:18px;border-radius:16px;background:#1a1f26;border:1px solid #343b45;display:flex;flex-direction:column;gap:7px}.carbox b{font-size:22px}.carbox span{color:#aeb6c0;font-size:13px}.parts{display:grid;gap:9px;margin-top:12px}.parts button{padding:14px;text-align:left;background:#1a1f26;border:1px solid #343b45;border-radius:12px}.parts button:active,.cards button:active,.action:active{transform:scale(.98)}@media(min-width:700px){.game{max-width:480px;margin:auto;border-left:1px solid #2b3037;border-right:1px solid #2b3037}.topbar{border-radius:0}}
+*{box-sizing:border-box}
+html,body,#app{margin:0;width:100%;height:100%;overflow:hidden;background:#121519;color:#fff;font-family:Inter,system-ui,-apple-system,sans-serif}
+button{font:inherit;color:inherit;border:0}
+.game{width:100%;height:100%;position:relative;overflow:hidden;background:#59635f}
+#viewport{position:absolute;inset:0}
+#viewport canvas{display:block;width:100%;height:100%}
 
-.drive-controls{position:absolute;left:0;right:0;bottom:76px;display:flex;justify-content:space-between;padding:0 14px;pointer-events:none;z-index:6}.drive-controls button{pointer-events:auto;width:54px;height:54px;border-radius:50%;border:1px solid #59616d;background:#171b21cc;color:#fff;font-size:22px;touch-action:none;backdrop-filter:blur(8px)}.drive-controls button:active{transform:scale(.94);background:#303742}.drive-controls button[data-drive="gas"]{margin-left:auto;margin-right:8px}.drive-controls button[data-drive="brake"]{margin-right:8px}.hud{z-index:5}.nav{position:relative}
+.drive-hud{position:absolute;inset:0;pointer-events:none;z-index:10}
+.hud-top{position:absolute;top:env(safe-area-inset-top,10px);left:10px;right:10px;height:54px;display:flex;justify-content:space-between;align-items:center}
+.round-btn,.top-icons button,.drive-actions button{pointer-events:auto;width:42px;height:42px;border-radius:50%;background:rgba(20,23,25,.58);border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(8px);box-shadow:0 2px 8px #0006;text-align:center}
+.round-btn{display:flex;align-items:center;justify-content:center;font-size:22px}
+.top-icons{display:flex;gap:8px}.top-icons button{font-size:20px}
+
+.speed-box{position:absolute;left:50%;bottom:92px;transform:translateX(-50%);width:102px;height:102px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(12,15,17,.72);border:2px solid rgba(255,255,255,.25);box-shadow:0 4px 18px #0007;pointer-events:none}
+.speed-box b{font-size:31px;line-height:30px}.speed-box small{font-size:8px;color:#cbd0d3;letter-spacing:.14em}.speed-box span{position:absolute;bottom:9px;font-size:11px;font-weight:800}
+
+.fuel-box{position:absolute;left:14px;top:66px;padding:8px 10px;border-radius:10px;background:#101416aa;border:1px solid #ffffff26;font-size:11px;pointer-events:none}
+.mini-map{position:absolute;right:12px;top:70px;width:82px;height:82px;border-radius:50%;overflow:hidden;background:#26302bba;border:2px solid #ffffff66;box-shadow:0 3px 12px #0007}
+.map-road{position:absolute;left:38px;top:-15px;width:12px;height:120px;background:#777b77;transform:rotate(28deg)}.map-road:after{content:"";position:absolute;left:-30px;top:40px;width:72px;height:8px;background:#777b77;transform:rotate(80deg)}.map-dot{position:absolute;left:36px;top:36px;width:10px;height:10px;border-radius:50%;background:#f4f4f4;border:2px solid #111}
+
+.steering-zone{position:absolute;left:12px;bottom:105px;display:flex;gap:8px}
+.steer{pointer-events:auto;width:64px;height:64px;border-radius:50%;font-size:42px;line-height:1;background:#15191bcc;border:1px solid #ffffff33;backdrop-filter:blur(7px);touch-action:none}
+.steer:active,.pedal:active,.drive-actions button:active{transform:scale(.93);background:#394047dd}
+
+.pedals{position:absolute;right:14px;bottom:96px;display:flex;align-items:end;gap:10px}
+.pedal{pointer-events:auto;touch-action:none;width:60px;height:74px;border-radius:14px;background:#15191bcc;border:1px solid #ffffff33;backdrop-filter:blur(7px);font-size:22px}.pedal.gas{height:104px;font-size:28px}
+
+.drive-actions{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);display:flex;gap:10px}.drive-actions button{font-size:18px}
+.message{position:absolute;left:50%;top:118px;transform:translateX(-50%);padding:7px 12px;border-radius:20px;background:#101416a8;border:1px solid #ffffff22;font-size:11px;white-space:nowrap;max-width:88%;overflow:hidden;text-overflow:ellipsis}
+
+.menu{position:absolute;inset:0;z-index:30;background:#0005;display:flex;justify-content:flex-end;padding:70px 12px 0;pointer-events:auto}
+.menu.hidden,.panel.hidden{display:none}
+.menu-card{width:190px;background:#171b1fef;border:1px solid #ffffff22;border-radius:16px;padding:8px;box-shadow:0 10px 40px #0009;backdrop-filter:blur(15px)}
+.menu-card button{width:100%;padding:13px 12px;text-align:left;background:none;border-radius:10px}.menu-card button:active{background:#30363b}
+
+.panel{position:absolute;inset:0;z-index:40;background:#0008;display:flex;align-items:flex-end;padding:12px;pointer-events:auto}
+.panel-card{position:relative;width:100%;max-width:480px;margin:auto;background:#171b20;border:1px solid #ffffff1e;border-radius:20px;padding:20px;box-shadow:0 12px 50px #000b}
+.panel-card h2{margin:0 0 12px}.panel-card p{color:#c2c9cf}.panel-card button:not(.close){width:100%;padding:12px;border-radius:12px;background:#e8eaec;color:#111;margin-top:8px}
+.close{position:absolute;right:12px;top:10px;width:34px;height:34px;border-radius:50%;background:#292f35;font-size:22px}
+
+.cards,.garage{position:absolute;inset:0;overflow:auto;padding:22px 16px 30px;background:radial-gradient(circle at 50% 0,#313940,#111417 70%)}h2{font-size:23px;margin:0 0 16px}
+.cards article{display:grid;grid-template-columns:1fr auto;gap:5px 12px;padding:16px;margin-bottom:11px;border:1px solid #ffffff19;background:#1b2025;border-radius:15px;box-shadow:0 5px 18px #0004}.cards article b{font-size:17px}.cards article span{font-size:12px;color:#a7afb6}.cards article strong{text-align:right;grid-row:1/3}.cards article button{grid-column:1/-1;background:#e9ebed;color:#101316;padding:11px;border-radius:10px;margin-top:7px}
+.carbox{padding:18px;border-radius:16px;background:#1a1f24;border:1px solid #ffffff1b;display:flex;flex-direction:column;gap:7px}.carbox b{font-size:23px}.carbox span{color:#b1bac2;font-size:13px}.parts{display:grid;gap:9px;margin-top:13px}.parts button{padding:14px;text-align:left;background:#1a1f24;border:1px solid #ffffff1b;border-radius:12px}
+
+@media(min-width:700px){.game{max-width:480px;margin:auto;border-left:1px solid #252b30;border-right:1px solid #252b30}}
