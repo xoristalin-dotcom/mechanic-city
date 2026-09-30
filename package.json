@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node -e \"fetch(process.env.MECHANIC_CITY_MODEL_URL).then(async r=>{if(!r.ok)throw new Error('Model HTTP '+r.status);require('fs').mkdirSync('public/models',{recursive:true});require('fs').writeFileSync('public/models/crown72-v4.glb',Buffer.from(await r.arrayBuffer()))}).catch(e=>{console.error(e);process.exit(1)})\" && vite build",
+    "build": "node -e "fetch(process.env.MECHANIC_CITY_MODEL_URL || 'https://www.dropbox.com/scl/fi/4gbfqdcki5eaigtqzlg8c/MechanicCity_Coupe_Repaired.glb?rlkey=7fxsw2499lbmt3zf85ptwp6a2&dl=1').then(async r=>{if(!r.ok)throw new Error('Model HTTP '+r.status);require('fs').mkdirSync('public/models',{recursive:true});require('fs').writeFileSync('public/models/crown72-v4.glb',Buffer.from(await r.arrayBuffer()))}).catch(e=>{console.error(e);process.exit(1)})" && vite build",
     "preview": "vite preview",
     "test:e2e": "playwright test"
   },
