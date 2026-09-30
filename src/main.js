@@ -99,6 +99,9 @@ async function swapToBlenderCrown72(){
    root.rotation.copy(car.rotation);
    root.userData.wheels=[];
    root.userData.visualOffsetY=0.42;
+   // The imported coupe faces -X, while the game vehicle faces -Z.
+   // Rotate only the visual asset so physics and steering keep the normal car axes.
+   model.rotation.y=Math.PI/2;
    root.add(model);
    const old=car; car=root; scene.add(car); scene.remove(old);
    if(physicsReady&&chassisBody){const p=chassisBody.translation();car.position.set(p.x,p.y-PHYSICS_Y,p.z);}
