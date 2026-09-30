@@ -95,6 +95,7 @@ async function swapToBlenderCrown72(){
    const root=new THREE.Group();
    root.name="Crown72_Blender";
    root.position.copy(car.position);
+   root.position.y+=0.42;
    root.rotation.copy(car.rotation);
    root.userData.wheels=[];
    root.add(model);
