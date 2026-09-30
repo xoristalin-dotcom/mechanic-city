@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import RAPIER from "@dimforge/rapier3d-compat";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { loadCrown72Blender } from "./crown72-blender.js";
 import "./style.css";
 
 // MATERIAL HELPERS — lightweight procedural detail, no external texture files.
@@ -86,6 +87,20 @@ function physicsDrive(dt){
  }
 }
 function fallbackDrive(dt){const throttle=input.gas&&(state.gear==="D"||state.gear==="R"),reverse=state.gear==="R",steer=(input.left?-1:0)+(input.right?1:0);const accel=throttle?(reverse?-10:10):0;state.speed=THREE.MathUtils.damp(state.speed,accel?Math.sign(accel)*Math.min(Math.abs(state.speed)+Math.abs(accel)*dt,12):0,accel?2.8:4.5,dt);if(input.brake)state.speed=THREE.MathUtils.damp(state.speed,0,8,dt);state.heading+=steer*dt*(0.9+Math.min(Math.abs(state.speed),8)*.08);const forward=new THREE.Vector3(-Math.sin(state.heading),0,-Math.cos(state.heading));state.posX+=forward.x*state.speed*dt;state.posZ+=forward.z*state.speed*dt;state.posX=THREE.MathUtils.clamp(state.posX,-106,106);state.posZ=THREE.MathUtils.clamp(state.posZ,-106,106);car.position.set(state.posX,0,state.posZ);car.rotation.y=state.heading;for(const w of(car.userData.wheels||[]))w.rotation.x-=state.speed*dt/.39;}
+async function swapToBlenderCrown72(){
+ try{
+   const model=await loadCrown72Blender();
+   model.name="Crown72_Blender";
+   model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+   const wheels=[];
+   model.traverse(o=>{if(o.name.includes("Wheel_")&&o.name.includes("_Tire"))wheels.push(o);});
+   if(wheels.length>=4){model.userData.wheels=wheels.slice(0,4);}
+   model.position.copy(car.position); model.rotation.copy(car.rotation);
+   const old=car; car=model; scene.add(car); scene.remove(old);
+   if(physicsReady&&chassisBody){const p=chassisBody.translation();car.position.set(p.x,p.y-PHYSICS_Y,p.z);}
+   msg("🚗 Blender-модель Crown 72 загружена");
+ }catch(err){window.MechanicCityDebugLog?.({type:"blender-model",message:String(err?.message||err),stack:String(err?.stack||"")});console.warn("Blender Crown 72 load failed; procedural fallback remains.",err);}
+}
 function save(){localStorage.setItem("mechanic-city",JSON.stringify(state));}
 function clearJobMarker(){if(jobMarker&&scene){scene.remove(jobMarker);jobMarker=null;}}
 function createJobMarker(){clearJobMarker();if(!state.job||!scene)return;const g=new THREE.Group();const ring=new THREE.Mesh(new THREE.TorusGeometry(2.4,.1,10,32),new THREE.MeshBasicMaterial({color:0xffc84a,transparent:true,opacity:.9}));ring.rotation.x=-Math.PI/2;const beam=new THREE.Mesh(new THREE.CylinderGeometry(.06,.32,5.5,12,1,true),new THREE.MeshBasicMaterial({color:0xffc84a,transparent:true,opacity:.18,side:THREE.DoubleSide}));beam.position.y=2.7;g.add(ring,beam);g.position.set(state.job.targetX,.08,state.job.targetZ);scene.add(g);jobMarker=g;}
@@ -361,7 +376,8 @@ for(const z of[-70,-35,0,35,70])for(const side of[-1,1]){for(let k=-3;k<=3;k++){
 const gasBase=new THREE.Mesh(new THREE.BoxGeometry(18,.18,11),new THREE.MeshStandardMaterial({color:0x303438,roughness:.8,map:roadTex}));gasBase.position.set(45,.1,35);gasBase.receiveShadow=true;scene.add(gasBase);const gasRoof=new THREE.Mesh(new THREE.BoxGeometry(16,.35,9),new THREE.MeshStandardMaterial({color:0x4c5256,metalness:.25,roughness:.4,map:metalTex}));gasRoof.position.set(45,4.3,35);gasRoof.castShadow=true;scene.add(gasRoof);for(const x of[40,50]){const col=new THREE.Mesh(new THREE.CylinderGeometry(.16,.16,4.1,10),new THREE.MeshStandardMaterial({color:0x24282b,metalness:.5,roughness:.45,map:metalTex}));col.position.set(x,2.15,31);scene.add(col);}const workshop=new THREE.Mesh(new THREE.BoxGeometry(14,4.5,10),new THREE.MeshStandardMaterial({color:0x454a4d,roughness:.75,map:buildingTex}));workshop.position.set(-45,2.25,35);workshop.castShadow=true;workshop.receiveShadow=true;scene.add(workshop);const workshopDoor=new THREE.Mesh(new THREE.BoxGeometry(5.2,3.1,.08),new THREE.MeshStandardMaterial({color:0x171a1d,metalness:.2,roughness:.35}));workshopDoor.position.set(-45,1.65,29.96);scene.add(workshopDoor);for(let x=-56;x<=-34;x+=5.5){const bay=new THREE.Mesh(new THREE.BoxGeometry(4.2,.03,6.2),new THREE.MeshStandardMaterial({color:0x77736a,roughness:.9,map:sidewalkTex}));bay.position.set(x,.205,35);scene.add(bay);}for(let i=-10;i<=10;i++)addTree(i*11+(i%2)*3,-28-(Math.abs(i)%4)*11,.8+(Math.abs(i)%3)*.18);for(let i=-5;i<=5;i++){addBuilding(i*19,-70,9,6+(Math.abs(i)%4)*2,9,[0x666762,0x4e575d,0x71695f][Math.abs(i)%3]);addBuilding(i*19,70,9,5+(Math.abs(i)%3)*3,9,0x5c6361);}addBuilding(-45,35,10,4.5,8,0x4a5358);addBuilding(45,35,9,3.2,7,0x273b48);addBuilding(45,-35,11,5,9,0x3b5667);
 for(let x=-39;x<=39;x+=13)for(const z of[-48,48]){const pole=new THREE.Mesh(new THREE.CylinderGeometry(.045,.07,3.8,8),new THREE.MeshStandardMaterial({color:0x22262a,metalness:.4,roughness:.55,map:metalTex}));pole.position.set(x+3.8,1.9,z);pole.castShadow=true;scene.add(pole);const lamp=new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),new THREE.MeshStandardMaterial({color:0xffe8ad,emissive:0xffa62b,emissiveIntensity:1.5}));lamp.position.set(x+3.8,3.82,z);scene.add(lamp);}if(state.rain)addRain();addStreetProps();for(let i=-5;i<=5;i++){const h=5+Math.random()*9;const b=new THREE.Mesh(new THREE.BoxGeometry(7,h,7),new THREE.MeshStandardMaterial({color:0x6d6c67,roughness:1,map:buildingTex}));b.position.set(i*16,h/2,-70-(i%2)*16);scene.add(b);}
 try{
-car=makeCar(0x252b31);car.position.set(state.posX,0,state.posZ);car.rotation.y=state.heading;scene.add(car);
+car=makeCar(0x252b31);
+swapToBlenderCrown72();car.position.set(state.posX,0,state.posZ);car.rotation.y=state.heading;scene.add(car);
 for(let i=0;i<9;i++){const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4],false);npc.scale.setScalar(.86);npc.position.set((i%4)*13-19,0,-12-i*18);npc.userData.speed=1.4+(i%3)*.35;npc.rotation.y=Math.PI;npc.userData.trafficSpeed=.7+(i%3)*.18;scene.add(npc);traffic.push(npc);}
 createJobMarker();clock=new THREE.Clock();animate(traffic);
 }catch(err){
