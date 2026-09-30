@@ -161,61 +161,85 @@ function msg(t){messageEl.textContent=t;}
 function stats(){speedEl.textContent=Math.round(state.speed*62);gearEl.textContent=state.gear||"P";fuelEl.textContent=Math.round(state.fuel);heatEl.textContent=Math.round(state.heat);clockEl.textContent=String(Math.floor(state.time)).padStart(2,"0")+":"+String(Math.floor((state.time%1)*60)).padStart(2,"0");if(state.job&&!state.onFoot&&messageEl.textContent.startsWith("▲"))messageEl.textContent="💼 "+state.job.label+" • до жёлтого маркера";}
 function makeCar(color=0x7a3f2e,detailedLights=true){
  const g=new THREE.Group();
- const paint=new THREE.MeshPhysicalMaterial({color,metalness:.58,roughness:.22,clearcoat:.72,clearcoatRoughness:.13,envMapIntensity:1.1});
- const chrome=new THREE.MeshStandardMaterial({color:0xb8bdba,metalness:.96,roughness:.14});
- const darkChrome=new THREE.MeshStandardMaterial({color:0x24282a,metalness:.75,roughness:.22});
- const glass=new THREE.MeshPhysicalMaterial({color:0x182a32,metalness:.08,roughness:.09,transmission:.12,transparent:true,opacity:.9,clearcoat:.8,clearcoatRoughness:.08});
- const rubber=new THREE.MeshStandardMaterial({color:0x090a0b,roughness:.94});
- const light=new THREE.MeshStandardMaterial({color:0xfff0bf,emissive:0xffa52a,emissiveIntensity:1.25});
- const tail=new THREE.MeshStandardMaterial({color:0x8d1518,emissive:0x450006,emissiveIntensity:.8});
+ const paint=new THREE.MeshStandardMaterial({color,metalness:.48,roughness:.30});
+ const paintDark=new THREE.MeshStandardMaterial({color:new THREE.Color(color).multiplyScalar(.72),metalness:.42,roughness:.34});
+ const chrome=new THREE.MeshStandardMaterial({color:0xc7cbc8,metalness:.92,roughness:.18});
+ const darkChrome=new THREE.MeshStandardMaterial({color:0x24282a,metalness:.72,roughness:.24});
+ const glass=new THREE.MeshStandardMaterial({color:0x263b43,metalness:.10,roughness:.16});
+ const rubber=new THREE.MeshStandardMaterial({color:0x08090a,roughness:.96});
+ const light=new THREE.MeshStandardMaterial({color:0xfff2c9,emissive:0xff9d24,emissiveIntensity:1.05,roughness:.18});
+ const tail=new THREE.MeshStandardMaterial({color:0xa3161c,emissive:0x3b0004,emissiveIntensity:.55,roughness:.25});
 
- const body=new THREE.Mesh(new RoundedBoxGeometry(2.86,.72,5.05,10,.24),paint);
- body.position.y=.62; body.castShadow=true; body.receiveShadow=true; g.add(body);
- const lower=new THREE.Mesh(new RoundedBoxGeometry(2.72,.30,4.62,8,.12),paint);
- lower.position.set(0,.47,.06); lower.castShadow=true; g.add(lower);
+ // Main slab + sill. Keep the deliberately faceted low-poly language.
+ const body=new THREE.Mesh(new RoundedBoxGeometry(2.92,.70,4.92,3,.10),paint);
+ body.position.y=.64; body.castShadow=true; body.receiveShadow=true; g.add(body);
+ const lower=new THREE.Mesh(new RoundedBoxGeometry(2.80,.30,4.72,3,.07),paintDark);
+ lower.position.set(0,.43,.04); lower.castShadow=true; g.add(lower);
 
- const hood=new THREE.Mesh(new RoundedBoxGeometry(2.52,.20,1.72,8,.10),paint);
- hood.position.set(0,.99,-1.53); hood.castShadow=true; g.add(hood);
- const hoodBulge=new THREE.Mesh(new RoundedBoxGeometry(1.08,.10,1.32,7,.05),paint);
- hoodBulge.position.set(0,1.105,-1.55); g.add(hoodBulge);
+ // Long hood and short trunk, with visible panel separation.
+ const hood=new THREE.Mesh(new RoundedBoxGeometry(2.58,.24,1.55,3,.07),paint);
+ hood.position.set(0,1.01,-1.58); hood.castShadow=true; g.add(hood);
+ const hoodEdge=new THREE.Mesh(new THREE.BoxGeometry(2.48,.035,.055),chrome);
+ hoodEdge.position.set(0,1.145,-2.35); g.add(hoodEdge);
+ const hoodBulge=new THREE.Mesh(new RoundedBoxGeometry(.82,.10,1.22,2,.035),paintDark);
+ hoodBulge.position.set(0,1.135,-1.58); g.add(hoodBulge);
+ const trunk=new THREE.Mesh(new RoundedBoxGeometry(2.52,.26,1.02,3,.07),paint);
+ trunk.position.set(0,.98,1.82); trunk.castShadow=true; g.add(trunk);
 
- const cabin=new THREE.Mesh(new RoundedBoxGeometry(2.12,.86,2.28,8,.23),paint);
- cabin.position.set(0,1.16,.34); cabin.castShadow=true; g.add(cabin);
- const roof=new THREE.Mesh(new RoundedBoxGeometry(1.92,.13,1.78,8,.09),paint);
- roof.position.set(0,1.61,.38); g.add(roof);
+ // Boxy sedan greenhouse, closer to the simple faceted proportions of Retro Garage.
+ const cabin=new THREE.Mesh(new RoundedBoxGeometry(2.10,.74,2.18,3,.09),paint);
+ cabin.position.set(0,1.23,.28); cabin.castShadow=true; g.add(cabin);
+ const roof=new THREE.Mesh(new RoundedBoxGeometry(1.90,.12,1.82,3,.045),paint);
+ roof.position.set(0,1.65,.28); g.add(roof);
 
- const windshield=new THREE.Mesh(new RoundedBoxGeometry(1.86,.60,.055,6,.025),glass);
- windshield.position.set(0,1.37,-.72); windshield.rotation.x=-.24; g.add(windshield);
- const rearGlass=windshield.clone(); rearGlass.position.z=1.42; rearGlass.rotation.x=.30; g.add(rearGlass);
+ // Large, simple glass panes with clearly visible pillars.
+ const windshield=new THREE.Mesh(new RoundedBoxGeometry(1.84,.57,.055,2,.018),glass);
+ windshield.position.set(0,1.38,-.73); windshield.rotation.x=-.28; g.add(windshield);
+ const rearGlass=windshield.clone(); rearGlass.position.z=1.31; rearGlass.rotation.x=.28; g.add(rearGlass);
  for(const x of[-1.0,1.0]){
-   const side=new THREE.Mesh(new RoundedBoxGeometry(.045,.43,1.30,4,.025),glass);
-   side.position.set(x,1.34,.37); g.add(side);
+   const sideFront=new THREE.Mesh(new RoundedBoxGeometry(.045,.47,.76,2,.018),glass);
+   sideFront.position.set(x,1.38,-.18); g.add(sideFront);
+   const sideRear=new THREE.Mesh(new RoundedBoxGeometry(.045,.47,.76,2,.018),glass);
+   sideRear.position.set(x,1.38,.72); g.add(sideRear);
  }
- for(const x of[-.94,.94]) for(const z of[-.62,1.13]){
-   const pillar=new THREE.Mesh(new RoundedBoxGeometry(.09,.66,.13,4,.03),paint);
-   pillar.position.set(x,1.32,z); pillar.rotation.z=x<0?-.08:.08; g.add(pillar);
- }
-
- const belt=new THREE.Mesh(new RoundedBoxGeometry(2.82,.055,3.68,5,.018),darkChrome);
- belt.position.set(0,.99,.28); g.add(belt);
- for(const x of[-1.43,1.43]){
-   const sideLine=new THREE.Mesh(new THREE.BoxGeometry(.035,.055,3.45),chrome);
-   sideLine.position.set(x,.73,.22); g.add(sideLine);
- }
- for(const x of[-1.35,1.35]) for(const z of[-1.42,1.43]){
-   const arch=new THREE.Mesh(new THREE.TorusGeometry(.55,.055,8,18,Math.PI),chrome);
-   arch.rotation.y=Math.PI/2; arch.position.set(x,.55,z); g.add(arch);
+ for(const x of[-1.02,1.02]){
+   const pillarA=new THREE.Mesh(new RoundedBoxGeometry(.085,.68,.10,2,.025),paintDark);
+   pillarA.position.set(x,1.31,-.56); pillarA.rotation.z=x<0?-.06:.06; g.add(pillarA);
+   const pillarB=pillarA.clone(); pillarB.position.z=.47; g.add(pillarB);
+   const pillarC=pillarA.clone(); pillarC.position.z=1.13; g.add(pillarC);
  }
 
- const grille=new THREE.Mesh(new RoundedBoxGeometry(1.35,.30,.075,4,.025),darkChrome);
+ // Characteristic bright belt line and door seams.
+ const belt=new THREE.Mesh(new THREE.BoxGeometry(2.84,.055,3.42),chrome);
+ belt.position.set(0,.99,.24); g.add(belt);
+ for(const x of[-1.445,1.445]){
+   const sideLine=new THREE.BoxGeometry(.035,.06,3.72);
+   const line=new THREE.Mesh(sideLine,chrome); line.position.set(x,.74,.20); g.add(line);
+ }
+ for(const z of[-.72,.60]){
+   const seam=new THREE.Mesh(new THREE.BoxGeometry(.018,.58,.025),darkChrome);
+   seam.position.set(-1.455,.94,z); g.add(seam);
+   const seam2=seam.clone(); seam2.position.x=1.455; g.add(seam2);
+ }
+
+ // Separate, chunky fenders visually frame the wheels.
+ for(const x of[-1.34,1.34]) for(const z of[-1.48,1.48]){
+   const fender=new THREE.Mesh(new THREE.TorusGeometry(.50,.075,6,16,Math.PI),paint);
+   fender.rotation.y=Math.PI/2;
+   fender.position.set(x,.60,z);
+   fender.scale.set(1,1,.92);
+   g.add(fender);
+ }
+
+ const grille=new THREE.Mesh(new RoundedBoxGeometry(1.55,.34,.10,3,.025),darkChrome);
  grille.position.set(0,.69,-2.55); g.add(grille);
  for(let i=-5;i<=5;i++){
    const bar=new THREE.Mesh(new THREE.BoxGeometry(.055,.20,.035),chrome);
    bar.position.set(i*.12,.69,-2.595); g.add(bar);
  }
- const frontBumper=new THREE.Mesh(new RoundedBoxGeometry(2.58,.16,.15,5,.035),chrome);
+ const frontBumper=new THREE.Mesh(new RoundedBoxGeometry(2.68,.18,.18,3,.04),chrome);
  frontBumper.position.set(0,.48,-2.58); g.add(frontBumper);
- const rearBumper=frontBumper.clone(); rearBumper.position.z=2.58; g.add(rearBumper);
+ const rearBumper=frontBumper.clone(); rearBumper.position.z=2.60; g.add(rearBumper);
 
  for(const x of[-.86,.86]){
    const h=new THREE.Mesh(new THREE.CylinderGeometry(.29,.29,.10,20),light);
@@ -228,7 +252,7 @@ function makeCar(color=0x7a3f2e,detailedLights=true){
    tbar.position.set(x,.76,2.62); g.add(tbar);
  }
 
- for(const x of[-1.38,1.38]){
+ for(const x of[-1.40,1.40]){
    const mirror=new THREE.Mesh(new RoundedBoxGeometry(.20,.14,.30,5,.04),chrome);
    mirror.position.set(x,1.17,-.56); g.add(mirror);
    const handle=new THREE.Mesh(new RoundedBoxGeometry(.22,.045,.055,4,.015),chrome);
@@ -242,11 +266,11 @@ function makeCar(color=0x7a3f2e,detailedLights=true){
  const wheelParts=[];
  for(const x of[-1.34,1.34]) for(const z of[-1.52,1.52]){
    const wg=new THREE.Group(); wg.position.set(x,.43,z);
-   const tire=new THREE.Mesh(new THREE.CylinderGeometry(.41,.41,.27,20),rubber);
+   const tire=new THREE.Mesh(new THREE.CylinderGeometry(.43,.43,.30,12),rubber);
    tire.rotation.z=Math.PI/2; tire.castShadow=true; wg.add(tire);
-   const rim=new THREE.Mesh(new THREE.CylinderGeometry(.235,.235,.285,12),chrome);
+   const rim=new THREE.Mesh(new THREE.CylinderGeometry(.255,.255,.31,12),chrome);
    rim.rotation.z=Math.PI/2; wg.add(rim);
-   const hub=new THREE.Mesh(new THREE.CylinderGeometry(.095,.095,.30,12),darkChrome);
+   const hub=new THREE.Mesh(new THREE.CylinderGeometry(.10,.10,.32,10),darkChrome);
    hub.rotation.z=Math.PI/2; wg.add(hub);
    wheelParts.push(wg); g.add(wg);
  }
@@ -283,7 +307,7 @@ try{
   renderer.shadowMap.type=THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate=true;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.08;
+  renderer.toneMappingExposure=1.22;
   renderer.domElement.style.display="block";
   renderer.domElement.style.width="100%";
   renderer.domElement.style.height="100%";
@@ -300,7 +324,7 @@ try{
   return;
 }
 try{setupCameraControls();}catch(err){window.MechanicCityBootError=String(err?.message||err);console.error("Camera setup failed",err);}
-const hemi=new THREE.HemisphereLight(night?0x5d6f8d:0xbdd6e8,0x283029,night?.65:1.05);scene.add(hemi);const sun=new THREE.DirectionalLight(night?0x7d91b8:0xffead0,night?.55:2.0);sun.position.set(-45,75,35);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-85;sun.shadow.camera.right=85;sun.shadow.camera.top=85;sun.shadow.camera.bottom=-85;scene.add(sun);
+const hemi=new THREE.HemisphereLight(night?0x5d6f8d:0xbdd6e8,0x283029,night?.8:1.35);scene.add(hemi);const sun=new THREE.DirectionalLight(night?0x7d91b8:0xffead0,night?.65:2.6);sun.position.set(-45,75,35);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-85;sun.shadow.camera.right=85;sun.shadow.camera.top=85;sun.shadow.camera.bottom=-85;scene.add(sun);
 const groundMat=new THREE.MeshStandardMaterial({color:0x50534f,roughness:.96,map:sidewalkTex});const ground=new THREE.Mesh(new THREE.PlaneGeometry(220,220),groundMat);ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);const roadMat=new THREE.MeshStandardMaterial({color:0x343738,roughness:.9,map:roadTex});for(const z of[-70,-35,0,35,70]){const road=new THREE.Mesh(new THREE.PlaneGeometry(220,10),roadMat);road.rotation.x=-Math.PI/2;road.position.set(0,.04,z);road.receiveShadow=true;scene.add(road);}for(const x of[-70,-35,0,35,70]){const road=new THREE.Mesh(new THREE.PlaneGeometry(10,220),roadMat);road.rotation.x=-Math.PI/2;road.position.set(x,.045,0);road.receiveShadow=true;scene.add(road);} 
 for(const z of[-70,-35,0,35,70])for(const side of[-1,1]){for(let k=-3;k<=3;k++){const stripe=new THREE.Mesh(new THREE.BoxGeometry(7,.025,.34),new THREE.MeshBasicMaterial({color:0xd9d7cc}));stripe.position.set(k*1.05,.085,z+side*5.05);scene.add(stripe);}}
 const gasBase=new THREE.Mesh(new THREE.BoxGeometry(18,.18,11),new THREE.MeshStandardMaterial({color:0x303438,roughness:.8,map:roadTex}));gasBase.position.set(45,.1,35);gasBase.receiveShadow=true;scene.add(gasBase);const gasRoof=new THREE.Mesh(new THREE.BoxGeometry(16,.35,9),new THREE.MeshStandardMaterial({color:0x4c5256,metalness:.25,roughness:.4,map:metalTex}));gasRoof.position.set(45,4.3,35);gasRoof.castShadow=true;scene.add(gasRoof);for(const x of[40,50]){const col=new THREE.Mesh(new THREE.CylinderGeometry(.16,.16,4.1,10),new THREE.MeshStandardMaterial({color:0x24282b,metalness:.5,roughness:.45,map:metalTex}));col.position.set(x,2.15,31);scene.add(col);}const workshop=new THREE.Mesh(new THREE.BoxGeometry(14,4.5,10),new THREE.MeshStandardMaterial({color:0x454a4d,roughness:.75,map:buildingTex}));workshop.position.set(-45,2.25,35);workshop.castShadow=true;workshop.receiveShadow=true;scene.add(workshop);const workshopDoor=new THREE.Mesh(new THREE.BoxGeometry(5.2,3.1,.08),new THREE.MeshStandardMaterial({color:0x171a1d,metalness:.2,roughness:.35}));workshopDoor.position.set(-45,1.65,29.96);scene.add(workshopDoor);for(let x=-56;x<=-34;x+=5.5){const bay=new THREE.Mesh(new THREE.BoxGeometry(4.2,.03,6.2),new THREE.MeshStandardMaterial({color:0x77736a,roughness:.9,map:sidewalkTex}));bay.position.set(x,.205,35);scene.add(bay);}for(let i=-10;i<=10;i++)addTree(i*11+(i%2)*3,-28-(Math.abs(i)%4)*11,.8+(Math.abs(i)%3)*.18);for(let i=-5;i<=5;i++){addBuilding(i*19,-70,9,6+(Math.abs(i)%4)*2,9,[0x666762,0x4e575d,0x71695f][Math.abs(i)%3]);addBuilding(i*19,70,9,5+(Math.abs(i)%3)*3,9,0x5c6361);}addBuilding(-45,35,10,4.5,8,0x4a5358);addBuilding(45,35,9,3.2,7,0x273b48);addBuilding(45,-35,11,5,9,0x3b5667);
