@@ -38,7 +38,52 @@ let renderer,camera,car,scene,clock,traffic=[],trafficLights=[],smoke=[],rainDro
 async function initPhysics(){await RAPIER.init();}
 function resetPhysics(){if(vehicleController){try{vehicleController.free();}catch{}}vehicleController=null;chassisBody=null;physicsWorld=null;physicsReady=false;}
 function setupVehiclePhysics(){if(!RAPIER||!car)throw new Error("Rapier or car is not ready");resetPhysics();physicsWorld=new RAPIER.World({x:0,y:-9.81,z:0});const ground=RAPIER.ColliderDesc.cuboid(110,.08,110).setFriction(.95);physicsWorld.createCollider(ground);for(const b of[RAPIER.ColliderDesc.cuboid(110,2,.25).setTranslation(0,2,110),RAPIER.ColliderDesc.cuboid(110,2,.25).setTranslation(0,2,-110),RAPIER.ColliderDesc.cuboid(.25,2,110).setTranslation(110,2,0),RAPIER.ColliderDesc.cuboid(.25,2,110).setTranslation(-110,2,0)])physicsWorld.createCollider(b);const desc=RAPIER.RigidBodyDesc.dynamic().setTranslation(state.posX,PHYSICS_Y,state.posZ).setLinearDamping(.08).setAngularDamping(1.5).setCcdEnabled(true).setCanSleep(false);chassisBody=physicsWorld.createRigidBody(desc);const chassis=RAPIER.ColliderDesc.cuboid(1.18,.42,2.18).setMass(1180).setFriction(.78);physicsWorld.createCollider(chassis,chassisBody);vehicleController=physicsWorld.createVehicleController(chassisBody);if(typeof vehicleController.setIndexForwardAxis==="function")vehicleController.setIndexForwardAxis(2);const wheelPos=[[-1.27,-.34,-1.5],[1.27,-.34,-1.5],[-1.27,-.34,1.5],[1.27,-.34,1.5]];for(const p of wheelPos)vehicleController.addWheel({x:p[0],y:p[1],z:p[2]},{x:0,y:-1,z:0},{x:1,y:0,z:0},.34,.39);for(let i=0;i<4;i++){vehicleController.setWheelSuspensionStiffness(i,30);vehicleController.setWheelSuspensionCompression(i,5);vehicleController.setWheelSuspensionRelaxation(i,6);vehicleController.setWheelMaxSuspensionForce(i,12000);if(typeof vehicleController.setWheelMaxSuspensionTravel==="function")vehicleController.setWheelMaxSuspensionTravel(i,.24);vehicleController.setWheelFrictionSlip(i,1.35);if(typeof vehicleController.setWheelSideFrictionStiffness==="function")vehicleController.setWheelSideFrictionStiffness(i,1.45);}physicsReady=true;}
-function physicsDrive(dt){if(!physicsReady||!physicsWorld||!chassisBody){fallbackDrive(dt);return;}const steer=(input.left?-1:0)+(input.right?1:0),throttle=input.gas&&(state.gear==="D"||state.gear==="R"),reverse=state.gear==="R";const v=chassisBody.linvel();const forward=new THREE.Vector3(-Math.sin(state.heading),0,-Math.cos(state.heading));const signedSpeed=state.speed;const targetSpeed=throttle?(reverse?-10:14):0;const accel=throttle?9:5.5;state.speed=THREE.MathUtils.damp(signedSpeed,targetSpeed,accel,dt);if(input.brake)state.speed=THREE.MathUtils.damp(state.speed,0,10,dt);const steerRate=(0.75+Math.min(Math.abs(state.speed),10)*0.055)*(input.brake?0.65:1);if(steer){const direction=state.speed>=0?1:-1;state.heading+=steer*steerRate*dt*direction;}const newForward=new THREE.Vector3(-Math.sin(state.heading),0,-Math.cos(state.heading));const horizontalSpeed=state.speed;chassisBody.setLinvel({x:newForward.x*horizontalSpeed,y:v.y,z:newForward.z*horizontalSpeed},true);chassisBody.setAngvel({x:0,y:0,z:0},true);physicsWorld.step();const p=chassisBody.translation();state.posX=p.x;state.posZ=p.z;car.position.set(p.x,p.y-PHYSICS_Y,p.z);car.rotation.y=state.heading;for(let i=0;i<(car.userData.wheels||[]).length;i++){const w=car.userData.wheels[i];w.rotation.x-=state.speed*dt/.39;w.position.y=PHYSICS_Y-.34;w.rotation.y=i<2?steer*.55:0;w.position.x=(i%2?1:-1)*1.3;w.position.z=i<2?-1.48:1.48;}}
+function physicsDrive(dt){
+ if(!physicsReady||!physicsWorld||!chassisBody){fallbackDrive(dt);return;}
+ const steerInput=(input.left?-1:0)+(input.right?1:0);
+ const throttle=input.gas&&(state.gear==="D"||state.gear==="R");
+ const reverse=state.gear==="R";
+ const speed=Math.abs(state.speed);
+
+ // Car-like steering: steering input is smoothed, then converted to a yaw rate.
+ const maxSteer=THREE.MathUtils.degToRad(32);
+ state.steer=THREE.MathUtils.damp(state.steer,steerInput,6.5,dt);
+ const steerAngle=state.steer*maxSteer*(1-Math.min(speed/18,.48));
+ const wheelbase=2.95;
+ const yawRate=speed>0.15?(state.speed/wheelbase)*Math.tan(steerAngle):0;
+ state.heading+=yawRate*dt;
+
+ // Smooth throttle, coasting and braking.
+ const maxForward=16;
+ const maxReverse=7.5;
+ const target=throttle?(reverse?-maxReverse:maxForward):0;
+ const accel=throttle?(reverse?4.8:5.8):2.2;
+ state.speed=THREE.MathUtils.damp(state.speed,target,accel,dt);
+ if(input.brake)state.speed=THREE.MathUtils.damp(state.speed,0,9.5,dt);
+ if(!throttle&&!input.brake&&Math.abs(state.speed)<.08)state.speed=0;
+
+ const forwardX=-Math.sin(state.heading);
+ const forwardZ=-Math.cos(state.heading);
+ const v=chassisBody.linvel();
+ chassisBody.setLinvel({x:forwardX*state.speed,y:v.y,z:forwardZ*state.speed},true);
+ chassisBody.setAngvel({x:0,y:0,z:0},true);
+ physicsWorld.step();
+
+ const p=chassisBody.translation();
+ state.posX=p.x;
+ state.posZ=p.z;
+ car.position.set(p.x,p.y-PHYSICS_Y,p.z);
+ car.rotation.y=state.heading;
+
+ for(let i=0;i<(car.userData.wheels||[]).length;i++){
+   const w=car.userData.wheels[i];
+   w.rotation.x-=state.speed*dt/.39;
+   w.position.y=PHYSICS_Y-.34;
+   w.rotation.y=i<2?steerAngle:0;
+   w.position.x=(i%2?1:-1)*1.3;
+   w.position.z=i<2?-1.48:1.48;
+ }
+}
 function fallbackDrive(dt){const throttle=input.gas&&(state.gear==="D"||state.gear==="R"),reverse=state.gear==="R",steer=(input.left?-1:0)+(input.right?1:0);const accel=throttle?(reverse?-10:10):0;state.speed=THREE.MathUtils.damp(state.speed,accel?Math.sign(accel)*Math.min(Math.abs(state.speed)+Math.abs(accel)*dt,12):0,accel?2.8:4.5,dt);if(input.brake)state.speed=THREE.MathUtils.damp(state.speed,0,8,dt);state.heading+=steer*dt*(0.9+Math.min(Math.abs(state.speed),8)*.08);const forward=new THREE.Vector3(-Math.sin(state.heading),0,-Math.cos(state.heading));state.posX+=forward.x*state.speed*dt;state.posZ+=forward.z*state.speed*dt;state.posX=THREE.MathUtils.clamp(state.posX,-106,106);state.posZ=THREE.MathUtils.clamp(state.posZ,-106,106);car.position.set(state.posX,0,state.posZ);car.rotation.y=state.heading;for(const w of(car.userData.wheels||[]))w.rotation.x-=state.speed*dt/.39;}
 function save(){localStorage.setItem("mechanic-city",JSON.stringify(state));}
 function clearJobMarker(){if(jobMarker&&scene){scene.remove(jobMarker);jobMarker=null;}}
