@@ -194,13 +194,13 @@ function animate(traffic=[]){
   const dt=Math.min(clock?.getDelta()||.016,.05);
 
   if(state.driving && state.fuel>0){
-    const turning=input.left?-1:input.right?1:0;
+    const turning=input.left?1:input.right?-1:0;
     state.heading += turning*dt*(1.25+state.speed*.7);
     if(input.gas) state.speed=Math.min(1.55,state.speed+dt*.95);
     else state.speed=Math.max(0,state.speed-dt*.35);
     if(input.brake) state.speed=Math.max(0,state.speed-dt*1.8);
-    state.posX += Math.sin(state.heading)*state.speed*dt*8;
-    state.posZ += Math.cos(state.heading)*state.speed*dt*8;
+    state.posX -= Math.sin(state.heading)*state.speed*dt*8;
+    state.posZ -= Math.cos(state.heading)*state.speed*dt*8;
     state.fuel=Math.max(0,state.fuel-dt*(.025+state.speed*.012));
     state.heat=Math.min(125,state.heat+dt*(.12+state.speed*.06));
     state.car.mileage+=state.speed*dt*.006;
@@ -219,9 +219,9 @@ function animate(traffic=[]){
   }
 
   const target=new THREE.Vector3(
-    car.position.x-Math.sin(car.rotation.y)*9,
+    car.position.x+Math.sin(car.rotation.y)*9,
     5.3,
-    car.position.z-Math.cos(car.rotation.y)*9
+    car.position.z+Math.cos(car.rotation.y)*9
   );
   camera.position.lerp(target,.08);
   const look=new THREE.Vector3(car.position.x,1.0,car.position.z);
