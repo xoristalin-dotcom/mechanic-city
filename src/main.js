@@ -39,6 +39,29 @@ let renderer,camera,car,scene,clock,traffic=[],trafficLights=[],smoke=[],rainDro
 async function initPhysics(){await RAPIER.init();}
 function resetPhysics(){if(vehicleController){try{vehicleController.free();}catch{}}vehicleController=null;chassisBody=null;physicsWorld=null;physicsReady=false;}
 function setupVehiclePhysics(){if(!RAPIER||!car)throw new Error("Rapier or car is not ready");resetPhysics();physicsWorld=new RAPIER.World({x:0,y:-9.81,z:0});const ground=RAPIER.ColliderDesc.cuboid(110,.08,110).setFriction(.95);physicsWorld.createCollider(ground);for(const b of[RAPIER.ColliderDesc.cuboid(110,2,.25).setTranslation(0,2,110),RAPIER.ColliderDesc.cuboid(110,2,.25).setTranslation(0,2,-110),RAPIER.ColliderDesc.cuboid(.25,2,110).setTranslation(110,2,0),RAPIER.ColliderDesc.cuboid(.25,2,110).setTranslation(-110,2,0)])physicsWorld.createCollider(b);const desc=RAPIER.RigidBodyDesc.dynamic().setTranslation(state.posX,PHYSICS_Y,state.posZ).setLinearDamping(.08).setAngularDamping(1.5).setCcdEnabled(true).setCanSleep(false);chassisBody=physicsWorld.createRigidBody(desc);const chassis=RAPIER.ColliderDesc.cuboid(1.18,.42,2.18).setMass(1180).setFriction(.78);physicsWorld.createCollider(chassis,chassisBody);vehicleController=physicsWorld.createVehicleController(chassisBody);if(typeof vehicleController.setIndexForwardAxis==="function")vehicleController.setIndexForwardAxis(2);const wheelPos=[[-1.27,-.34,-1.5],[1.27,-.34,-1.5],[-1.27,-.34,1.5],[1.27,-.34,1.5]];for(const p of wheelPos)vehicleController.addWheel({x:p[0],y:p[1],z:p[2]},{x:0,y:-1,z:0},{x:1,y:0,z:0},.34,.39);for(let i=0;i<4;i++){vehicleController.setWheelSuspensionStiffness(i,30);vehicleController.setWheelSuspensionCompression(i,5);vehicleController.setWheelSuspensionRelaxation(i,6);vehicleController.setWheelMaxSuspensionForce(i,12000);if(typeof vehicleController.setWheelMaxSuspensionTravel==="function")vehicleController.setWheelMaxSuspensionTravel(i,.24);vehicleController.setWheelFrictionSlip(i,1.35);if(typeof vehicleController.setWheelSideFrictionStiffness==="function")vehicleController.setWheelSideFrictionStiffness(i,1.45);}physicsReady=true;}
+function addSteeringWheelVisuals(root){
+  const wheels=[];
+  const tireMat=new THREE.MeshStandardMaterial({color:0x08090a,roughness:.92,metalness:.05});
+  const hubMat=new THREE.MeshStandardMaterial({color:0x9da3a7,roughness:.28,metalness:.82});
+  const wheelPositions=[[-1.31,-.34,-1.48],[1.31,-.34,-1.48],[-1.31,-.34,1.48],[1.31,-.34,1.48]];
+  for(let i=0;i<4;i++){
+    const assembly=new THREE.Group();
+    assembly.name=i<2?(i===0?"FrontLeftWheel":"FrontRightWheel"):(i===2?"RearLeftWheel":"RearRightWheel");
+    assembly.position.set(...wheelPositions[i]);
+    const tire=new THREE.Mesh(new THREE.TorusGeometry(.39,.105,12,24),tireMat);
+    tire.rotation.y=Math.PI/2;
+    tire.castShadow=true;
+    tire.receiveShadow=true;
+    assembly.add(tire);
+    const hub=new THREE.Mesh(new THREE.CylinderGeometry(.17,.17,.12,16),hubMat);
+    hub.rotation.z=Math.PI/2;
+    hub.castShadow=true;
+    assembly.add(hub);
+    root.add(assembly);
+    wheels.push(assembly);
+  }
+  root.userData.wheels=wheels;
+}
 function physicsDrive(dt){
  if(!physicsReady||!physicsWorld||!chassisBody){fallbackDrive(dt);return;}
  const steerInput=(input.left?1:0)+(input.right?-1:0);
@@ -99,6 +122,7 @@ async function swapToBlenderCrown72(){
    root.rotation.copy(car.rotation);
    root.userData.wheels=[];
    root.userData.visualOffsetY=0.42;
+   addSteeringWheelVisuals(root);
    // The imported coupe faces -X, while the game vehicle faces -Z.
    // Rotate only the visual asset so physics and steering keep the normal car axes.
    model.rotation.y=Math.PI/2;
