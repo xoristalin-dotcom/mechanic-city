@@ -20,6 +20,7 @@ state.car.oil ??= 42; state.car.coolant ??= 58; state.car.brakes ??= state.car.c
 app.innerHTML = `
 <div class="game">
   <main id="viewport"></main>
+  <div id="orientation-lock"><div class="rotate-card"><span class="rotate-icon">📱↔️</span><h2>Поверни телефон горизонтально</h2><p>Mechanic City рассчитан на широкий экран — так камера, город и управление машиной выглядят намного лучше.</p></div></div>
 
   <div class="drive-hud">
     <div class="hud-top">
