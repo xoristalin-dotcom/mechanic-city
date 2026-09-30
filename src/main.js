@@ -70,9 +70,49 @@ const menu=document.querySelector("#menu");
 const panel=document.querySelector("#panel");
 const clockEl=document.querySelector("#clock");
 
-let renderer,camera,car,scene,clock,traffic=[],trafficLights=[],smoke=[],rainDrops=[];
+let renderer,camera,car,scene,clock,traffic=[],trafficLights=[],smoke=[],rainDrops=[],jobMarker=null;
 
 function save(){ localStorage.setItem("mechanic-city",JSON.stringify(state)); }
+function clearJobMarker(){
+  if(jobMarker && scene){ scene.remove(jobMarker); jobMarker=null; }
+}
+function createJobMarker(){
+  clearJobMarker();
+  if(!state.job || !scene) return;
+  const g=new THREE.Group();
+  const ring=new THREE.Mesh(
+    new THREE.TorusGeometry(2.4,.10,10,32),
+    new THREE.MeshBasicMaterial({color:0xffc84a,transparent:true,opacity:.9})
+  );
+  ring.rotation.x=-Math.PI/2;
+  const beam=new THREE.Mesh(
+    new THREE.CylinderGeometry(.06,.32,5.5,12,1,true),
+    new THREE.MeshBasicMaterial({color:0xffc84a,transparent:true,opacity:.18,side:THREE.DoubleSide})
+  );
+  beam.position.y=2.7;
+  g.add(ring,beam);
+  g.position.set(state.job.targetX,.08,state.job.targetZ);
+  scene.add(g); jobMarker=g;
+}
+function updateJob(){
+  if(!state.job || !state.driving) return;
+  const d=Math.hypot(state.posX-state.job.targetX,state.posZ-state.job.targetZ);
+  if(jobMarker){
+    jobMarker.rotation.y+=.012;
+    jobMarker.position.y=.08+Math.sin(performance.now()*.003)*.12;
+  }
+  if(d<4.5){
+    if(state.damage<70){
+      state.money+=state.job.reward;
+      const reward=state.job.reward;
+      state.job=null; clearJobMarker(); save();
+      msg("✅ Заказ выполнен: +"+reward+" ₽");
+    }else{
+      msg("❌ Машина слишком сильно повреждена.");
+      state.job=null; clearJobMarker(); save();
+    }
+  }
+}
 function msg(t){ messageEl.textContent=t; }
 function stats(){
   speedEl.textContent=Math.round(state.speed*62);
@@ -80,6 +120,7 @@ function stats(){
   fuelEl.textContent=Math.round(state.fuel);
   heatEl.textContent=Math.round(state.heat);
   clockEl.textContent=String(Math.floor(state.time)).padStart(2,"0")+":"+String(Math.floor((state.time%1)*60)).padStart(2,"0");
+  if(state.job && !state.onFoot && messageEl.textContent.startsWith("▲")) messageEl.textContent="💼 "+state.job.label+" • до жёлтого маркера";
 }
 
 function makeCar(color=0x252a30, detailedLights=true){
@@ -136,6 +177,30 @@ function makeCar(color=0x252a30, detailedLights=true){
       pillar.position.set(x,1.2,z); g.add(pillar);
     }
   }
+
+  // Sloped pillars and body seams give the cabin a more production-car profile.
+  for(const x of [-.88,.88]){
+    for(const z of [-.72,.86]){
+      const pillar=new THREE.Mesh(new RoundedBoxGeometry(.075,.62,.12,4,.025),paint);
+      pillar.position.set(x,1.20,z);
+      pillar.rotation.z=x<0?-0.10:0.10;
+      pillar.rotation.x=z<0?-0.08:0.08;
+      g.add(pillar);
+    }
+  }
+  for(const x of [-1.29,1.29]){
+    const doorSeam=new THREE.Mesh(new THREE.BoxGeometry(.018,.025,1.55),trim);
+    doorSeam.position.set(x,.94,.28);
+    g.add(doorSeam);
+  }
+  const frontLip=new THREE.Mesh(new RoundedBoxGeometry(2.15,.08,.22,4,.025),paint);
+  frontLip.position.set(0,.83,-2.08);
+  frontLip.rotation.x=-.08;
+  g.add(frontLip);
+  const rearDeck=new THREE.Mesh(new RoundedBoxGeometry(2.12,.10,.62,5,.04),paint);
+  rearDeck.position.set(0,1.00,1.58);
+  rearDeck.rotation.x=.05;
+  g.add(rearDeck);
 
   // Rounded fender shoulders: soften the transition from hood to wheel arches.
   for(const x of [-1.12,1.12]){
@@ -277,11 +342,23 @@ function addTrafficLight(x,z){
 
 function addRain(){
   rainDrops=[];
-  for(let i=0;i<130;i++){
-    const p=new THREE.Mesh(new THREE.BoxGeometry(.012,.55,.012),new THREE.MeshBasicMaterial({color:0x9fc5dd,transparent:true,opacity:.4}));
-    p.position.set((Math.random()-.5)*100,Math.random()*38+2,(Math.random()-.5)*100);scene.add(p);rainDrops.push(p);
+  const positions=new Float32Array(180*3);
+  for(let i=0;i<180;i++){
+    positions[i*3]=(Math.random()-.5)*100;
+    positions[i*3+1]=Math.random()*38+2;
+    positions[i*3+2]=(Math.random()-.5)*100;
   }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute("position",new THREE.BufferAttribute(positions,3));
+  const mat=new THREE.PointsMaterial({color:0x9fc5dd,size:.16,transparent:true,opacity:.48,sizeAttenuation:true});
+  const rain=new THREE.Points(geo,mat);
+  scene.add(rain); rainDrops.push(rain);
 }
+const buildingWindowMats={
+  lit:new THREE.MeshStandardMaterial({color:0xffd98a,emissive:0xffa52b,emissiveIntensity:.75,roughness:.25,metalness:.05}),
+  dark:new THREE.MeshStandardMaterial({color:0x1b2930,emissive:0x000000,emissiveIntensity:.05,roughness:.25,metalness:.05}),
+  frame:new THREE.MeshStandardMaterial({color:0x34393d,metalness:.35,roughness:.45})
+};
 function addBuilding(x,z,w,h,d,color){
   const g=new THREE.Group();
   const mat=new THREE.MeshStandardMaterial({color,roughness:.68,metalness:.04});
@@ -292,12 +369,11 @@ function addBuilding(x,z,w,h,d,color){
   const rows=Math.max(1,Math.floor(h/1.8)), cols=Math.max(1,Math.floor(w/1.55));
   for(let r=0;r<rows;r++) for(let q=0;q<cols;q++){
     const lit=(r*3+q*5)%7<2;
-    const wm=new THREE.MeshStandardMaterial({color:lit?0xffd98a:0x1b2930,emissive:lit?0xffa52b:0x000000,emissiveIntensity:lit?.75:0.05,roughness:.25,metalness:.05});
-    const win=new THREE.Mesh(new RoundedBoxGeometry(.58,.68,.035,2,.04),wm);
+    const win=new THREE.Mesh(new RoundedBoxGeometry(.58,.68,.035,2,.04),lit?buildingWindowMats.lit:buildingWindowMats.dark);
     win.position.set(-w/2+.78+q*(w-1.3)/Math.max(1,cols-1),.9+r*1.55,d/2+.025);g.add(win);
     const win2=win.clone();win2.position.z=-d/2-.025;win2.rotation.y=Math.PI;g.add(win2);
     if(q<cols-1){
-      const frame=new THREE.Mesh(new THREE.BoxGeometry(.035,.72,.045),new THREE.MeshStandardMaterial({color:0x34393d,metalness:.35,roughness:.45}));
+      const frame=new THREE.Mesh(new THREE.BoxGeometry(.035,.72,.045),buildingWindowMats.frame);
       frame.position.set(-w/2+1.08+q*(w-1.3)/Math.max(1,cols-1),.9+r*1.55,d/2+.045);g.add(frame);
     }
   }
@@ -333,6 +409,8 @@ function addStreetProps(){
   }
 }
 function buildCity(){
+  clearJobMarker();
+  traffic=[]; trafficLights=[]; smoke=[]; rainDrops=[];
   scene=new THREE.Scene();
   const sky=new THREE.Color(state.time>=20||state.time<6?0x101a2b:state.time>=17?0x53606d:0x7893a3);
   scene.background=sky;
@@ -450,6 +528,7 @@ function buildCity(){
     npc.userData.trafficSpeed=.7+(i%3)*.18;
     scene.add(npc); traffic.push(npc);
   }
+  createJobMarker();
 
   clock=new THREE.Clock();
   animate(traffic);
@@ -484,12 +563,22 @@ function animate(traffic=[]){
     }
     car.position.set(state.posX,.55,state.posZ);
     car.rotation.y=state.heading;
+    if(Date.now()-lastSaveTick>5000){ lastSaveTick=Date.now(); save(); }
   }
+  updateJob();
 
-  const camDistance=state.speed>.25?10.5:8.5;
-  const target=new THREE.Vector3(car.position.x+Math.sin(car.rotation.y)*camDistance, state.speed>.25?3.65:3.45, car.position.z+Math.cos(car.rotation.y)*camDistance);
-  camera.position.lerp(target,.08);
-  const look=new THREE.Vector3(car.position.x-Math.sin(car.rotation.y)*1.8,1.00,car.position.z-Math.cos(car.rotation.y)*1.8);
+  const camDistance=state.speed>.25?11.5:9.2;
+  const target=new THREE.Vector3(
+    car.position.x+Math.sin(car.rotation.y)*camDistance,
+    state.speed>.25?3.85:3.55,
+    car.position.z+Math.cos(car.rotation.y)*camDistance
+  );
+  camera.position.lerp(target,.085);
+  const look=new THREE.Vector3(
+    car.position.x-Math.sin(car.rotation.y)*2.15,
+    .92,
+    car.position.z-Math.cos(car.rotation.y)*2.15
+  );
   camera.lookAt(look);
 
   for(const npc of traffic){
@@ -603,9 +692,19 @@ function buyCar(price,name,condition,mileage,year){
   openPanel("Автомобиль куплен","<p><b>"+name+"</b> теперь твой.</p><button id='toGarage'>Открыть гараж</button>");document.querySelector("#toGarage").onclick=()=>{panel.classList.add("hidden");renderScene("garage");};
 }
 function startJob(reward){
-  state.job={reward,started:Date.now(),startX:state.posX,startZ:state.posZ};save();
-  openPanel("Заказ принят","<p>Доедь до цели и постарайся не разбить машину.</p><button id='startDrive'>Ехать</button>");
-  document.querySelector("#startDrive").onclick=()=>{panel.classList.add("hidden");renderScene("city");msg("💼 Заказ активен: +"+reward+" ₽");};
+  if(state.job){ openPanel("Заказ уже активен","<p>Сначала закончи текущий заказ.</p>"); return; }
+  const targets=[
+    {x:45,z:35,label:"Заправка"},
+    {x:-45,z:35,label:"Сервис"},
+    {x:0,z:70,label:"Северный квартал"},
+    {x:0,z:-70,label:"Южный квартал"},
+    {x:38,z:-35,label:"Парковка"}
+  ];
+  const target=targets[Math.floor(Math.random()*targets.length)];
+  state.job={reward,started:Date.now(),startX:state.posX,startZ:state.posZ,targetX:target.x,targetZ:target.z,label:target.label};
+  save();
+  openPanel("Заказ принят","<p>Цель: <b>"+target.label+"</b>. Доедь до жёлтого маркера.</p><button id='startDrive'>Ехать</button>");
+  document.querySelector("#startDrive").onclick=()=>{panel.classList.add("hidden");renderScene("city");msg("💼 Цель: "+target.label+" • +"+reward+" ₽");};
 }
 document.querySelector("#menuBtn").onclick=()=>menu.classList.toggle("hidden");
 document.querySelector(".round-btn").onclick=()=>menu.classList.toggle("hidden");
@@ -613,7 +712,6 @@ document.querySelector("#mapBtn").onclick=()=>openPanel("Карта","<p>Ты н
 document.querySelector("#carInfo").onclick=()=>openPanel("Автомобиль",`<p><b>${state.car.name}</b></p><p>Состояние: ${Math.round(state.car.condition)}%</p><p>Двигатель: ${Math.round(state.car.engine)}%</p><p>Масло: ${Math.round(state.car.oil)}%</p><p>Охлаждение: ${Math.round(state.car.coolant)}%</p><p>Повреждения: ${Math.round(state.damage)}%</p><p>Температура: ${Math.round(state.heat)}°C</p>`);
 document.querySelector("#exitBtn").onclick=exitCar;
 document.querySelector("#horn").onclick=()=>msg("🔊 Бип!");
-document.querySelector("#gearBtn").onclick=cycleGear;
 document.querySelector("#fuelBtn").onclick=()=>{const d=Math.hypot(state.posX-45,state.posZ-35);if(d<14){const cost=Math.ceil((100-state.fuel)*8);if(state.money>=cost){state.money-=cost;state.fuel=100;msg("⛽ Бак заправлен за "+cost+" ₽");save();}else msg("Не хватает денег на топливо.");}else msg("Подъедь к заправке.");};
 document.querySelector("#serviceBtn").onclick=()=>{const d=Math.hypot(state.posX+45,state.posZ-35);if(d<14){const cost=Math.max(250,Math.ceil(state.damage*45));if(state.money>=cost){state.money-=cost;state.damage=0;state.car.condition=100;state.car.engine=100;state.car.body=100;state.car.oil=100;state.car.coolant=100;state.car.brakes=100;state.car.battery=100;state.car.suspension=100;state.car.tires=100;msg("🔧 Машина полностью обслужена.");save();}else msg("Не хватает денег на сервис.");}else msg("Подъедь к сервису.");};
 document.querySelector("#gearBtn").onclick=cycleGear;
