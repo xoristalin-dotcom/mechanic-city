@@ -12,6 +12,7 @@ const state = saved || {
 
 Object.assign(state, { driving:false, speed:0, steer:0, onFoot:false });
 const input={gas:false,left:false,right:false,brake:false};
+let lastSaveTick=-1;
 state.posX ??= 0; state.posZ ??= 10; state.heading ??= 0; state.gear ??= "P"; state.time ??= 14; state.rain ??= false; state.job ??= null;
 state.car.oil ??= 42; state.car.coolant ??= 58; state.car.brakes ??= state.car.condition; state.car.battery ??= 70; state.car.suspension ??= state.car.condition; state.car.tires ??= state.car.condition; state.car.body ??= state.car.condition;
 
@@ -282,7 +283,7 @@ function bindControls(){
     const v=b.dataset.drive;
     const start=e=>{
       e.preventDefault();
-      if(v==="gas"){input.gas=true;state.driving=true;}
+      if(v==="gas"){if(state.gear==="P"||state.gear==="N")state.gear="D";input.gas=true;state.driving=true;}
       else if(v==="left"){input.left=true;state.driving=true;}
       else if(v==="right"){input.right=true;state.driving=true;}
       else if(v==="brake"){input.brake=true;}
@@ -301,6 +302,8 @@ function bindControls(){
   });
 }
 
+document.addEventListener("pointerup",()=>{input.gas=input.left=input.right=input.brake=false;},{passive:true});
+document.addEventListener("pointercancel",()=>{input.gas=input.left=input.right=input.brake=false;},{passive:true});
 function openPanel(title,html){
   panel.innerHTML=`<div class="panel-card"><button class="close" id="closePanel">×</button><h2>${title}</h2>${html}</div>`;
   panel.classList.remove("hidden");
@@ -367,8 +370,7 @@ function startJob(reward){
 document.querySelector("#menuBtn").onclick=()=>menu.classList.toggle("hidden");
 document.querySelector(".round-btn").onclick=()=>menu.classList.toggle("hidden");
 document.querySelector("#mapBtn").onclick=()=>openPanel("Карта","<p>Ты находишься в городе. Рынок и гараж доступны через меню ☰.</p>");
-document.querySelector("#carInfo").onclick=()=>openPanel("Автомобиль",`<p><b>${state.car.name}</b></p><p>Состояние: ${state.car.condition}%</p><p>Пробег: ${Math.round(state.car.mileage).toLocaleString("ru-RU")} км</p><p>Повреждения: ${Math.round(state.damage)}%</p>`);
-document.querySelector("#engineBtn").onclick=()=>msg("Капот открыт: двигатель "+Math.round(state.heat)+"°C • повреждение "+Math.round(state.damage)+"%");
+document.querySelector("#carInfo").onclick=()=>openPanel("Автомобиль",`<p><b>${state.car.name}</b></p><p>Состояние: ${Math.round(state.car.condition)}%</p><p>Двигатель: ${Math.round(state.car.engine)}%</p><p>Масло: ${Math.round(state.car.oil)}%</p><p>Охлаждение: ${Math.round(state.car.coolant)}%</p><p>Повреждения: ${Math.round(state.damage)}%</p><p>Температура: ${Math.round(state.heat)}°C</p>`);
 document.querySelector("#exitBtn").onclick=exitCar;
 document.querySelector("#horn").onclick=()=>msg("🔊 Бип!");
 document.querySelector("#gearBtn").onclick=cycleGear;
