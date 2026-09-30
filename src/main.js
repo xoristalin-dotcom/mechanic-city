@@ -171,26 +171,26 @@ function makeCar(color=0x7a3f2e,detailedLights=true){
  const tail=new THREE.MeshStandardMaterial({color:0xa3161c,emissive:0x3b0004,emissiveIntensity:.55,roughness:.25});
 
  // Main slab + sill. Keep the deliberately faceted low-poly language.
- const body=new THREE.Mesh(new RoundedBoxGeometry(2.92,.70,4.92,3,.10),paint);
- body.position.y=.64; body.castShadow=true; body.receiveShadow=true; g.add(body);
- const lower=new THREE.Mesh(new RoundedBoxGeometry(2.80,.30,4.72,3,.07),paintDark);
- lower.position.set(0,.43,.04); lower.castShadow=true; g.add(lower);
+ const body=new THREE.Mesh(new RoundedBoxGeometry(3.04,.66,4.98,4,.11),paint);
+ body.position.y=.62; body.castShadow=true; body.receiveShadow=true; g.add(body);
+ const lower=new THREE.Mesh(new RoundedBoxGeometry(2.92,.27,4.78,4,.07),paintDark);
+ lower.position.set(0,.42,.04); lower.castShadow=true; g.add(lower);
 
  // Long hood and short trunk, with visible panel separation.
- const hood=new THREE.Mesh(new RoundedBoxGeometry(2.58,.24,1.55,3,.07),paint);
- hood.position.set(0,1.01,-1.58); hood.castShadow=true; g.add(hood);
+ const hood=new THREE.Mesh(new RoundedBoxGeometry(2.68,.22,1.62,4,.06),paint);
+ hood.position.set(0,.99,-1.57); hood.castShadow=true; g.add(hood);
  const hoodEdge=new THREE.Mesh(new THREE.BoxGeometry(2.48,.035,.055),chrome);
- hoodEdge.position.set(0,1.145,-2.35); g.add(hoodEdge);
+ hoodEdge.position.set(0,1.105,-2.38); g.add(hoodEdge);
  const hoodBulge=new THREE.Mesh(new RoundedBoxGeometry(.82,.10,1.22,2,.035),paintDark);
- hoodBulge.position.set(0,1.135,-1.58); g.add(hoodBulge);
- const trunk=new THREE.Mesh(new RoundedBoxGeometry(2.52,.26,1.02,3,.07),paint);
- trunk.position.set(0,.98,1.82); trunk.castShadow=true; g.add(trunk);
+ hoodBulge.position.set(0,1.105,-1.58); g.add(hoodBulge);
+ const trunk=new THREE.Mesh(new RoundedBoxGeometry(2.58,.24,1.04,4,.06),paint);
+ trunk.position.set(0,.96,1.82); trunk.castShadow=true; g.add(trunk);
 
  // Sloped greenhouse: a simple faceted trapezoid instead of a rounded box.
  const cabinGeo=new THREE.BufferGeometry();
  cabinGeo.setAttribute("position",new THREE.Float32BufferAttribute([
    -1.06,.98,-.80,  1.06,.98,-.80,  1.06,.98,1.38,  -1.06,.98,1.38,
-   -.86,1.66,-.43,  .86,1.66,-.43,  .86,1.66,1.08,  -.86,1.66,1.08
+   -.80,1.66,-.43,  .80,1.66,-.43,  .80,1.66,1.08,  -.80,1.66,1.08
  ],3));
  cabinGeo.setIndex([
    0,1,5, 0,5,4,
@@ -203,8 +203,8 @@ function makeCar(color=0x7a3f2e,detailedLights=true){
  cabinGeo.computeVertexNormals();
  const cabin=new THREE.Mesh(cabinGeo,paint);
  cabin.castShadow=true; cabin.receiveShadow=true; g.add(cabin);
- const roof=new THREE.Mesh(new THREE.BoxGeometry(1.74,.11,1.64),paint);
- roof.position.set(0,1.69,.32); roof.rotation.x=0; g.add(roof);
+ const roof=new THREE.Mesh(new THREE.BoxGeometry(1.62,.10,1.62),paint);
+ roof.position.set(0,1.68,.32); roof.rotation.x=0; g.add(roof);
 
  function quadMesh(vertices,material){
    const geo=new THREE.BufferGeometry();
@@ -238,8 +238,8 @@ function makeCar(color=0x7a3f2e,detailedLights=true){
    }
  }
  // Thin roof edge and bright trim make the silhouette read clearly at distance.
- const roofTrim=new THREE.Mesh(new THREE.BoxGeometry(1.86,.045,1.76),chrome);
- roofTrim.position.set(0,1.70,.32); g.add(roofTrim);
+ const roofTrim=new THREE.Mesh(new THREE.BoxGeometry(1.74,.045,1.74),chrome);
+ roofTrim.position.set(0,1.69,.32); g.add(roofTrim);
  // Characteristic bright belt line and door seams.
  const belt=new THREE.Mesh(new THREE.BoxGeometry(2.84,.055,3.42),chrome);
  belt.position.set(0,.99,.24); g.add(belt);
@@ -255,7 +255,7 @@ function makeCar(color=0x7a3f2e,detailedLights=true){
 
  // Separate, chunky fenders visually frame the wheels.
  for(const x of[-1.34,1.34]) for(const z of[-1.48,1.48]){
-   const fender=new THREE.Mesh(new THREE.TorusGeometry(.50,.075,6,16,Math.PI),paint);
+   const fender=new THREE.Mesh(new THREE.TorusGeometry(.52,.085,7,18,Math.PI),paint);
    fender.rotation.y=Math.PI/2;
    fender.position.set(x,.60,z);
    fender.scale.set(1,1,.92);
@@ -419,8 +419,8 @@ function animate(traffic=[]){
       camera.position.lerp(target,.22);
     }else{
       const behind=cameraMode===0?1:-1;
-      const followDistance=moving?20.5:18.5;
-      const followHeight=moving?6.1:5.4;
+      const followDistance=moving?22.5:20.5;
+      const followHeight=moving?6.5:5.8;
       const horizontal=followDistance*Math.cos(camOrbitPitch);
       const sx=Math.sin(heading+camOrbitYaw)*horizontal*behind;
       const sz=Math.cos(heading+camOrbitYaw)*horizontal*behind;
