@@ -40,32 +40,54 @@ async function initPhysics(){await RAPIER.init();}
 function resetPhysics(){if(vehicleController){try{vehicleController.free();}catch{}}vehicleController=null;chassisBody=null;physicsWorld=null;physicsReady=false;}
 function setupVehiclePhysics(){if(!RAPIER||!car)throw new Error("Rapier or car is not ready");resetPhysics();physicsWorld=new RAPIER.World({x:0,y:-9.81,z:0});const ground=RAPIER.ColliderDesc.cuboid(110,.08,110).setFriction(.95);physicsWorld.createCollider(ground);for(const b of[RAPIER.ColliderDesc.cuboid(110,2,.25).setTranslation(0,2,110),RAPIER.ColliderDesc.cuboid(110,2,.25).setTranslation(0,2,-110),RAPIER.ColliderDesc.cuboid(.25,2,110).setTranslation(110,2,0),RAPIER.ColliderDesc.cuboid(.25,2,110).setTranslation(-110,2,0)])physicsWorld.createCollider(b);const desc=RAPIER.RigidBodyDesc.dynamic().setTranslation(state.posX,PHYSICS_Y,state.posZ).setLinearDamping(.08).setAngularDamping(1.5).setCcdEnabled(true).setCanSleep(false);chassisBody=physicsWorld.createRigidBody(desc);const chassis=RAPIER.ColliderDesc.cuboid(1.18,.42,2.18).setMass(1180).setFriction(.78);physicsWorld.createCollider(chassis,chassisBody);vehicleController=physicsWorld.createVehicleController(chassisBody);if(typeof vehicleController.setIndexForwardAxis==="function")vehicleController.setIndexForwardAxis(2);const wheelPos=[[-1.27,-.34,-1.5],[1.27,-.34,-1.5],[-1.27,-.34,1.5],[1.27,-.34,1.5]];for(const p of wheelPos)vehicleController.addWheel({x:p[0],y:p[1],z:p[2]},{x:0,y:-1,z:0},{x:1,y:0,z:0},.34,.39);for(let i=0;i<4;i++){vehicleController.setWheelSuspensionStiffness(i,30);vehicleController.setWheelSuspensionCompression(i,5);vehicleController.setWheelSuspensionRelaxation(i,6);vehicleController.setWheelMaxSuspensionForce(i,12000);if(typeof vehicleController.setWheelMaxSuspensionTravel==="function")vehicleController.setWheelMaxSuspensionTravel(i,.24);vehicleController.setWheelFrictionSlip(i,1.35);if(typeof vehicleController.setWheelSideFrictionStiffness==="function")vehicleController.setWheelSideFrictionStiffness(i,1.45);}physicsReady=true;}
 function setupImportedWheelSteering(model){
-  const candidates=[];
+  // The GLB is a Blender export and its wheel meshes are not guaranteed to
+  // carry "wheel/tire/rim" names. Detect the front wheel geometry spatially,
+  // then give each detected wheel mesh its own pivot at its real center.
+  const meshes=[];
   model.updateMatrixWorld(true);
+  const modelBox=new THREE.Box3().setFromObject(model);
+  const modelSize=modelBox.getSize(new THREE.Vector3());
+  const modelMin=modelBox.min.clone();
+  const modelMax=modelBox.max.clone();
+  const localMeshes=[];
   model.traverse(o=>{
-    if(!o.isMesh)return;
-    const n=String(o.name||"").toLowerCase();
-    if(/wheel|tire|tyre|rim|hub/.test(n))candidates.push(o);
+    if(!o.isMesh||!o.geometry)return;
+    const box=new THREE.Box3().setFromObject(o);
+    const center=box.getCenter(new THREE.Vector3());
+    const size=box.getSize(new THREE.Vector3());
+    const maxDim=Math.max(size.x,size.y,size.z);
+    const minDim=Math.max(.001,Math.min(size.x,size.y,size.z));
+    const wheelLike=maxDim/minDim>1.45;
+    const low=center.y<=modelMin.y+modelSize.y*.48;
+    if(wheelLike&&low)localMeshes.push({mesh:o,center,size});
   });
-  const wheels=[];
-  for(const mesh of candidates){
-    const p=new THREE.Group();
-    p.name="ImportedWheelPivot";
-    p.position.setFromMatrixPosition(mesh.matrixWorld);
-    mesh.parent?.attach(p);
-    p.attach(mesh);
-    wheels.push(p);
+  if(!localMeshes.length)return [];
+
+  // Before the visual +90° rotation, the coupe's front is the -X side.
+  // Use the lowest-X wheel-like meshes and require them to be near the side
+  // of the car, which avoids rotating the body/sills.
+  let minX=Math.min(...localMeshes.map(v=>v.center.x));
+  const sideBand=Math.max(.52,modelSize.x*.24);
+  const frontCandidates=localMeshes.filter(v=>v.center.x<=minX+sideBand);
+
+  // Prefer objects whose centers are actually near the left/right side edges.
+  const sideLimit=modelMin.x+modelSize.x*.18;
+  const filtered=frontCandidates.filter(v=>v.center.x<=sideLimit);
+  const chosen=filtered.length?filtered:frontCandidates;
+
+  for(const item of chosen){
+    const mesh=item.mesh;
+    const worldCenter=item.center.clone();
+    const parent=mesh.parent;
+    if(!parent)continue;
+    const pivot=new THREE.Group();
+    pivot.name="ImportedFrontWheelSteerPivot";
+    parent.add(pivot);
+    pivot.position.copy(parent.worldToLocal(worldCenter.clone()));
+    pivot.attach(mesh);
+    meshes.push(pivot);
   }
-  // If the asset has named wheel meshes, steer the two front wheel assemblies.
-  // The Blender asset's original forward axis is -X, so front wheels have the
-  // smallest local X coordinate before the visual +90° Y rotation below.
-  if(wheels.length){
-    let minX=Infinity;
-    for(const w of wheels)minX=Math.min(minX,w.position.x);
-    const front=wheels.filter(w=>w.position.x<=minX+0.75);
-    return front.length?front:wheels;
-  }
-  return [];
+  return meshes;
 }
 function physicsDrive(dt){
  if(!physicsReady||!physicsWorld||!chassisBody){fallbackDrive(dt);return;}
@@ -106,6 +128,8 @@ function physicsDrive(dt){
 
  for(const w of(car.userData?.wheels||[])){
    if(!w?.rotation)continue;
+   // Wheel pivots are in the imported model's local frame, so steer around
+   // the vertical axis without moving the wheel away from the axle.
    w.rotation.y=steerAngle;
  }
 }
