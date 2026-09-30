@@ -40,26 +40,18 @@ async function initPhysics(){await RAPIER.init();}
 function resetPhysics(){if(vehicleController){try{vehicleController.free();}catch{}}vehicleController=null;chassisBody=null;physicsWorld=null;physicsReady=false;}
 function setupVehiclePhysics(){if(!RAPIER||!car)throw new Error("Rapier or car is not ready");resetPhysics();physicsWorld=new RAPIER.World({x:0,y:-9.81,z:0});const ground=RAPIER.ColliderDesc.cuboid(110,.08,110).setFriction(.95);physicsWorld.createCollider(ground);for(const b of[RAPIER.ColliderDesc.cuboid(110,2,.25).setTranslation(0,2,110),RAPIER.ColliderDesc.cuboid(110,2,.25).setTranslation(0,2,-110),RAPIER.ColliderDesc.cuboid(.25,2,110).setTranslation(110,2,0),RAPIER.ColliderDesc.cuboid(.25,2,110).setTranslation(-110,2,0)])physicsWorld.createCollider(b);const desc=RAPIER.RigidBodyDesc.dynamic().setTranslation(state.posX,PHYSICS_Y,state.posZ).setLinearDamping(.08).setAngularDamping(1.5).setCcdEnabled(true).setCanSleep(false);chassisBody=physicsWorld.createRigidBody(desc);const chassis=RAPIER.ColliderDesc.cuboid(1.18,.42,2.18).setMass(1180).setFriction(.78);physicsWorld.createCollider(chassis,chassisBody);vehicleController=physicsWorld.createVehicleController(chassisBody);if(typeof vehicleController.setIndexForwardAxis==="function")vehicleController.setIndexForwardAxis(2);const wheelPos=[[-1.27,-.34,-1.5],[1.27,-.34,-1.5],[-1.27,-.34,1.5],[1.27,-.34,1.5]];for(const p of wheelPos)vehicleController.addWheel({x:p[0],y:p[1],z:p[2]},{x:0,y:-1,z:0},{x:1,y:0,z:0},.34,.39);for(let i=0;i<4;i++){vehicleController.setWheelSuspensionStiffness(i,30);vehicleController.setWheelSuspensionCompression(i,5);vehicleController.setWheelSuspensionRelaxation(i,6);vehicleController.setWheelMaxSuspensionForce(i,12000);if(typeof vehicleController.setWheelMaxSuspensionTravel==="function")vehicleController.setWheelMaxSuspensionTravel(i,.24);vehicleController.setWheelFrictionSlip(i,1.35);if(typeof vehicleController.setWheelSideFrictionStiffness==="function")vehicleController.setWheelSideFrictionStiffness(i,1.45);}physicsReady=true;}
 function setupImportedWheelSteering(model){
-  // The repaired GLB is intentionally a single merged mesh (one node/one
-  // primitive), so its baked-in wheel vertices cannot be rotated separately.
-  // Add two slim visual front-wheel assemblies over the baked wheels. These
-  // are attached to the model, so their steering angle follows the car.
+  // The source GLB is one merged mesh, so its baked wheels cannot be
+  // independently rotated. Cover the baked front-wheel faces and place
+  // correctly sized steerable wheels in front of them.
   model.updateMatrixWorld(true);
   const box=new THREE.Box3().setFromObject(model);
   const size=box.getSize(new THREE.Vector3());
   const min=box.min.clone();
 
-  // The source model is normalized by crown72-blender.js to ~4.95 m long.
-  // Its source front is -X and width is Z; these ratios keep the wheels in
-  // place if the asset is regenerated at a slightly different scale.
-  // The first pass placed these on the rear axle. The source asset's
-  // opposite longitudinal end is the actual front axle.
   const wheelX=min.x+size.x*.79;
   const wheelY=min.y+size.y*.25;
   const sideZ=Math.max(.54,size.z*.34);
-  // Keep the helper wheels close to the baked wheel size so they do not look
-  // oversized when the imported body has a tall bounding box.
-  const tireRadius=Math.max(.24,Math.min(size.y*.18,.32));
+  const tireRadius=Math.max(.23,Math.min(size.y*.18,.31));
   const tireWidth=Math.max(.13,Math.min(size.z*.10,.20));
 
   const makeWheel=(z)=>{
@@ -67,11 +59,21 @@ function setupImportedWheelSteering(model){
     pivot.name="ImportedVisibleFrontWheelSteerPivot";
     pivot.position.set(wheelX,wheelY,z);
 
+    // Opaque body-colored backing hides the non-steerable baked wheel
+    // without changing the merged GLB geometry.
+    const cover=new THREE.Mesh(
+      new THREE.CylinderGeometry(tireRadius*1.08,tireRadius*1.08,tireWidth*.62,28),
+      new THREE.MeshStandardMaterial({color:0x7a3f2e,roughness:.42,metalness:.35})
+    );
+    cover.rotation.x=Math.PI/2;
+    cover.position.z=z<0?-.055:.055;
+    cover.castShadow=false;
+    cover.receiveShadow=true;
+
     const tire=new THREE.Mesh(
       new THREE.CylinderGeometry(tireRadius,tireRadius,tireWidth,24),
       new THREE.MeshStandardMaterial({color:0x17191b,roughness:.82,metalness:.04})
     );
-    // Cylinder axis Y -> wheel axle Z in the source model.
     tire.rotation.x=Math.PI/2;
     tire.castShadow=true;
     tire.receiveShadow=true;
@@ -90,7 +92,8 @@ function setupImportedWheelSteering(model){
     );
     cap.rotation.x=Math.PI/2;
 
-    pivot.add(tire,hub,cap);
+    // Cover sits behind the steerable wheel; the wheel itself is what turns.
+    pivot.add(cover,tire,hub,cap);
     model.add(pivot);
     return pivot;
   };
