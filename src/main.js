@@ -86,7 +86,9 @@ function makeCar(color=0x252a30){
   const paint=new THREE.MeshStandardMaterial({color,metalness:.72,roughness:.2});
   const dark=new THREE.MeshStandardMaterial({color:0x101419,metalness:.25,roughness:.12});
   const chrome=new THREE.MeshStandardMaterial({color:0x9aa2a8,metalness:.9,roughness:.18});
-  const glass=new THREE.MeshStandardMaterial({color:0x152530,metalness:.25,roughness:.08,transparent:true,opacity:.88});
+  const glass=new THREE.MeshPhysicalMaterial({color:0x182a35,metalness:.18,roughness:.06,transmission:.18,transparent:true,opacity:.92,clearcoat:.7,clearcoatRoughness:.08});
+  const trim=new THREE.MeshStandardMaterial({color:0x080a0c,metalness:.72,roughness:.18});
+  const interior=new THREE.MeshStandardMaterial({color:0x17191b,roughness:.72});
   const rubber=new THREE.MeshStandardMaterial({color:0x08090a,roughness:.96});
   const body=new THREE.Mesh(new THREE.BoxGeometry(2.5,.62,4.6),paint);
   body.position.y=.62; body.castShadow=true; body.receiveShadow=true; g.add(body);
@@ -98,6 +100,17 @@ function makeCar(color=0x252a30){
 
   const cabin=new THREE.Mesh(new THREE.BoxGeometry(2.05,.76,2.18),dark);
   cabin.position.set(0,1.08,.15); cabin.castShadow=true; g.add(cabin);
+  // Visible interior: dashboard, seats and steering wheel.
+  const dash=new THREE.Mesh(new THREE.BoxGeometry(1.78,.24,.5),interior);
+  dash.position.set(0,1.08,-.58); g.add(dash);
+  for(const x of [-.58,.58]){
+    const seat=new THREE.Mesh(new THREE.BoxGeometry(.62,.52,.68),interior);
+    seat.position.set(x,.93,.48); seat.castShadow=true; g.add(seat);
+  }
+  const wheel=new THREE.Mesh(new THREE.TorusGeometry(.19,.045,10,18),trim);
+  wheel.position.set(-.62,1.18,-.66); wheel.rotation.x=Math.PI/2; g.add(wheel);
+  const console=new THREE.Mesh(new THREE.BoxGeometry(.28,.18,.72),trim);
+  console.position.set(0,.99,.48); g.add(console);
 
   // Individual glass panes make the silhouette read like a real car.
   const windshield=new THREE.Mesh(new THREE.BoxGeometry(1.84,.54,.035),glass);
@@ -111,6 +124,8 @@ function makeCar(color=0x252a30){
   // Roof pillars / roof panel.
   const roof=new THREE.Mesh(new THREE.BoxGeometry(1.94,.12,1.98),paint);
   roof.position.set(0,1.48,.14); roof.castShadow=true; g.add(roof);
+  const roofGlass=new THREE.Mesh(new THREE.BoxGeometry(1.18,.035,1.1),glass);
+  roofGlass.position.set(0,1.55,.18); g.add(roofGlass);
   for(const x of [-.92,.92]){
     for(const z of [-.78,.88]){
       const pillar=new THREE.Mesh(new THREE.BoxGeometry(.09,.7,.09),paint);
@@ -240,8 +255,8 @@ function addBuilding(x,z,w,h,d,color){
 }
 function buildCity(){
   scene=new THREE.Scene();
-  scene.background=new THREE.Color(0x7f8d91);
-  scene.fog=new THREE.Fog(0x7f8d91,45,170);
+  scene.background=new THREE.Color(0x65757d);
+  scene.fog=new THREE.Fog(0x65757d,55,190);
 
   camera=new THREE.PerspectiveCamera(62,viewport.clientWidth/viewport.clientHeight,.1,500);
   renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:"high-performance"});
@@ -253,7 +268,8 @@ function buildCity(){
   renderer.setSize(viewport.clientWidth,viewport.clientHeight);
   viewport.innerHTML=""; viewport.appendChild(renderer.domElement);
 
-  scene.add(new THREE.HemisphereLight(0xdde8ef,0x34413d,1.65));
+  scene.add(new THREE.HemisphereLight(0xdde8ef,0x26302c,1.8));
+  const ambient=new THREE.AmbientLight(0xffffff,.22); scene.add(ambient);
   const sun=new THREE.DirectionalLight(0xfff2d6,2.8); sun.position.set(35,55,25); sun.castShadow=true; sun.shadow.mapSize.set(1024,1024); sun.shadow.camera.left=-80; sun.shadow.camera.right=80; sun.shadow.camera.top=80; sun.shadow.camera.bottom=-80; scene.add(sun);
   const fill=new THREE.DirectionalLight(0x9fc5ff,.45); fill.position.set(-40,20,-30); scene.add(fill);
 
