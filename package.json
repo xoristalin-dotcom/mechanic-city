@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node -e "require('https').get(process.env.MECHANIC_CITY_MODEL_URL, r=>{const f=require('fs').createWriteStream('public/models/crown72-v4.glb');r.pipe(f);f.on('finish',()=>f.close(()=>process.exit(0))) }).on('error',e=>{console.error(e);process.exit(1)})" && vite build",
+    "build": "node -e \"fetch(process.env.MECHANIC_CITY_MODEL_URL).then(async r=>{if(!r.ok)throw new Error('Model HTTP '+r.status);require('fs').mkdirSync('public/models',{recursive:true});require('fs').writeFileSync('public/models/crown72-v4.glb',Buffer.from(await r.arrayBuffer()))}).catch(e=>{console.error(e);process.exit(1)})\" && vite build",
     "preview": "vite preview",
     "test:e2e": "playwright test"
   },
