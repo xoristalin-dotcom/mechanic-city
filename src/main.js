@@ -50,11 +50,11 @@ window.MechanicCityTest={
 version:1,
 getState:()=>({scene:state.scene,position:{x:state.posX,z:state.posZ},speed:state.speed,heading:state.heading,gear:state.gear,fuel:state.fuel,heat:state.heat,damage:state.damage,car:{...state.car},cameraMode,cameraModeName:cameraModeNames[cameraMode],physicsReady,physicsError}),
 action:(name,value)=>{
-if(name==="gas")input.gas=!!value;
-else if(name==="brake")input.brake=!!value;
-else if(name==="left")input.left=!!value;
-else if(name==="right")input.right=!!value;
-else if(name==="gear"){if(["P","R","N","D"].includes(value))state.gear=value;}
+if(name==="gas"){input.gas=!!value;if(value&&state.fuel>0){if(state.gear==="P"||state.gear==="N")state.gear="D";state.driving=true;}}
+else if(name==="brake"){input.brake=!!value;}
+else if(name==="left"){input.left=!!value;if(value)state.driving=true;}
+else if(name==="right"){input.right=!!value;if(value)state.driving=true;}
+else if(name==="gear"){if(["P","R","N","D"].includes(value)){state.gear=value;if(value==="D"||value==="R")state.driving=true;if(value==="P")state.driving=false;}}
 else if(name==="camera"){const n=Math.max(0,Math.min(2,Number(value)));cameraMode=n;camOrbitYaw=0;camOrbitPitch=.18;if(camera){camera.fov=n===2?82:n===1?68:62;camera.updateProjectionMatrix();}}
 else if(name==="scene"&&["city","garage","market","junkyard","dealer","jobs","settings"].includes(value))renderScene(value);
 else if(name==="refuel"){state.fuel=100;save();}
