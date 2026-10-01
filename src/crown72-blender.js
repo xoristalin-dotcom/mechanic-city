@@ -3,11 +3,11 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 
 export async function loadMechanicCityCoupe(){
-  // Authoritative game model slot. Revision 9 is prepared in Higgsfield 3D Jutsu;
+  // Authoritative game model slot. Revision 18 is the authoritative Higgsfield 3D Jutsu asset;
   // the deployed build can override this with VITE_MECHANIC_CITY_MODEL_URL.
   const path=import.meta.env.VITE_MECHANIC_CITY_MODEL_URL || "/models/MechanicCity_Coupe_Repaired.glb";
   const response=await fetch(path,{cache:"no-store"});
-  if(!response.ok) throw new Error("Mechanic City Revision 17 GLB unavailable: HTTP "+response.status+" "+path);
+  if(!response.ok) throw new Error("Mechanic City Revision 18 GLB unavailable: HTTP "+response.status+" "+path);
   const buffer=await response.arrayBuffer();
   const loader=new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
@@ -15,7 +15,8 @@ export async function loadMechanicCityCoupe(){
   const model=await new Promise((resolve,reject)=>{
     loader.parse(buffer,"/models/",g=>resolve(g.scene),reject);
   });
-  model.name="MechanicCity_Challenger_R9";
+  model.name="MechanicCity_Coupe_R18";
+  model.userData.revision=18;
   model.userData.sourcePath=path;
   model.updateMatrixWorld(true);
   const box=new THREE.Box3().setFromObject(model);
@@ -68,14 +69,14 @@ export async function loadMechanicCityCoupe(){
         key,name:o.name,category,subsystem,condition:100,installed:true,
         removable,
         tunable:["engine","brakes","wheels","suspension","exhaust","body","interior","lights","glass"].includes(category),
-        interaction:"service_part"
+        interaction:"service_part",replacementMode:"swap_in_place"
       };
       serviceParts[key]=o.userData.servicePart;
     }
   });
   model.userData.serviceParts=serviceParts;
   model.userData.servicePartCount=Object.keys(serviceParts).length;
-  model.userData.vehicleSpec={lengthMeters:4.881,widthMeters:1.921,heightMeters:1.326,revision:"Higgsfield-R9",editable:true};
+  model.userData.vehicleSpec={lengthMeters:4.881,widthMeters:1.921,heightMeters:1.326,revision:"Higgsfield-R18",editable:true};
   model.traverse(o=>{
     if(o.isMesh){
       o.castShadow=true;
