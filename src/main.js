@@ -53,7 +53,14 @@ function tuneSelectedPart(key){const part=car?.userData?.serviceParts?.[key];if(
 function openPartPanel(part){
   const c=partCondition(part.key),installed=partInstalled(part.key);
   const cost=Math.max(80,Math.round((100-c)*22));
-  openPanel("Деталь автомобиля",`<p><b>${part.name}</b></p><p>Узел: ${partCategoryLabel(part.category)}<br>Подсистема: ${part.subsystem}<br>Состояние: <b>${c}%</b><br>Статус: <b>${installed?"Установлена":"Снята"}</b></p><div class="parts">${installed&&part.removable?"<button id="removeSelected">🔩 Снять деталь</button>":"<button id="installSelected">🛠️ Установить деталь</button>"}<button id="repairSelected">🔧 Починить — ${cost.toLocaleString("ru-RU")} ₽</button>${part.tunable&&installed?"<button id="tuneSelected">⚙️ Тюнинг узла</button>":""}</div>`);
+  const action=installed&&part.removable
+    ? "<button id='removeSelected'>🔩 Снять деталь</button>"
+    : "<button id='installSelected'>🛠️ Установить деталь</button>";
+  const tune=part.tunable&&installed
+    ? "<button id='tuneSelected'>⚙️ Тюнинг узла</button>"
+    : "";
+  const html="<p><b>"+part.name+"</b></p><p>Узел: "+partCategoryLabel(part.category)+"<br>Подсистема: "+part.subsystem+"<br>Состояние: <b>"+c+"%</b><br>Статус: <b>"+(installed?"Установлена":"Снята")+"</b></p><div class='parts'>"+action+"<button id='repairSelected'>🔧 Починить — "+cost.toLocaleString("ru-RU")+" ₽</button>"+tune+"</div>";
+  openPanel("Деталь автомобиля",html);
   document.querySelector("#removeSelected")?.addEventListener("click",()=>removeSelectedPart(part.key));
   document.querySelector("#installSelected")?.addEventListener("click",()=>installSelectedPart(part.key));
   document.querySelector("#repairSelected")?.addEventListener("click",()=>repairSelectedPart(part.key));
@@ -696,11 +703,3 @@ function installRuntimeErrorCapture(){
     });
   });
   window.addEventListener("webglcontextlost",()=>{
-    push({type:"webglcontextlost",message:"WebGL context lost"});
-  },true);
-  window.addEventListener("webglcontextrestored",()=>{
-    push({type:"webglcontextrestored",message:"WebGL context restored"});
-  },true);
-  window.MechanicCityDebugClear=()=>{
-    window.MechanicCityRuntimeErrors=[];
-    try{localStorage.removeItem(key);}catch{}
