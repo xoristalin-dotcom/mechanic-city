@@ -146,7 +146,50 @@ export class RetroCarBuilder {
       for (const child of oldChildren) this.carGroup.remove(child);
       this.carGroup.add(model);
 
-      this.carGroup.name = "MechanicCity_DodgeChallenger_R2_1";
+      // R2.1 body meshes contain the wheel silhouettes as part of combined
+      // geometry, so they cannot physically rotate. Add lightweight runtime
+      // wheel assemblies on top of those silhouettes. They are also used by
+      // main.js physicsDrive() for steering + rolling animation.
+      const runtimeWheels = [];
+      const wheelRadius = 0.43;
+      const wheelX = Math.max(0.78, bodySize.x * scale * 0.42);
+      const wheelZ = Math.max(1.35, bodySize.z * scale * 0.33);
+      const wheelY = wheelRadius + 0.015;
+      const tireMat = new THREE.MeshStandardMaterial({color:0x080808,roughness:0.78,metalness:0.05});
+      const rimMat = new THREE.MeshStandardMaterial({color:0xb8bcc1,roughness:0.32,metalness:0.82});
+
+      for (const cfg of [
+        ["FL",-wheelX,-wheelZ,true],["FR",wheelX,-wheelZ,true],
+        ["RL",-wheelX,wheelZ,false],["RR",wheelX,wheelZ,false]
+      ]) {
+        const [name,x,z,front] = cfg;
+        const wheel = new THREE.Group();
+        wheel.name = "RuntimeWheel_" + name;
+        wheel.position.set(x,wheelY,z);
+
+        const tire = new THREE.Mesh(
+          new THREE.CylinderGeometry(wheelRadius,wheelRadius,0.24,16),
+          tireMat
+        );
+        tire.rotation.z = Math.PI / 2;
+        tire.castShadow = true;
+        tire.receiveShadow = true;
+        wheel.add(tire);
+
+        const rim = new THREE.Mesh(
+          new THREE.CylinderGeometry(wheelRadius*0.56,wheelRadius*0.56,0.25,12),
+          rimMat
+        );
+        rim.rotation.z = Math.PI / 2;
+        rim.castShadow = true;
+        wheel.add(rim);
+
+        wheel.userData.front = front;
+        wheel.userData.corner = name;
+        this.carGroup.add(wheel);
+        runtimeWheels.push(wheel);
+      }
+      this.carGroup.userData.wheels = runtimeWheels;
       this.carGroup.userData.modelRevision = "MechanicCity-R2.1";
       this.carGroup.userData.modelSource = sourcePath;
       this.carGroup.userData.mobileOptimized = true;
