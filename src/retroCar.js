@@ -519,88 +519,172 @@ export class RetroCarBuilder {
       // DOOR_*_ANIM are only markers, so use the actual side-panel triangles
       // just like the real hood above.
       const createDoorAssemblies = () => {
-        // The GLB loader may have the normalized model transform pending.
-        // Freeze the transform before extracting the real door triangles.
-        model.updateMatrix();
-        model.updateMatrixWorld(true);
         const body = model.getObjectByName("geometry_0");
         if(!body?.geometry?.attributes?.position) return [];
+
+        // Keep the original body intact. The previous extraction removed only
+        // some side triangles, which created the large holes seen on mobile.
+        // We use the detected door region only to measure the real Challenger
+        // door, then build a solid opaque panel with a proper front hinge.
         const src=body.geometry, pos=src.attributes.position, idx=src.index;
         const triCount=idx ? idx.count/3 : pos.count/3;
-        const leftTris=[], rightTris=[], keepTris=[];
-        const isDoorVertex=(i,side)=>{
+        const regions=[[],[]];
+
+        const inRegion=(i,side)=>{
           const x=pos.getX(i), y=pos.getY(i), z=pos.getZ(i);
-          // Normalized R2.1 side-door area: between the wheel arches,
-          // below the belt line and outside the central body.
           return (side<0 ? x<=-0.125 : x>=0.125) &&
-            Math.abs(x)<=0.215 && y>=-0.035 && y<=0.105 &&
+            Math.abs(x)<=0.215 &&
+            y>=-0.035 && y<=0.105 &&
             z>=-0.34 && z<=0.34;
         };
+
         for(let t=0;t<triCount;t++){
           const ia=idx?idx.getX(t*3):t*3;
           const ib=idx?idx.getX(t*3+1):t*3+1;
           const ic=idx?idx.getX(t*3+2):t*3+2;
-          const l=isDoorVertex(ia,-1)&&isDoorVertex(ib,-1)&&isDoorVertex(ic,-1);
-          const rr=isDoorVertex(ia,1)&&isDoorVertex(ib,1)&&isDoorVertex(ic,1);
-          if(l)leftTris.push([ia,ib,ic]);
-          else if(rr)rightTris.push([ia,ib,ic]);
-          else keepTris.push([ia,ib,ic]);
+          for(const [n,side] of [[0,-1],[1,1]]){
+            if(inRegion(ia,side)&&inRegion(ib,side)&&inRegion(ic,side)){
+              regions[n].push([ia,ib,ic]);
+            }
+          }
         }
-        if(!leftTris.length&&!rightTris.length)return [];
-
-        const build=(tris)=>{
-          const out=[];
-          for(const [a,b,c] of tris) for(const i of [a,b,c])
-            out.push(pos.getX(i),pos.getY(i),pos.getZ(i));
-          const g=new THREE.BufferGeometry();
-          g.setAttribute("position",new THREE.Float32BufferAttribute(out,3));
-          g.computeVertexNormals(); g.computeBoundingSphere(); return g;
-        };
-        body.geometry=build(keepTris);
 
         const makeDoor=(tris,side,name)=>{
           if(!tris.length)return null;
-          const geo=build(tris), p=geo.attributes.position;
-          for(let i=0;i<p.count;i++){
-            const v=new THREE.Vector3(p.getX(i),p.getY(i),p.getZ(i)).applyMatrix4(model.matrix);
-            p.setXYZ(i,v.x,v.y,v.z);
+
+          const raw=[];
+          for(const [a,b,c] of tris){
+            for(const i of [a,b,c]) raw.push(pos.getX(i),pos.getY(i),pos.getZ(i));
           }
-          p.needsUpdate=true; geo.computeVertexNormals(); geo.computeBoundingBox(); geo.computeBoundingSphere();
-          const box=geo.boundingBox;
-          const hingeLocal=new THREE.Vector3(
-            side<0 ? box.min.x : box.max.x,
-            box.min.y + (box.max.y-box.min.y)*0.10,
-            (box.min.z+box.max.z)*0.5
+          const geo=new THREE.BufferGeometry();
+          geo.setAttribute("position",new THREE.Float32BufferAttribute(raw,3));
+          geo.computeBoundingBox();
+
+          // Transform the measured region into carGroup coordinates.
+          const bp=geo.attributes.position;
+          for(let i=0;i<bp.count;i++){
+            const v=new THREE.Vector3(bp.getX(i),bp.getY(i),bp.getZ(i)).applyMatrix4(model.matrix);
+            bp.setXYZ(i,v.x,v.y,v.z);
+          }
+          bp.needsUpdate=true;
+          geo.computeBoundingBox();
+          const b=geo.boundingBox;
+          if(!b)return null;
+
+          const zFront=b.max.z;
+          const zRear=b.min.z;
+          const yBottom=b.min.y;
+          const yTop=b.max.y;
+          const xBody=side<0 ? b.min.x : b.max.x;
+
+          // Solid door profile: full skin, rounded corners, and thickness.
+          // Coordinates are (Z,Y); extrusion is converted to X below.
+          const shape=new THREE.Shape();
+          const rZ=Math.max(0.018,(zFront-zRear)*0.06);
+          const rY=Math.max(0.008,(yTop-yBottom)*0.10);
+          shape.moveTo(zRear+rZ,yBottom);
+          shape.lineTo(zFront-rZ,yBottom);
+          shape.quadraticCurveTo(zFront,yBottom,zFront,yBottom+rY);
+          shape.lineTo(zFront,yTop-rY);
+          shape.quadraticCurveTo(zFront,yTop,zFront-rZ,yTop);
+          shape.lineTo(zRear+rZ,yTop);
+          shape.quadraticCurveTo(zRear,yTop,zRear,yTop-rY);
+          shape.lineTo(zRear,yBottom+rY);
+          shape.quadraticCurveTo(zRear,yBottom,zRear+rZ,yBottom);
+
+          const ex=new THREE.ExtrudeGeometry(shape,{
+            depth:0.035,
+            bevelEnabled:true,
+            bevelSegments:2,
+            steps:1,
+            bevelSize:0.006,
+            bevelThickness:0.006
+          });
+          ex.computeVertexNormals();
+
+          // ExtrudeGeometry: local X=Z of car, local Y=Y of car,
+          // local Z=door thickness. Map it into carGroup coordinates.
+          const ep=ex.attributes.position;
+          for(let i=0;i<ep.count;i++){
+            const z=ep.getX(i);
+            const y=ep.getY(i);
+            const d=ep.getZ(i);
+            const x=side<0 ? xBody-d : xBody+d;
+            ep.setXYZ(i,x,y,z);
+          }
+          ep.needsUpdate=true;
+          ex.computeVertexNormals();
+          ex.computeBoundingBox();
+          ex.computeBoundingSphere();
+
+          const doorMat=new THREE.MeshStandardMaterial({
+            color:0xe52a36, metalness:0.34, roughness:0.28,
+            transparent:false, opacity:1, depthWrite:true,
+            side:THREE.DoubleSide
+          });
+          const mesh=new THREE.Mesh(ex,doorMat);
+          mesh.name=name+"_SolidDoor";
+          mesh.castShadow=true;
+          mesh.receiveShadow=true;
+
+          // Real Challenger door hinge is vertical near the front edge (+Z).
+          const hinge=new THREE.Vector3(
+            xBody,
+            yBottom+(yTop-yBottom)*0.08,
+            zFront-0.018
           );
-          const hinge=new THREE.Vector3().copy(hingeLocal);
-          const mat=new THREE.MeshStandardMaterial({color:0xe52a36,metalness:0.34,roughness:0.28,transparent:false,opacity:1,side:THREE.DoubleSide});
-          const mesh=new THREE.Mesh(geo,mat);
-          mesh.name=name+"_RealDoor"; mesh.castShadow=true; mesh.receiveShadow=true;
           const pivot=new THREE.Object3D();
           pivot.name=name+"_Hinge";
           pivot.userData.isVehicleDoor=true;
           pivot.position.copy(hinge);
           this.carGroup.add(pivot);
-          const hp=geo.attributes.position;
-          for(let i=0;i<hp.count;i++) hp.setXYZ(i,hp.getX(i)-hinge.x,hp.getY(i)-hinge.y,hp.getZ(i)-hinge.z);
-          hp.needsUpdate=true; geo.computeBoundingBox(); geo.computeBoundingSphere();
+
+          const hp=ex.attributes.position;
+          for(let i=0;i<hp.count;i++){
+            hp.setXYZ(i,hp.getX(i)-hinge.x,hp.getY(i)-hinge.y,hp.getZ(i)-hinge.z);
+          }
+          hp.needsUpdate=true;
+          ex.computeBoundingBox();
+          ex.computeBoundingSphere();
           pivot.add(mesh);
-          // Pick the hinge direction that moves the door's center outward.
+
+          // Choose the sign that moves the door center outward from the body.
           const center=new THREE.Vector3(
-            (box.min.x+box.max.x)*0.5-hinge.x,
-            (box.min.y+box.max.y)*0.5-hinge.y,
-            (box.min.z+box.max.z)*0.5-hinge.z
+            (b.min.x+b.max.x)*0.5-hinge.x,
+            (b.min.y+b.max.y)*0.5-hinge.y,
+            (b.min.z+b.max.z)*0.5-hinge.z
           );
-          const plus=center.clone().applyAxisAngle(new THREE.Vector3(0,1,0),0.75);
-          const minus=center.clone().applyAxisAngle(new THREE.Vector3(0,1,0),-0.75);
+          const plus=center.clone().applyAxisAngle(new THREE.Vector3(0,1,0),0.8);
+          const minus=center.clone().applyAxisAngle(new THREE.Vector3(0,1,0),-0.8);
           const plusOut=side<0 ? -plus.x : plus.x;
           const minusOut=side<0 ? -minus.x : minus.x;
           const openSign=plusOut>=minusOut ? 1 : -1;
-          return {pivot,open:0,openSign,axis:"y",maxAngle:1.12};
+
+          // Inner door card: opaque, recessed and attached to the same hinge.
+          const inner=new THREE.Mesh(
+            new THREE.BoxGeometry(Math.max(0.025,Math.abs(b.max.x-b.min.x)*0.35),
+              Math.max(0.025,(yTop-yBottom)*0.46),
+              Math.max(0.05,(zFront-zRear)*0.52)),
+            new THREE.MeshStandardMaterial({
+              color:0x17191c, metalness:0.18, roughness:0.72,
+              transparent:false, opacity:1, depthWrite:true,
+              side:THREE.DoubleSide
+            })
+          );
+          inner.name=name+"_InnerTrim";
+          inner.position.set(
+            side<0 ? -0.022 : 0.022,
+            (yBottom+yTop)*0.5-hinge.y,
+            (zRear+zFront)*0.5-hinge.z
+          );
+          pivot.add(inner);
+
+          return {pivot,open:0,openSign,axis:"y",maxAngle:1.08};
         };
+
         return [
-          makeDoor(leftTris,-1,"Door_Left"),
-          makeDoor(rightTris,1,"Door_Right")
+          makeDoor(regions[0],-1,"Door_Left"),
+          makeDoor(regions[1],1,"Door_Right")
         ].filter(Boolean);
       };
 
