@@ -79,3 +79,8 @@ button{cursor:pointer}
   .drive-actions{bottom:max(12px,env(safe-area-inset-bottom))}
   .message{top:66px}
 }
+
+/* Workshop / lift start state */
+.workshop-hud{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:18px;max-width:min(92vw,760px);padding:14px 16px;border:1px solid rgba(255,255,255,.16);border-radius:14px;background:rgba(12,15,17,.9);backdrop-filter:blur(8px);color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.workshop-hud div{display:flex;flex-direction:column;gap:3px}.workshop-hud span{font-size:13px;opacity:.72}.workshop-hud button{min-height:44px;padding:10px 16px;border:0;border-radius:10px;background:#d8a33b;color:#17120a;font-weight:800;cursor:pointer}
+@media(max-width:640px){.workshop-hud{left:10px;right:10px;bottom:10px;transform:none;flex-wrap:wrap}.workshop-hud button{width:100%}}
