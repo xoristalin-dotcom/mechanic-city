@@ -390,36 +390,35 @@ export class RetroCarBuilder {
         Object.entries(serviceParts).map(([key,part])=>[key,{mesh:part.mesh,condition:part.condition,removable:part.removable}])
       );
 
-      // The *_ANIM nodes are markers, not real panels. Build one opaque runtime
-      // hood from the actual vehicle dimensions, while removing the original hood
-      // surface from geometry_0 so there is never a second hood underneath it.
-      const bodyWSafe = (body) => {
-        const b = new THREE.Box3().setFromObject(body);
-        const s = b.getSize(new THREE.Vector3());
-        return Math.max(0.45,s.x*0.48);
-      };
-
+      // The *_ANIM nodes are only markers. Use the ACTUAL hood surface
+      // from geometry_0: copy its real triangles, remove those triangles from
+      // the static body, and put the copy on a hinge. No fake hood, no black bay.
       const createHoodAssembly = () => {
         const body = model.getObjectByName("geometry_0");
-        if (!body?.geometry?.attributes?.position) return null;
+        if(!body?.geometry?.attributes?.position) return null;
+
         const src = body.geometry;
         const pos = src.attributes.position;
         const idx = src.index;
-        const move = [], keep = [];
         const triCount = idx ? idx.count / 3 : pos.count / 3;
 
-        // Remove only the upper/front hood surface from the static body.
-        // Keep the threshold conservative so fenders and windshield remain intact.
+        // In the source Challenger mesh the hood is one connected surface
+        // occupying this local region.
+        const isHoodVertex = (i) => {
+          const x=pos.getX(i), y=pos.getY(i), z=pos.getZ(i);
+          return Math.abs(x)<=0.176 && y>=0.011 && y<=0.066 && z>=0.124 && z<=0.487;
+        };
+
+        const hoodTris=[];
+        const keepTris=[];
         for(let t=0;t<triCount;t++){
           const ia=idx ? idx.getX(t*3) : t*3;
           const ib=idx ? idx.getX(t*3+1) : t*3+1;
           const ic=idx ? idx.getX(t*3+2) : t*3+2;
-          const cz=(pos.getZ(ia)+pos.getZ(ib)+pos.getZ(ic))/3;
-          const cy=(pos.getY(ia)+pos.getY(ib)+pos.getY(ic))/3;
-          const cx=Math.max(Math.abs(pos.getX(ia)),Math.abs(pos.getX(ib)),Math.abs(pos.getX(ic)));
-          const isHood=cz>0.42 && cy>0.68 && cx<bodyWSafe(body);
-          (isHood?move:keep).push([ia,ib,ic]);
+          const hood=isHoodVertex(ia)&&isHoodVertex(ib)&&isHoodVertex(ic);
+          (hood?hoodTris:keepTris).push([ia,ib,ic]);
         }
+        if(!hoodTris.length)return null;
 
         const build=(tris)=>{
           const out=[];
@@ -433,48 +432,49 @@ export class RetroCarBuilder {
           return g;
         };
 
-        if(move.length){
-          body.geometry=build(keep);
-        }
+        // Delete the original/static hood from the body.
+        body.geometry=build(keepTris);
 
-        const hoodW=Math.min(bodyW*0.82,1.72);
-        const hoodL=1.62;
-        const hoodH=0.075;
+        // Convert the copied hood from model-local coordinates into carGroup
+        // coordinates, because model already has the GLB normalization scale.
+        const hoodGeometry=build(hoodTris);
+        const p=hoodGeometry.attributes.position;
+        for(let i=0;i<p.count;i++){
+          const v=new THREE.Vector3(p.getX(i),p.getY(i),p.getZ(i));
+          v.applyMatrix4(model.matrix);
+          p.setXYZ(i,v.x,v.y,v.z);
+        }
+        p.needsUpdate=true;
+        hoodGeometry.computeVertexNormals();
+        hoodGeometry.computeBoundingSphere();
+
+        // Front is +Z. The rear edge of the real hood is the hinge edge.
+        const hingeLocal=new THREE.Vector3(0,0.011,0.124);
+        const hinge=new THREE.Vector3().copy(hingeLocal).applyMatrix4(model.matrix);
+
         const hoodMat=new THREE.MeshStandardMaterial({
           color:0xe52a36, metalness:0.34, roughness:0.28,
           transparent:false, opacity:1
         });
-        const hood=new THREE.Mesh(
-          new RoundedBoxGeometry(hoodW,hoodH,hoodL,4,0.035),
-          hoodMat
-        );
+        const hood=new THREE.Mesh(hoodGeometry,hoodMat);
         hood.name="RuntimeRealHood";
         hood.castShadow=true;
         hood.receiveShadow=true;
 
-        // IMPORTANT: model already carries the GLB normalization scale.
-        // The hood dimensions below are world/game units, so the movable hood
-        // must live under carGroup (scale 1), not under the scaled GLB model.
-        // Putting it under model was double-scaling it and made a giant hood
-        // float above the car.
         const pivot=new THREE.Object3D();
         pivot.name="RuntimeRealHoodHinge";
-        pivot.position.set(0,1.00,0.34);
+        pivot.position.copy(hinge);
         this.carGroup.add(pivot);
 
-        // Local Z starts at the rear hinge and runs toward the front.
-        hood.position.set(0,0,hoodL*0.5);
+        // Put the copied real hood around its actual hinge edge.
+        const hp=hood.geometry.attributes.position;
+        for(let i=0;i<hp.count;i++){
+          hp.setXYZ(i,hp.getX(i)-hinge.x,hp.getY(i)-hinge.y,hp.getZ(i)-hinge.z);
+        }
+        hp.needsUpdate=true;
+        hood.geometry.computeBoundingBox();
+        hood.geometry.computeBoundingSphere();
         pivot.add(hood);
-
-        // Dark engine bay below the hood; this prevents a transparent-looking
-        // hole when the hood opens and gives the garage a real service area.
-        const bay=new THREE.Mesh(
-          new RoundedBoxGeometry(hoodW*0.92,0.16,hoodL*0.88,3,0.03),
-          new THREE.MeshStandardMaterial({color:0x171a1d,metalness:0.25,roughness:0.72})
-        );
-        bay.name="RuntimeEngineBay";
-        bay.position.set(0,0.90,0.98);
-        this.carGroup.add(bay);
 
         return {pivot,open:0,openSign:1,axis:"x",maxAngle:0.95};
       };
