@@ -149,6 +149,21 @@ export class RetroCarBuilder {
       for (const child of oldChildren) this.carGroup.remove(child);
       this.carGroup.add(model);
 
+      // Explicit black front windshield overlay for the imported mobile model.
+      const windshieldMat=new THREE.MeshStandardMaterial({color:0x030406,metalness:0.22,roughness:0.14});
+      const windshieldShape=new THREE.Shape();
+      windshieldShape.moveTo(-0.67,0);
+      windshieldShape.lineTo(0.67,0);
+      windshieldShape.lineTo(0.56,0.66);
+      windshieldShape.lineTo(-0.56,0.66);
+      windshieldShape.closePath();
+      const windshield=new THREE.Mesh(new THREE.ShapeGeometry(windshieldShape),windshieldMat);
+      windshield.name="FRONT_WINDSHIELD_BLACK";
+      windshield.position.set(0,0.98,1.18);
+      windshield.rotation.x=-0.16;
+      windshield.scale.setScalar(0.92);
+      this.carGroup.add(windshield);
+
       // R2.1 body meshes contain the wheel silhouettes as part of combined
       // geometry, so they cannot physically rotate. Add lightweight runtime
       // wheel assemblies on top of those silhouettes. They are also used by
