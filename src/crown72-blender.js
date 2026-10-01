@@ -27,9 +27,10 @@ export async function loadMechanicCityCoupe(){
   model.position.y-=box.min.y*scale;
   model.position.z-=center.z*scale;
   model.updateMatrixWorld(true);
-  const serviceParts={};
+  const serviceParts={}; const keyCounts={};
   const categoryFor=(name)=>{
     const n=name.toLowerCase();
+    if(/gearbox|transmission|clutch|differential/.test(n)) return "transmission";
     if(/engine|injector|spark|intake|alternator|starter|water|thermostat|radiator|fuel|oil|coolant|battery|fuse|pump/.test(n)) return "engine";
     if(/brake|rotor|caliper|pad/.test(n)) return "brakes";
     if(/wheel|tire|rim|hub|lug/.test(n)) return "wheels";
@@ -44,7 +45,7 @@ export async function loadMechanicCityCoupe(){
   model.traverse(o=>{
     if(o.isMesh){
       const category=categoryFor(o.name);
-      const key=o.name.replace(/[^a-zA-Z0-9_-]/g,"_");
+      const baseKey=o.name.replace(/[^a-zA-Z0-9_-]/g,"_"); const keyCount=keyCounts[baseKey]||0; keyCounts[baseKey]=keyCount+1; const key=keyCount?baseKey+"_"+keyCount:baseKey;
       const lower=o.name.toLowerCase();
       const subsystem=/radiator|coolant|water/.test(lower)?"cooling":
         /battery|alternator|starter|fuse/.test(lower)?"electrical":
