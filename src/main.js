@@ -65,7 +65,6 @@ const viewport=document.querySelector("#viewport"),speedEl=document.querySelecto
 let renderer,camera,car,scene,clock,traffic=[],trafficLights=[],smoke=[],rainDrops=[],jobMarker=null,vehicleController=null,chassisBody=null,physicsWorld=null,physicsReady=false,physicsError=null;
 const partRaycaster=new THREE.Raycaster(); const partPointer=new THREE.Vector2(); let cameraMode=0,camOrbitYaw=0,camOrbitPitch=.18,camDragging=false,camLastX=0,camLastY=0;
 const cameraModeNames=["follow","orbit","hood"];
-const PART_STATE_VERSION=5;
 const PHYSICS_Y = 0.3;
 
 async function initPhysics(){await RAPIER.init();}
