@@ -157,7 +157,7 @@ function physicsDrive(dt){
   const steerAngle=state.steer*THREE.MathUtils.degToRad(36)*(1-Math.min(Math.abs(state.speed)/22,.38));
   if(Math.abs(state.speed)>.01)state.heading+=(state.speed/2.95)*Math.tan(steerAngle)*dt;
   car.rotation.y=state.heading;
-  const forward=new THREE.Vector3(0,0,-1).applyQuaternion(car.quaternion).normalize();
+  const forward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();
   state.posX+=forward.x*state.speed*dt;
   state.posZ+=forward.z*state.speed*dt;
   car.position.set(state.posX,car.position.y,state.posZ);
@@ -175,7 +175,7 @@ function physicsDrive(dt){
   }
 }
 
-function fallbackDrive(dt){const throttle=(input.gas||state.throttle)&&(state.gear==="D"||state.gear==="R"),reverse=state.gear==="R",steer=(input.left?1:0)+(input.right?-1:0);const accel=throttle?(reverse?10:10):2.5; state.speed=THREE.MathUtils.damp(state.speed,throttle?(reverse?-8:8):0,accel,dt); state.heading+=steer*dt*1.2; if(car){car.rotation.y=state.heading;const forward=new THREE.Vector3(0,0,-1).applyQuaternion(car.quaternion).normalize();state.posX+=forward.x*state.speed*dt*2;state.posZ+=forward.z*state.speed*dt*2;car.position.set(state.posX,0,state.posZ);}} 
+function fallbackDrive(dt){const throttle=(input.gas||state.throttle)&&(state.gear==="D"||state.gear==="R"),reverse=state.gear==="R",steer=(input.left?1:0)+(input.right?-1:0);const accel=throttle?(reverse?10:10):2.5; state.speed=THREE.MathUtils.damp(state.speed,throttle?(reverse?-8:8):0,accel,dt); state.heading+=steer*dt*1.2; if(car){car.rotation.y=state.heading;const forward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();state.posX+=forward.x*state.speed*dt*2;state.posZ+=forward.z*state.speed*dt*2;car.position.set(state.posX,0,state.posZ);}} 
 function createRetroPlayerCar(){
   const builder=new RetroCarBuilder({color:0x252b31,type:"sedan",year:1975,damageLevel:state.damage});
   const root=builder.getGroup();
@@ -358,7 +358,7 @@ function animate(traffic=[]){ requestAnimationFrame(()=>animate(traffic)); if(st
     const followHeight=moving?6.1:5.7;
     const orbitDistance=Math.max(1.2,Math.cos(camOrbitPitch)*followDistance);
     const localY=followHeight+Math.sin(camOrbitPitch)*followDistance*.55;
-    // The imported Challenger faces local +Z, so its rear is local -Z.
+    // The imported Challenger faces local +Z, so gameplay forward also uses local +Z; the rear is local -Z.
     // Keep the camera behind the rear, then rotate only around the car.
     const localZ=-orbitDistance;
     cameraRig.rotation.set(0,camOrbitYaw,0);
