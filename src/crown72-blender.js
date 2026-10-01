@@ -3,15 +3,11 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 
 export async function loadMechanicCityCoupe(){
-  // Prefer the repaired coupe. Keep the previous model as a temporary fallback so a missing binary never leaves the game without a car.
-  const modelPaths=["/models/MechanicCity_Coupe_Repaired.glb","/models/challenger-r9.glb"];
-  let response=null;
-  let loadedPath="";
-  for(const path of modelPaths){
-    const candidate=await fetch(path,{cache:"no-store"});
-    if(candidate.ok){response=candidate;loadedPath=path;break;}
-  }
-  if(!response) throw new Error("MechanicCity Coupe model is unavailable (tried repaired GLB and fallback GLB)");
+  // Revision 17 from Higgsfield 3D Jutsu is the single authoritative vehicle model.
+  // Never fall back to the legacy challenger model.
+  const path="/models/MechanicCity_Coupe_Repaired.glb";
+  const response=await fetch(path,{cache:"no-store"});
+  if(!response.ok) throw new Error("Mechanic City Revision 17 GLB unavailable: HTTP "+response.status+" "+path);
   const buffer=await response.arrayBuffer();
   const loader=new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
