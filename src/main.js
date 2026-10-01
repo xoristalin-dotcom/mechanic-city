@@ -633,7 +633,7 @@ function buildWorkshop(){
     requestAnimationFrame(loop);
     const dt=Math.min(clock.getDelta(),.05);
     if(car?.userData?.workshopDisassembled)updateArticulatedCar(dt);
-    camera.position.lerp(new THREE.Vector3(8.4,5.6,9.0),.09);
+    camera.position.lerp(new THREE.Vector3(6.5,4.6,7.0),.11);
     camera.lookAt(new THREE.Vector3(0,1.25,0));
     renderer.render(scene,camera);
   };
@@ -737,8 +737,8 @@ function animate(traffic=[]){
       camera.position.lerp(target,.22);
     }else{
       const behind=cameraMode===0?1:-1;
-      const followDistance=moving?8.0:7.1;
-      const followHeight=moving?5.5:5.0;
+      const followDistance=moving?6.2:5.6;
+      const followHeight=moving?4.7:4.3;
       const horizontal=followDistance*Math.cos(camOrbitPitch);
       const sx=Math.sin(heading+camOrbitYaw)*horizontal*behind;
       const sz=Math.cos(heading+camOrbitYaw)*horizontal*behind;
