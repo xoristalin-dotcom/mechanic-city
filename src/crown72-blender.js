@@ -3,7 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 
 export async function loadMechanicCityCoupe(){
-  const response=await fetch("/models/MechanicCity_Coupe_Repaired.glb",{cache:"no-store"});
+  const response=await fetch("/models/challenger-r9.glb",{cache:"no-store"});
   if(!response.ok) throw new Error("MechanicCity Coupe model HTTP "+response.status);
   const buffer=await response.arrayBuffer();
   const loader=new GLTFLoader();
