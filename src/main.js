@@ -214,7 +214,7 @@ function createRetroPlayerCar(){
   const art=builder.articulation;
   root.userData.articulation={
     doors:Object.values(art.doors||{}).map(d=>({pivot:d.pivot,open:0,openSign:Math.sign(d.maxAngle)||1,axis:"y"})),
-    hood:art.hood?{pivot:art.hood.pivot,open:0,openSign:1,axis:"x"}:null,
+    hood:art.hood?{pivot:art.hood.pivot,open:0,openSign:-1,axis:"z"}:null,
     trunk:art.trunk?{pivot:art.trunk.pivot,open:0,openSign:Math.sign(art.trunk.maxAngle)||1,axis:"x"}:null,
     steering:null
   };
