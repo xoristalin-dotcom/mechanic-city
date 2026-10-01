@@ -461,6 +461,7 @@ export class RetroCarBuilder {
       });
       engineBay.visible=false;
       this.carGroup.add(engineBay);
+      this.carGroup.userData.engineBay=engineBay;
 
       // The *_ANIM nodes are only markers. Use the ACTUAL hood surface
       // from geometry_0: copy its real triangles, remove those triangles from
