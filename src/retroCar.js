@@ -123,11 +123,14 @@ export class RetroCarBuilder {
       bodyGroup.add(shoulder);
     }
 
+    // Крыша остаётся почти прямой и квадратной, но стойки и лобовое имеют заметный наклон.
     const cabin = new THREE.Shape();
-    cabin.moveTo(-1.18,0.98);
-    cabin.lineTo(-0.82,1.68);
-    cabin.quadraticCurveTo(0,2.00,0.82,1.68);
-    cabin.lineTo(1.22,0.98);
+    cabin.moveTo(-1.20,0.98);
+    cabin.lineTo(-1.02,1.58);
+    cabin.lineTo(-0.78,1.84);
+    cabin.lineTo(0.78,1.84);
+    cabin.lineTo(1.02,1.58);
+    cabin.lineTo(1.20,0.98);
     cabin.closePath();
 
     const cabinGeo = new THREE.ExtrudeGeometry(cabin,{
@@ -146,14 +149,15 @@ export class RetroCarBuilder {
     cabinGroup.add(cabinShell);
 
     const glass = this.getMaterial("glass",0x10232d);
-    const windshield = new THREE.Mesh(new THREE.PlaneGeometry(2.05,0.68),glass);
-    windshield.position.set(0,1.52,-0.92);
-    windshield.rotation.x = -0.24;
+    const windshield = new THREE.Mesh(new THREE.PlaneGeometry(2.05,0.70),glass);
+    windshield.position.set(0,1.57,-0.96);
+    // Переднее стекло повторяет наклон передней стойки.
+    windshield.rotation.x = -0.34;
     cabinGroup.add(windshield);
 
     const rearGlass = new THREE.Mesh(new THREE.PlaneGeometry(2.05,0.62),glass);
-    rearGlass.position.set(0,1.53,1.10);
-    rearGlass.rotation.x = 0.22;
+    rearGlass.position.set(0,1.56,1.10);
+    rearGlass.rotation.x = 0.08;
     cabinGroup.add(rearGlass);
 
     for (const side of [-1,1]) {
