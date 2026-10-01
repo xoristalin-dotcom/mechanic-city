@@ -69,7 +69,7 @@ export class RetroCarBuilder {
           break;
         } catch {}
       }
-      if (!buffer) return;
+      if (!buffer) {\n        this.carGroup.visible = true;\n        this.carGroup.userData.modelLoading = false;\n        console.warn("Mechanic City Challenger model unavailable; using procedural fallback.");\n        return;\n      }
 
       const model = await new Promise((resolve,reject)=>{
         loader.parse(buffer, sourcePath, g=>resolve(g.scene), reject);
@@ -86,7 +86,7 @@ export class RetroCarBuilder {
       const bodyBox = bodyMesh
         ? new THREE.Box3().setFromObject(bodyMesh)
         : new THREE.Box3().setFromObject(model);
-      if (bodyBox.isEmpty()) return;
+      if (bodyBox.isEmpty()) {\n        this.carGroup.visible = true;\n        this.carGroup.userData.modelLoading = false;\n        console.warn("Mechanic City Challenger body bounds are empty; using procedural fallback.");\n        return;\n      }
 
       const bodySize = bodyBox.getSize(new THREE.Vector3());
       const bodyCenter = bodyBox.getCenter(new THREE.Vector3());
