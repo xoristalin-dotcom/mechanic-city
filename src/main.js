@@ -91,6 +91,8 @@ function setupImportedWheelSteering(model){
   return {wheels,doors,hood,trunk,steering};
 }
 function updateArticulatedCar(dt){
+  // R19 body panels stay exactly where Blender authored them.
+  // Articulation is disabled until verified hinge pivots are available.
   const a=car?.userData?.articulation;if(!a||!state.car.articulationActive)return;
   const target=state.car.doorsOpen?1:0;
   for(const d of a.doors){d.open=THREE.MathUtils.damp(d.open,target,7,dt);d.pivot.rotation.y=(d.front?-1:1)*d.side*1.08*d.open;}
@@ -173,15 +175,16 @@ async function swapToBlenderCrown72(){
    root.userData.wheels=root.userData.articulation.wheels;
    root.userData.serviceParts=model.userData.serviceParts||{};
 
-   // City spawn is always assembled. Saved installed/removed state controls
-   // visibility only; workshop is the only mode allowed to move parts apart.
+   // The authored R19 Blender scene is the source of truth for the assembled car.
+   // Never restore an old articulation flag: an old localStorage value could
+   // start rotating authored body panels shortly after the model appears.
+   state.car.doorsOpen=false;
+   state.car.hoodOpen=false;
+   state.car.trunkOpen=false;
+   state.car.articulationActive=false;
    if(state.car.partStateVersion!==PART_STATE_VERSION){
      state.car.partState={};
      state.car.partStateVersion=PART_STATE_VERSION;
-     state.car.doorsOpen=false;
-     state.car.hoodOpen=false;
-     state.car.trunkOpen=false;
-     state.car.articulationActive=false;
    }
    for(const p of Object.values(root.userData.serviceParts)){
      const saved=state.car.partState?.[p.key];
