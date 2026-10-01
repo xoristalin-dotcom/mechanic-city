@@ -407,7 +407,7 @@ export class RetroCarBuilder {
           const edgeX = sign > 0 ? box.min.x : box.max.x;
           pivot.position.set(edgeX, center.y, center.z);
         }else{
-          const edgeZ = sign < 0 ? box.max.z : box.min.z;
+          const edgeZ = sign < 0 ? box.min.z : box.max.z;
           pivot.position.set(center.x, center.y, edgeZ);
         }
         pivot.attach(mesh);
