@@ -1,4 +1,4 @@
-name: Import Mechanic City Challenger R9
+name: Import Mechanic City Challenger Model
 
 on:
   push:
@@ -13,10 +13,10 @@ jobs:
     if: ${{ !contains(github.event.head_commit.message, '[model-import]') }}
     steps:
       - uses: actions/checkout@v4
-      - name: Download Challenger R9 from 3D Jutsu
+      - name: Download car model
         run: |
           mkdir -p public/models
-          curl --fail --location --retry 3 --output public/models/challenger-r9.glb 'https://695d5a9fc666e505559765690b5db7dd.r2.cloudflarestorage.com/3d-scene-builder/projects/59a6ad85-c175-4493-818e-c292f8369a70/revisions/00000009-build-challenger-r9-lean/preview.glb?X-Amz-Expires=900&X-Amz-Date=20261001T015346Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=f4fb9c7007b912d%2F20261001%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=8812d6a59f24a6fab9f1081865488f03dbfdcf36746a36c2f4c790c0ffe467b0'
+          curl --fail --location --retry 3 --output public/models/challenger-r9.glb 'https://uc08f3952a7ac9cce71db534116b.dl.dropboxusercontent.com/cd/0/get/DJL2KpJJeJcV-Sv-9YKBXpJke97Mld6SRhbALkh2ccAhT6V135E0kKuTR6RrnZ0pzQxfc--IJRAc-fKBtVvR1chFME85hfkUfglx0NmyVopr0B1z3_9EphnbxEREMkKsKEQiz1nkBWXv0HUDy852029bIGY2k8QntIu0a7vQuVOhjA/file?c_luid=3fad07a7'
           test -s public/models/challenger-r9.glb
           ls -lh public/models/challenger-r9.glb
       - name: Commit model
@@ -25,5 +25,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add public/models/challenger-r9.glb
           git diff --cached --quiet && exit 0
-          git commit -m "Add Challenger R9 game model [model-import]"
+          git commit -m "Add game car model [model-import]"
           git push
