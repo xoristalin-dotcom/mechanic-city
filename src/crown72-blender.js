@@ -33,7 +33,19 @@ export async function loadMechanicCityCoupe(){
   model.position.z-=center.z*scale;
   model.updateMatrixWorld(true);
   const serviceParts={}; const keyCounts={};
-  const categoryFor=(name)=>{
+  // Revision 18 exposes explicit service groups. Prefer those groups over
+  // fuzzy name matching so workshop actions stay attached to the authored slots.
+  const groupCategory=(name)=>{
+    const n=String(name||"").toUpperCase();
+    if(n==="SERVICE_ENGINE") return "engine";
+    if(n==="SERVICE_BRAKES") return "brakes";
+    if(n==="SERVICE_WHEELS") return "wheels";
+    if(n==="SERVICE_SUSPENSION") return "suspension";
+    if(n==="SERVICE_BODY_PANELS") return "body";
+    if(n==="TUNING_PARTS") return "tuning";
+    return null;
+  };
+  const categoryFor=(name)=>{ 
     const n=name.toLowerCase();
     if(/gearbox|transmission|clutch|differential/.test(n)) return "transmission";
     if(/engine|injector|spark|intake|alternator|starter|water|thermostat|radiator|fuel|oil|coolant|battery|fuse|pump/.test(n)) return "engine";
@@ -49,7 +61,14 @@ export async function loadMechanicCityCoupe(){
   };
   model.traverse(o=>{
     if(o.isMesh){
-      const category=categoryFor(o.name);
+      let authoredCategory=null;
+      let parent=o.parent;
+      while(parent){
+        authoredCategory=groupCategory(parent.name);
+        if(authoredCategory) break;
+        parent=parent.parent;
+      }
+      const category=authoredCategory==="tuning"?categoryFor(o.name):authoredCategory||categoryFor(o.name);
       const baseKey=o.name.replace(/[^a-zA-Z0-9_-]/g,"_"); const keyCount=keyCounts[baseKey]||0; keyCounts[baseKey]=keyCount+1; const key=keyCount?baseKey+"_"+keyCount:baseKey;
       const lower=o.name.toLowerCase();
       const subsystem=/radiator|coolant|water/.test(lower)?"cooling":
@@ -63,7 +82,8 @@ export async function loadMechanicCityCoupe(){
         /exhaust|muffler|resonator|catalyst|pipe|tip|header/.test(lower)?"exhaust":"other";
       // Every mesh is a first-class workshop part. Even interior/glass pieces stay
       // addressable so the mechanic can inspect, replace and interact with them.
-      const structural=/^(chassis|floor_pan|underbody|body_shell)$/i.test(o.name);
+      const structural=/^(chassis|floor_pan|underbody|body_shell)$/i.test(o.name) ||
+        /^SERVICE_|^TUNING_PARTS$/i.test(o.name);
       const removable=!structural;
       o.userData.servicePart={
         key,name:o.name,category,subsystem,condition:100,installed:true,
