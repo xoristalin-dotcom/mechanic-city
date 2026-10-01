@@ -50,7 +50,15 @@ function repairSelectedPart(key){const part=car?.userData?.serviceParts?.[key];i
 function removeSelectedPart(key){const part=car?.userData?.serviceParts?.[key];if(!part||!part.removable)return;if(!partInstalled(key)){openPartPanel(part);return;}if(state.driving){msg("⛔ Сначала останови машину");return;}setPartState(key,{installed:false});part.installed=false;car.traverse(o=>{if(o.userData?.servicePart?.key===key)o.visible=false;});save();openPartPanel(part);msg("🔩 "+part.name+" снята");}
 function installSelectedPart(key){const part=car?.userData?.serviceParts?.[key];if(!part)return;if(partInstalled(key)){openPartPanel(part);return;}setPartState(key,{installed:true});part.installed=true;car.traverse(o=>{if(o.userData?.servicePart?.key===key)o.visible=true;});save();openPartPanel(part);msg("🛠️ "+part.name+" установлена");}
 function tuneSelectedPart(key){const part=car?.userData?.serviceParts?.[key];if(!part||!part.tunable)return;const tuneKey="tune_"+key;if(state.car.parts[tuneKey]){openPanel("Уже установлено","<p>Для <b>"+part.name+"</b> уже установлена улучшенная версия.</p>");return;}const cost=part.category==="engine"?2400:part.category==="brakes"?1500:part.category==="wheels"?2200:part.category==="suspension"?1800:part.category==="exhaust"?1900:1200;if(state.money<cost){openPanel("Недостаточно денег","<p>Улучшение стоит "+cost.toLocaleString("ru-RU")+" ₽.</p>");return;}state.money-=cost;state.car.parts[tuneKey]=true;state.car.condition=Math.min(100,state.car.condition+3);save();openPartPanel(part);msg("⚙️ "+part.name+" модернизирована");}
-function openPartPanel(part){const c=partCondition(part.key),installed=partInstalled(part.key);const cost=Math.max(80,Math.round((100-c)*22));openPanel("Деталь автомобиля","<p><b>"+part.name+"</b></p><p>Узел: "+partCategoryLabel(part.category)+"<br>Подсистема: "+part.subsystem+"<br>Состояние: <b>"+c+"%</b><br>Статус: <b>"+(installed?"Установлена":"Снята")+"</b></p><div class="parts">"+(installed&&part.removable?"<button id="removeSelected">🔩 Снять деталь</button>":"<button id="installSelected">🛠️ Установить деталь</button>")+"<button id="repairSelected">🔧 Починить — "+cost.toLocaleString("ru-RU")+" ₽</button>"+(part.tunable&&installed?"<button id="tuneSelected">⚙️ Тюнинг узла</button>":"")+"</div>");document.querySelector("#removeSelected")?.addEventListener("click",()=>removeSelectedPart(part.key));document.querySelector("#installSelected")?.addEventListener("click",()=>installSelectedPart(part.key));document.querySelector("#repairSelected")?.addEventListener("click",()=>repairSelectedPart(part.key));document.querySelector("#tuneSelected")?.addEventListener("click",()=>tuneSelectedPart(part.key));}
+function openPartPanel(part){
+  const c=partCondition(part.key),installed=partInstalled(part.key);
+  const cost=Math.max(80,Math.round((100-c)*22));
+  openPanel("Деталь автомобиля",`<p><b>${part.name}</b></p><p>Узел: ${partCategoryLabel(part.category)}<br>Подсистема: ${part.subsystem}<br>Состояние: <b>${c}%</b><br>Статус: <b>${installed?"Установлена":"Снята"}</b></p><div class="parts">${installed&&part.removable?"<button id="removeSelected">🔩 Снять деталь</button>":"<button id="installSelected">🛠️ Установить деталь</button>"}<button id="repairSelected">🔧 Починить — ${cost.toLocaleString("ru-RU")} ₽</button>${part.tunable&&installed?"<button id="tuneSelected">⚙️ Тюнинг узла</button>":""}</div>`);
+  document.querySelector("#removeSelected")?.addEventListener("click",()=>removeSelectedPart(part.key));
+  document.querySelector("#installSelected")?.addEventListener("click",()=>installSelectedPart(part.key));
+  document.querySelector("#repairSelected")?.addEventListener("click",()=>repairSelectedPart(part.key));
+  document.querySelector("#tuneSelected")?.addEventListener("click",()=>tuneSelectedPart(part.key));
+}
 function installPartInteraction(){viewport.addEventListener("pointerdown",e=>{if(!["city","workshop"].includes(state.scene)||!car||!renderer)return;const r=renderer.domElement.getBoundingClientRect();partPointer.x=((e.clientX-r.left)/r.width)*2-1;partPointer.y=-((e.clientY-r.top)/r.height)*2+1;partRaycaster.setFromCamera(partPointer,camera);const meshes=[];car.traverse(o=>{if(o.isMesh&&o.visible)meshes.push(o);});const hit=partRaycaster.intersectObjects(meshes,false)[0];if(!hit?.object?.userData?.servicePart)return;state.car.selectedPart=hit.object.userData.servicePart.key;openPartPanel(hit.object.userData.servicePart);},{passive:true});}
 function setupImportedWheelSteering(model){
   model.updateMatrixWorld(true);
@@ -696,11 +704,3 @@ function installRuntimeErrorCapture(){
   window.MechanicCityDebugClear=()=>{
     window.MechanicCityRuntimeErrors=[];
     try{localStorage.removeItem(key);}catch{}
-    window.MechanicCityDebug?.refresh?.();
-  };
-  window.MechanicCityDebug={
-    version:1,
-    startedAt:new Date().toISOString(),
-    frameCount:0,
-    lastFrameAt:0,
-    fps:0,
