@@ -399,10 +399,10 @@ function bindControls(){
   document.querySelectorAll("[data-drive]").forEach(b=>{
     const v=b.dataset.drive;
     b.style.touchAction="none";
-    const start=e=>{
-      e.preventDefault();
-      e.stopPropagation();
-      if(e.pointerId!=null){try{b.setPointerCapture(e.pointerId);}catch{}}
+    let active=false;
+    const press=()=>{
+      if(active)return;
+      active=true;
       if(v==="gas"){
         input.gas=true;
         state.throttle=true;
@@ -413,18 +413,35 @@ function bindControls(){
       else if(v==="right"){input.right=true;state.driving=true;}
       b.classList.add("pressed");
     };
-    const end=e=>{
-      e.preventDefault();
+    const release=()=>{
       if(v==="gas"){input.gas=false;state.throttle=false;}
       if(v==="brake")input.brake=false;
       if(v==="left")input.left=false;
       if(v==="right")input.right=false;
+      active=false;
       b.classList.remove("pressed");
     };
-    b.addEventListener("pointerdown",start,{passive:false});
-    b.addEventListener("pointerup",end,{passive:false});
-    b.addEventListener("pointercancel",end,{passive:false});
-    b.addEventListener("lostpointercapture",end,{passive:false});
+    const pointerDown=e=>{
+      e.preventDefault(); e.stopPropagation();
+      if(e.pointerId!=null){try{b.setPointerCapture(e.pointerId);}catch{}}
+      press();
+    };
+    const pointerUp=e=>{e.preventDefault(); release();};
+    b.addEventListener("pointerdown",pointerDown,{passive:false});
+    b.addEventListener("pointerup",pointerUp,{passive:false});
+    b.addEventListener("pointercancel",pointerUp,{passive:false});
+    b.addEventListener("lostpointercapture",release,{passive:false});
+    b.addEventListener("touchstart",e=>{e.preventDefault();press();},{passive:false});
+    b.addEventListener("touchend",e=>{e.preventDefault();release();},{passive:false});
+    b.addEventListener("touchcancel",e=>{e.preventDefault();release();},{passive:false});
+    if(v==="gas"){
+      b.addEventListener("click",e=>{
+        e.preventDefault();
+        press();
+        window.clearTimeout(b._gasFallbackTimer);
+        b._gasFallbackTimer=window.setTimeout(release,1200);
+      });
+    }
   });
   document.querySelectorAll("[data-gear]").forEach(b=>{
     b.addEventListener("click",e=>{
