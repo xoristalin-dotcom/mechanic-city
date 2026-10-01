@@ -93,86 +93,77 @@ export class RetroCarBuilder {
     const paint = this.getMaterial('paint', this.config.color);
     const bodyGroup = new THREE.Group();
     bodyGroup.name = "BodyPanels";
-
     const bodyWidth = this.getBodyWidth();
-    const bodyHeight = this.config.type === 'truck' ? 0.75 : 0.68;
     const bodyLength = this.getBodyLength();
 
-    // Капот (съёмный!)
-    this.createRemovablePart("hood", "Капот", "body",
-      new THREE.BoxGeometry(bodyWidth - 0.1, 0.18, 1.4),
-      paint,
-      new THREE.Vector3(0, 0.95, -bodyLength / 2 + 0.8),
-      bodyGroup
-    );
-
-    // Багажник (съёмный!)
-    this.createRemovablePart("trunk", "Багажник", "body",
-      new THREE.BoxGeometry(bodyWidth - 0.1, 0.18, 0.9),
-      paint,
-      new THREE.Vector3(0, 0.95, bodyLength / 2 - 0.5),
-      bodyGroup
-    );
-
-    // Боковые панели (структурные, не снимаются)
-    for (const side of [-1, 1]) {
-      const sidePanel = new THREE.Mesh(
-        new THREE.BoxGeometry(0.08, 0.6, bodyLength - 0.5),
-        paint
-      );
-      sidePanel.position.set(side * (bodyWidth / 2 + 0.04), 0.7, 0);
-      sidePanel.castShadow = true;
-      sidePanel.receiveShadow = true;
-      bodyGroup.add(sidePanel);
-    }
-
-    // Rounded classic sedan cabin: gives the Retro Car a recognizable silhouette
-    // instead of the flat box profile.
-    const cabinGroup = new THREE.Group();
-    cabinGroup.name = "ClassicCabin";
-    const roof = new THREE.Mesh(
-      new RoundedBoxGeometry(2.48, 0.58, 2.72, 5, 0.16),
+    const lower = new THREE.Mesh(
+      new RoundedBoxGeometry(bodyWidth, 0.52, bodyLength - 0.22, 6, 0.24),
       paint
     );
-    roof.position.set(0, 1.28, 0.18);
-    roof.scale.set(1, 1, 0.98);
-    roof.castShadow = true;
-    roof.receiveShadow = true;
-    roof.userData = {
-      partKey: "cabin",
-      partName: "Кабина кузова",
-      category: "body",
-      removable: false,
-      condition: 100
-    };
-    cabinGroup.add(roof);
+    lower.position.set(0, 0.68, 0);
+    lower.castShadow = true;
+    lower.receiveShadow = true;
+    lower.userData = {partKey:"lower_body",partName:"Нижняя часть кузова",category:"body",removable:false,condition:100};
+    bodyGroup.add(lower);
 
-    // Dark recessed window bands on the classic cabin.
-    const glass = this.getMaterial("glass", 0x152733);
-    const frontGlass = new THREE.Mesh(
-      new RoundedBoxGeometry(2.12, 0.34, 0.08, 4, 0.05),
-      glass
-    );
-    frontGlass.position.set(0, 1.34, -1.18);
-    frontGlass.rotation.x = -0.16;
-    cabinGroup.add(frontGlass);
+    this.createRemovablePart("hood","Капот","body",
+      new RoundedBoxGeometry(bodyWidth - 0.22,0.16,1.48,4,0.07),paint,
+      new THREE.Vector3(0,1.00,-1.60),bodyGroup);
 
-    const rearGlass = new THREE.Mesh(
-      new RoundedBoxGeometry(2.12, 0.30, 0.08, 4, 0.05),
-      glass
-    );
-    rearGlass.position.set(0, 1.34, 1.48);
-    rearGlass.rotation.x = 0.12;
+    this.createRemovablePart("trunk","Багажник","body",
+      new RoundedBoxGeometry(bodyWidth - 0.22,0.16,0.88,4,0.07),paint,
+      new THREE.Vector3(0,1.00,1.70),bodyGroup);
+
+    for (const side of [-1,1]) {
+      const shoulder = new THREE.Mesh(
+        new RoundedBoxGeometry(0.22,0.50,bodyLength-0.58,4,0.09),paint);
+      shoulder.position.set(side*(bodyWidth/2-0.05),0.86,0);
+      shoulder.castShadow = true;
+      shoulder.receiveShadow = true;
+      bodyGroup.add(shoulder);
+    }
+
+    const cabin = new THREE.Shape();
+    cabin.moveTo(-1.18,0.98);
+    cabin.lineTo(-0.82,1.68);
+    cabin.quadraticCurveTo(0,2.00,0.82,1.68);
+    cabin.lineTo(1.22,0.98);
+    cabin.closePath();
+
+    const cabinGeo = new THREE.ExtrudeGeometry(cabin,{
+      depth:bodyWidth-0.34,bevelEnabled:true,bevelSegments:3,
+      bevelSize:0.06,bevelThickness:0.06,curveSegments:4
+    });
+    cabinGeo.rotateY(Math.PI/2);
+    cabinGeo.translate(-(bodyWidth-0.34)/2,0,0);
+
+    const cabinGroup = new THREE.Group();
+    cabinGroup.name = "ClassicCabin";
+    const cabinShell = new THREE.Mesh(cabinGeo,paint);
+    cabinShell.castShadow = true;
+    cabinShell.receiveShadow = true;
+    cabinShell.userData = {partKey:"cabin",partName:"Кабина кузова",category:"body",removable:false,condition:100};
+    cabinGroup.add(cabinShell);
+
+    const glass = this.getMaterial("glass",0x10232d);
+    const windshield = new THREE.Mesh(new THREE.PlaneGeometry(2.05,0.68),glass);
+    windshield.position.set(0,1.52,-0.92);
+    windshield.rotation.x = -0.24;
+    cabinGroup.add(windshield);
+
+    const rearGlass = new THREE.Mesh(new THREE.PlaneGeometry(2.05,0.62),glass);
+    rearGlass.position.set(0,1.53,1.10);
+    rearGlass.rotation.x = 0.22;
     cabinGroup.add(rearGlass);
 
-    for (const side of [-1, 1]) {
-      const sideGlass = new THREE.Mesh(
-        new RoundedBoxGeometry(0.08, 0.34, 1.72, 4, 0.04),
-        glass
-      );
-      sideGlass.position.set(side * 1.25, 1.34, 0.12);
+    for (const side of [-1,1]) {
+      const sideGlass = new THREE.Mesh(new THREE.PlaneGeometry(1.68,0.56),glass);
+      sideGlass.rotation.y = side*Math.PI/2;
+      sideGlass.position.set(side*(bodyWidth/2-0.18),1.48,0.08);
       cabinGroup.add(sideGlass);
     }
+
+    this.carGroup.add(bodyGroup);
     this.carGroup.add(cabinGroup);
   }
 
@@ -237,136 +228,68 @@ export class RetroCarBuilder {
   }
 
   buildHoodAndTrunk() {
-    const paint = this.getMaterial('paint', this.config.color);
+    const paint = this.getMaterial('paint',this.config.color);
     const lidsGroup = new THREE.Group();
     lidsGroup.name = "Lids";
-
     const bodyLength = this.getBodyLength();
 
-    // Капот - открывается вверх-назад
     const hoodPivot = new THREE.Group();
     hoodPivot.name = "Hood_Hinge";
-    hoodPivot.position.set(0, 1.2, -bodyLength / 2 + 1.0);
-
+    hoodPivot.position.set(0,1.04,-2.04);
     const hood = new THREE.Mesh(
-      new THREE.BoxGeometry(this.getBodyWidth() - 0.1, 0.1, 1.2),
-      paint
-    );
+      new RoundedBoxGeometry(this.getBodyWidth()-0.22,0.14,1.52,4,0.06),paint);
+    hood.position.z = 0.76;
     hood.castShadow = true;
     hood.receiveShadow = true;
-    hood.position.z = 0.6; // Смещение от оси вращения
-    hood.userData = {
-      partKey: "hood_lid",
-      partName: "Крышка капота",
-      category: "body",
-      removable: true,
-      condition: 100
-    };
-
+    hood.userData = {partKey:"hood_lid",partName:"Крышка капота",category:"body",removable:true,condition:100};
     hoodPivot.add(hood);
     lidsGroup.add(hoodPivot);
+    this.articulation.hood = {pivot:hoodPivot,lid:hood,openAngle:0,maxAngle:-Math.PI/2.5};
+    this.parts.hood_lid = {mesh:hood,condition:100,removable:true};
 
-    this.articulation.hood = {
-      pivot: hoodPivot,
-      lid: hood,
-      openAngle: 0,
-      maxAngle: -Math.PI / 1.8
-    };
-
-    this.parts.hood_lid = { mesh: hood, condition: 100, removable: true };
-
-    // Багажник - открывается вверх
     const trunkPivot = new THREE.Group();
     trunkPivot.name = "Trunk_Hinge";
-    trunkPivot.position.set(0, 1.2, bodyLength / 2 - 0.6);
-
+    trunkPivot.position.set(0,1.06,bodyLength/2-0.82);
     const trunk = new THREE.Mesh(
-      new THREE.BoxGeometry(this.getBodyWidth() - 0.1, 0.1, 0.7),
-      paint
-    );
+      new RoundedBoxGeometry(this.getBodyWidth()-0.22,0.14,0.88,4,0.06),paint);
+    trunk.position.z = -0.44;
     trunk.castShadow = true;
     trunk.receiveShadow = true;
-    trunk.position.z = -0.35;
-    trunk.userData = {
-      partKey: "trunk_lid",
-      partName: "Крышка багажника",
-      category: "body",
-      removable: true,
-      condition: 100
-    };
-
+    trunk.userData = {partKey:"trunk_lid",partName:"Крышка багажника",category:"body",removable:true,condition:100};
     trunkPivot.add(trunk);
     lidsGroup.add(trunkPivot);
-
-    this.articulation.trunk = {
-      pivot: trunkPivot,
-      lid: trunk,
-      openAngle: 0,
-      maxAngle: Math.PI / 1.8
-    };
-
-    this.parts.trunk_lid = { mesh: trunk, condition: 100, removable: true };
-
+    this.articulation.trunk = {pivot:trunkPivot,lid:trunk,openAngle:0,maxAngle:Math.PI/2.5};
+    this.parts.trunk_lid = {mesh:trunk,condition:100,removable:true};
     this.carGroup.add(lidsGroup);
   }
 
   buildWindows() {
-    const glassRetro = this.getMaterial('glass', 0x1a3a4a);
+    const glass = this.getMaterial('glass',0x10232d);
     const windowsGroup = new THREE.Group();
     windowsGroup.name = "Windows";
 
-    const bodyWidth = this.getBodyWidth();
+    const front = new THREE.Mesh(new THREE.PlaneGeometry(2.02,0.62),glass);
+    front.position.set(0,1.52,-0.93);
+    front.rotation.x = -0.24;
+    front.userData = {partKey:"window_front",partName:"Переднее стекло",category:"glass",removable:true,condition:100};
+    windowsGroup.add(front);
+    this.parts.window_front = {mesh:front,condition:100,removable:true};
 
-    // Передние окна
-    const frontWindow = new THREE.Mesh(
-      new THREE.BoxGeometry(bodyWidth - 0.3, 0.01, 1.2),
-      glassRetro
-    );
-    frontWindow.position.set(0, 1.32, -0.8);
-    frontWindow.userData = {
-      partKey: "window_front",
-      partName: "Переднее стекло",
-      category: "glass",
-      removable: true,
-      condition: 100
-    };
-    windowsGroup.add(frontWindow);
-    this.parts.window_front = { mesh: frontWindow, condition: 100, removable: true };
-
-    // Боковые окна
-    for (const x of [-1.55, 1.55]) {
-      const sideWindow = new THREE.Mesh(
-        new THREE.BoxGeometry(0.01, 0.4, 1.8),
-        glassRetro
-      );
-      sideWindow.position.set(x, 1.15, 0.2);
-      sideWindow.userData = {
-        partKey: `window_side_${x > 0 ? 'r' : 'l'}`,
-        partName: `Боковое окно ${x > 0 ? 'справа' : 'слева'}`,
-        category: "glass",
-        removable: true,
-        condition: 100
-      };
-      windowsGroup.add(sideWindow);
-      this.parts[sideWindow.userData.partKey] = { mesh: sideWindow, condition: 100, removable: true };
+    for (const x of [-1,1]) {
+      const side = new THREE.Mesh(new THREE.PlaneGeometry(1.72,0.54),glass);
+      side.rotation.y = x*Math.PI/2;
+      side.position.set(x*(this.getBodyWidth()/2-0.19),1.47,0.08);
+      side.userData = {partKey:`window_side_${x>0?'r':'l'}`,partName:`Боковое окно ${x>0?'справа':'слева'}`,category:"glass",removable:true,condition:100};
+      windowsGroup.add(side);
+      this.parts[side.userData.partKey] = {mesh:side,condition:100,removable:true};
     }
 
-    // Заднее окно
-    const rearWindow = new THREE.Mesh(
-      new THREE.BoxGeometry(bodyWidth - 0.3, 0.01, 0.8),
-      glassRetro
-    );
-    rearWindow.position.set(0, 1.3, 1.4);
-    rearWindow.userData = {
-      partKey: "window_rear",
-      partName: "Заднее стекло",
-      category: "glass",
-      removable: true,
-      condition: 100
-    };
-    windowsGroup.add(rearWindow);
-    this.parts.window_rear = { mesh: rearWindow, condition: 100, removable: true };
-
+    const rear = new THREE.Mesh(new THREE.PlaneGeometry(2.02,0.58),glass);
+    rear.position.set(0,1.52,1.11);
+    rear.rotation.x = 0.22;
+    rear.userData = {partKey:"window_rear",partName:"Заднее стекло",category:"glass",removable:true,condition:100};
+    windowsGroup.add(rear);
+    this.parts.window_rear = {mesh:rear,condition:100,removable:true};
     this.carGroup.add(windowsGroup);
   }
 
