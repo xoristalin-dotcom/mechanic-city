@@ -152,9 +152,9 @@ export class RetroCarBuilder {
       // main.js physicsDrive() for steering + rolling animation.
       const runtimeWheels = [];
       const wheelRadius = 0.43;
-      const wheelX = Math.max(0.78, bodySize.x * scale * 0.42);
-      const wheelZ = Math.max(1.35, bodySize.z * scale * 0.33);
-      const wheelY = wheelRadius + 0.015;
+      const wheelX = Math.max(0.92, bodySize.x * scale * 0.44);
+      const wheelZ = Math.max(1.42, bodySize.z * scale * 0.307);
+      const wheelY = wheelRadius + 0.012;
       const tireMat = new THREE.MeshStandardMaterial({color:0x080808,roughness:0.78,metalness:0.05});
       const rimMat = new THREE.MeshStandardMaterial({color:0xb8bcc1,roughness:0.32,metalness:0.82});
 
@@ -190,7 +190,62 @@ export class RetroCarBuilder {
         runtimeWheels.push(wheel);
       }
       this.carGroup.userData.wheels = runtimeWheels;
-      this.carGroup.userData.modelRevision = "MechanicCity-R2.1";
+
+      // Challenger R3 visual detail kit: keep the imported body lightweight,
+      // then add a few separate high-contrast parts that read well on iPhone.
+      // These are intentionally simple primitives so they stay cheap in WebGL.
+      const detailKit = new THREE.Group();
+      detailKit.name = "Challenger_R3_DetailKit";
+      const bodyW = bodySize.x * scale;
+      const frontZ = -targetLength / 2;
+      const rearZ = targetLength / 2;
+      const trim = new THREE.MeshStandardMaterial({color:0x111417,metalness:0.72,roughness:0.32});
+      const chrome = new THREE.MeshStandardMaterial({color:0xc3c7c9,metalness:0.9,roughness:0.2});
+      const lamp = new THREE.MeshStandardMaterial({color:0xf4f0d7,emissive:0xffb34a,emissiveIntensity:0.9,roughness:0.16});
+      const tail = new THREE.MeshStandardMaterial({color:0x8f1018,emissive:0x300004,emissiveIntensity:0.55,roughness:0.25});
+      const glass = new THREE.MeshStandardMaterial({color:0x15242b,metalness:0.08,roughness:0.18});
+
+      const grille = new THREE.Mesh(new THREE.BoxGeometry(Math.min(1.55,bodyW*0.52),0.28,0.075),trim);
+      grille.position.set(0,0.69,frontZ-0.025); detailKit.add(grille);
+      for(let i=-5;i<=5;i++){
+        const bar=new THREE.Mesh(new THREE.BoxGeometry(0.035,0.20,0.045),chrome);
+        bar.position.set(i*0.12,0.69,frontZ-0.07); detailKit.add(bar);
+      }
+      for(const x of [-bodyW*0.28,bodyW*0.28]){
+        const head=new THREE.Mesh(new THREE.CylinderGeometry(0.26,0.26,0.07,16),lamp);
+        head.rotation.x=Math.PI/2; head.position.set(x,0.79,frontZ-0.045); detailKit.add(head);
+        const bezel=new THREE.Mesh(new THREE.TorusGeometry(0.28,0.025,6,16),chrome);
+        bezel.rotation.x=Math.PI/2; bezel.position.set(x,0.79,frontZ-0.085); detailKit.add(bezel);
+        const rear=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.20,0.07),tail);
+        rear.position.set(x,0.77,rearZ+0.04); detailKit.add(rear);
+      }
+      const frontBumper=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.88,0.16,0.18),chrome);
+      frontBumper.position.set(0,0.48,frontZ-0.05); detailKit.add(frontBumper);
+      const rearBumper=frontBumper.clone(); rearBumper.position.z=rearZ+0.05; detailKit.add(rearBumper);
+
+      // Hood power bulge + intake.
+      const hoodBulge=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.28,0.07,1.05),new THREE.MeshStandardMaterial({color:0x7d1118,metalness:0.28,roughness:0.4}));
+      hoodBulge.position.set(0,0.99,-1.48); detailKit.add(hoodBulge);
+      const intake=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.18,0.035,0.38),trim);
+      intake.position.set(0,1.045,-1.58); detailKit.add(intake);
+
+      // Side mirrors and door handles make the silhouette read better at distance.
+      for(const x of [-bodyW*0.53,bodyW*0.53]){
+        const mirror=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.14,0.28),chrome);
+        mirror.position.set(x,1.12,-0.62); detailKit.add(mirror);
+        const handle=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.045,0.055),chrome);
+        handle.position.set(x*0.995,0.98,0.46); detailKit.add(handle);
+      }
+
+      // Small exhaust tips; no transparency or expensive shader work.
+      for(const x of [-0.46,0.46]){
+        const ex=new THREE.Mesh(new THREE.CylinderGeometry(0.065,0.075,0.22,10),chrome);
+        ex.rotation.x=Math.PI/2; ex.position.set(x,0.40,rearZ+0.08); detailKit.add(ex);
+      }
+      detailKit.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=true;}});
+      this.carGroup.add(detailKit);
+
+      this.carGroup.userData.modelRevision = "MechanicCity-R3-visual";
       this.carGroup.userData.modelSource = sourcePath;
       this.carGroup.userData.mobileOptimized = true;
 
@@ -286,7 +341,7 @@ export class RetroCarBuilder {
       this.carGroup.userData.servicePartCount = Object.keys(serviceParts).length;
       this.carGroup.userData.vehicleSpec = {
         lengthMeters: 4.95,
-        revision: "MechanicCity-R2.1",
+        revision: "MechanicCity-R3-visual",
         sourcePath,
         editable: true,
         mobileOptimized: true
