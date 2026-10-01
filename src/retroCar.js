@@ -390,58 +390,59 @@ export class RetroCarBuilder {
         Object.entries(serviceParts).map(([key,part])=>[key,{mesh:part.mesh,condition:part.condition,removable:part.removable}])
       );
 
-      // Keep the Challenger GLB as one visual car assembly. The named animation
-      // nodes are the ONLY panel geometry used for articulation; the base visual
-      // meshes remain the rest of the body. Their materials are preserved.
-      const articulatedPanelNames = ["HOOD_ANIM","DOOR_LEFT_ANIM","DOOR_RIGHT_ANIM","TRUNK_ANIM"];
-      for (const nodeName of articulatedPanelNames) {
-        const panel = model.getObjectByName(nodeName);
-        if (!panel) continue;
-        // These nodes are articulation targets, not an extra static body layer.
-        // Keep them hidden during normal driving until the player actually opens
-        // the corresponding panel. This prevents detached/duplicate panels
-        // floating around the car in the city.
-        // Visibility is controlled by the articulation state in main.js.
-        // Do not show every movable panel just because we're in the garage.
-        panel.visible = false;
-        panel.traverse(o=>{
-          if (!o.isMesh) return;
-          o.visible = false;
-          if (!o.material) o.material = new THREE.MeshStandardMaterial({
-            color: 0xe52a36, metalness: 0.34, roughness: 0.30
-          });
-        });
-      }
-
-      // The panel nodes are the only moving geometry; no procedural duplicate
-      // hood, doors or trunk are created here.
-      const makeHinge = (nodeName, axis, sign, angle) => {
-        const mesh = model.getObjectByName(nodeName);
-        if (!mesh) return null;
-        const box = new THREE.Box3().setFromObject(mesh);
-        const center = box.getCenter(new THREE.Vector3());
-        const pivot = new THREE.Object3D();
-        pivot.name = nodeName + "_RuntimeHinge";
-        const parent = mesh.parent;
-        if (!parent) return null;
-        parent.add(pivot);
-        const edgeWorld = new THREE.Vector3(
-          axis === "y" ? (sign > 0 ? box.min.x : box.max.x) : center.x,
-          center.y,
-          axis === "y" ? center.z : (sign < 0 ? box.min.z : box.max.z)
-        );
-        pivot.position.copy(parent.worldToLocal(edgeWorld));
-        pivot.attach(mesh);
-        return {pivot,open:0,openSign:sign,axis,maxAngle:angle};
+      // R2.1's HOOD_ANIM/DOOR_*_ANIM/TRUNK_ANIM nodes are tiny marker boxes,
+      // not the actual body panels. Showing them was the source of the duplicate
+      // panel bug. For the hood, split the real front body surface out of geometry_0
+      // and hinge that exact geometry at the rear edge of the hood.
+      const createHoodAssembly = () => {
+        const body = model.getObjectByName("geometry_0");
+        if (!body?.geometry?.attributes?.position) return null;
+        const src = body.geometry;
+        const pos = src.attributes.position;
+        const idx = src.index;
+        const move = [], keep = [];
+        const triCount = idx ? idx.count / 3 : pos.count / 3;
+        for(let t=0;t<triCount;t++){
+          const ia=idx ? idx.getX(t*3) : t*3;
+          const ib=idx ? idx.getX(t*3+1) : t*3+1;
+          const ic=idx ? idx.getX(t*3+2) : t*3+2;
+          const cz=(pos.getZ(ia)+pos.getZ(ib)+pos.getZ(ic))/3;
+          const cy=(pos.getY(ia)+pos.getY(ib)+pos.getY(ic))/3;
+          (cz>0.28 && cy>-0.02 ? move : keep).push([ia,ib,ic]);
+        }
+        if(!move.length)return null;
+        const build=(tris)=>{
+          const out=[];
+          for(const [a,b,c] of tris){
+            for(const i of [a,b,c])out.push(pos.getX(i),pos.getY(i),pos.getZ(i));
+          }
+          const g=new THREE.BufferGeometry();
+          g.setAttribute("position",new THREE.Float32BufferAttribute(out,3));
+          g.computeVertexNormals();
+          return g;
+        };
+        body.geometry=build(keep);
+        body.geometry.computeBoundingSphere();
+        const hood=new THREE.Mesh(build(move),body.material);
+        hood.name="RuntimeRealHood";
+        hood.castShadow=true; hood.receiveShadow=true;
+        const pivot=new THREE.Object3D();
+        pivot.name="RuntimeRealHoodHinge";
+        pivot.position.set(0,0,0.28);
+        model.add(pivot);
+        pivot.attach(hood);
+        return {pivot,open:0,openSign:-1,axis:"x",maxAngle:0.88};
       };
 
+      for(const nodeName of ["HOOD_ANIM","DOOR_LEFT_ANIM","DOOR_RIGHT_ANIM","TRUNK_ANIM"]){
+        const marker=model.getObjectByName(nodeName);
+        if(marker)marker.visible=false;
+      }
+
       const articulation = {
-        doors: [
-          makeHinge("DOOR_LEFT_ANIM","y",1,1.12),
-          makeHinge("DOOR_RIGHT_ANIM","y",-1,1.12)
-        ].filter(Boolean),
-        hood: makeHinge("HOOD_ANIM","x",-1,.88),
-        trunk: makeHinge("TRUNK_ANIM","x",1,.78),
+        doors: [],
+        hood: createHoodAssembly(),
+        trunk: null,
         steering: null
       };
 
