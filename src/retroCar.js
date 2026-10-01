@@ -397,10 +397,15 @@ export class RetroCarBuilder {
       for (const nodeName of articulatedPanelNames) {
         const panel = model.getObjectByName(nodeName);
         if (!panel) continue;
-        panel.visible = true;
+        // These nodes are articulation targets, not an extra static body layer.
+        // Keep them hidden during normal driving until the player actually opens
+        // the corresponding panel. This prevents detached/duplicate panels
+        // floating around the car in the city.
+        const showPanel = this.carGroup.userData.workshopMode === true;
+        panel.visible = showPanel;
         panel.traverse(o=>{
           if (!o.isMesh) return;
-          o.visible = true;
+          o.visible = showPanel;
           if (!o.material) o.material = new THREE.MeshStandardMaterial({
             color: 0xe52a36, metalness: 0.34, roughness: 0.30
           });
