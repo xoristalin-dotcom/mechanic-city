@@ -334,7 +334,7 @@ function teleportToMapCenter(){
   state.speed=0;
   state.steer=0;
   state.driving=false;
-  state.gear="P";
+  state.gear="D";
   input.gas=input.brake=input.left=input.right=false;
   car.position.set(centerX,car.position.y,centerZ);
   car.rotation.y=state.heading;
@@ -342,6 +342,7 @@ function teleportToMapCenter(){
     try{
       chassisBody.setTranslation({x:centerX,y:1.2,z:centerZ},true);
       chassisBody.setRotation({x:0,y:0,z:0,w:1},true);
+      chassisBody.setGravityScale(1,true);
       chassisBody.setLinvel({x:0,y:0,z:0},true);
       chassisBody.setAngvel({x:0,y:0,z:0},true);
     }catch{}
