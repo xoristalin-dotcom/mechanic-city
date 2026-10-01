@@ -197,8 +197,10 @@ export class RetroCarBuilder {
       const detailKit = new THREE.Group();
       detailKit.name = "Challenger_R3_DetailKit";
       const bodyW = bodySize.x * scale;
-      const frontZ = -targetLength / 2;
-      const rearZ = targetLength / 2;
+      // The imported Challenger body is authored facing +Z.
+      // Keep all front/rear detail on that same axis.
+      const frontZ = targetLength / 2;
+      const rearZ = -targetLength / 2;
       const trim = new THREE.MeshStandardMaterial({color:0x111417,metalness:0.72,roughness:0.32});
       const chrome = new THREE.MeshStandardMaterial({color:0xc3c7c9,metalness:0.9,roughness:0.2});
       const lamp = new THREE.MeshStandardMaterial({color:0xf4f0d7,emissive:0xffb34a,emissiveIntensity:0.9,roughness:0.16});
