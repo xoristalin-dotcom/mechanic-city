@@ -348,28 +348,43 @@ async function buildCity(){ clearJobMarker(); traffic=[]; trafficLights=[]; smok
   addBuilding(-32,-24,14,11,10,0x6f7a82); addBuilding(30,-15,18,15,12,0x7b6f63); addBuilding(14,32,16,12,11,0x5e6d7a); addBuilding(-20,34,15,17,12,0x5d6667); addStreetProps(); try{ car=createRetroPlayerCar(); car.position.set(state.posX,0,state.posZ); car.rotation.y=state.heading; scene.add(car); cameraRig=new THREE.Object3D(); cameraRig.name="ThirdPersonCameraRig"; car.add(cameraRig); cameraRig.position.set(0,0,0); cameraRig.add(camera); camera.position.set(0,5.7,-8.6); camera.rotation.set(Math.atan2(5.7-1,8.6),Math.PI,0); setupCameraControls(); clock=new THREE.Clock(); animate(traffic); setupVehiclePhysics().catch(err=>{window.MechanicCityDebugLog?.({type:"physics-async",message:String(err?.message||err),stack:String(err?.stack||"")}); console.warn("Async Rapier setup failed; fallback driving remains active.",err);}); for(let i=0;i<9;i++){ const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4],false); npc.scale.setScalar(.86); npc.position.set((i%4)*13-19,0,-12-i*18); npc.userData.speed=1.4+(i%3)*.35; npc.rotation.y=Math.PI; scene.add(npc); traffic.push(npc); } createJobMarker(); }catch(err){window.MechanicCityBuildError=String(err?.message||err); window.MechanicCityDebugLog?.({type:"city-build",message:String(err?.message||err),stack:String(err?.stack||"")}); console.error("City build failed",err); renderEmergencyScene();}}
 function animate(traffic=[]){ requestAnimationFrame(()=>animate(traffic)); if(state.scene!=="city")return; if(!renderer||!scene||!camera)return; const dt=Math.min(clock?.getDelta()||.016,.05); try{ if((state.driving||state.throttle||input.gas)&&state.fuel>0){ physicsDrive(dt); if(state.fuel>0) state.fuel=Math.max(0,state.fuel-dt*(.018+Math.abs(state.speed)*.014)); state.car.oil=Math.max(0,state.car.oil-dt*.004); state.car.coolant=Math.max(0,state.car.coolant-dt*.002); state.heat=Math.min(125,state.heat+dt*(.08+Math.abs(state.speed)*.055)); if(state.car.oil<15||state.car.coolant<15)state.damage=Math.min(100,state.damage+dt*.08); state.car.mileage+=Math.abs(state.speed)*dt*.006; if(state.heat>108)state.damage=Math.min(100,state.damage+dt*.06); for(const npc of traffic){ if(!npc?.position||!car?.position)continue; const d=car.position.distanceTo(npc.position); if(d<2.25&&Math.abs(state.speed)>.35){ state.damage=Math.min(100,state.damage+dt*7); if(chassisBody){ const v=chassisBody.linvel(); chassisBody.setLinvel({x:v.x*.65,y:v.y,z:v.z*.65},true);} msg("⚠️ Столкновение: кузов повреждён."); } } if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();} }
  updateJob(); updateArticulatedCar(dt); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25;
-  // CAMERA FOLLOW: the camera is physically parented to the car.
-  // This makes the car's actual Three.js transform drive the camera 1:1.
-  if(cameraRig){
-    cameraRig.rotation.set(0,camOrbitYaw,0);
+  // HARD CAMERA FOLLOW: derive the camera from the authoritative player car transform.
+// Do not parent the camera to the car and do not use state.posX/state.posZ here.
+// The car object itself is the single source of truth for visual movement.
+if(car?.parent){
+  car.updateWorldMatrix(true,false);
+  const carWorld=new THREE.Vector3();
+  const carQuat=new THREE.Quaternion();
+  car.getWorldPosition(carWorld);
+  car.getWorldQuaternion(carQuat);
 
-    if(cameraMode===2){
-      camera.position.set(0,1.28,.35);
-      camera.rotation.set(-0.03,Math.PI,0);
-    }else{
-      const d=moving?9.4:8.6;
-      const y=(moving?6.1:5.7)+Math.sin(camOrbitPitch)*d*.55;
-      const z=-Math.max(1.2,Math.cos(camOrbitPitch)*d);
+  const forward=new THREE.Vector3(0,0,1).applyQuaternion(carQuat).normalize();
+  const up=new THREE.Vector3(0,1,0);
 
-      camera.position.set(0,y,z);
+  if(cameraMode===2){
+    // Hood camera.
+    const hoodOffset=new THREE.Vector3(0,1.35,.55).applyQuaternion(carQuat);
+    const hoodPos=carWorld.clone().add(hoodOffset);
+    const target=hoodPos.clone().add(forward.multiplyScalar(6));
+    target.y+=.1;
+    camera.position.copy(hoodPos);
+    camera.lookAt(target);
+  }else{
+    const distance=moving?9.4:8.6;
+    const height=(moving?6.1:5.7)+Math.sin(camOrbitPitch)*distance*.55;
+    const orbit=new THREE.Vector3(0,0,-distance);
+    orbit.applyAxisAngle(up,camOrbitYaw);
+    orbit.applyQuaternion(carQuat);
 
-      // Camera looks toward the Challenger's +Z front.
-      const targetY=1.0;
-      const lookDistance=Math.abs(z)+2.2;
-      camera.rotation.set(Math.atan2(y-targetY,lookDistance),Math.PI,0);
-    }
-    camera.updateMatrixWorld(true);
+    camera.position.copy(carWorld).add(new THREE.Vector3(0,height,0)).add(orbit);
+
+    const target=carWorld.clone().add(forward.multiplyScalar(2.4));
+    target.y+=1.0;
+    camera.lookAt(target);
   }
+
+  camera.updateMatrixWorld(true);
+}
  for(const npc of traffic){ if(!npc?.position)continue; const travel=dt*(Number(npc.userData?.trafficSpeed)||0)*8; npc.position.z+=travel; for(const w of(npc.userData?.wheels||[])){ if(w?.rotation)w.rotation.x-=travel/.39; } if(npc.position.z>120)npc.position.z=-120; } const cycle=(performance.now()/1000)%12; const green=cycle<6,yellow=cycle>=6&&cycle<7.5; for(const l of trafficLights){ if(!l?.red?.material?.color||!l?.yellow?.material?.color||!l?.green?.material?.color)continue; l.red.material.color.setHex(green?0x220000:yellow?0x220000:0xff0000); l.yellow.material.color.setHex(yellow?0xffb000:0x332600); l.green.material.color.setHex(green?0x00ff44:0x002200); } updateCarDamage(); stats(); }catch(err){ window.MechanicCityLastFrameError=String(err?.message||err); window.MechanicCityDebugLog?.({type:"frame",message:window.MechanicCityLastFrameError,stack:String(err?.stack||"")}); console.error("Mechanic City frame update failed",err);} finally{ try{renderer.render(scene,camera);}catch(err){ window.MechanicCityRenderError=String(err?.message||err); console.error("Mechanic City render failed",err); } }}
 function teleportToMapCenter(){
   if(state.scene!=="city"||!car){msg("🎯 Телепорт доступен в городе.");return;}
