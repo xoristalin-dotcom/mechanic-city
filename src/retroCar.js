@@ -446,6 +446,11 @@ export class RetroCarBuilder {
         editable: true,
         mobileOptimized: true
       };
+
+      // The root was hidden while the GLB loaded. Reveal it only after the
+      // final visual model, wheels and service mappings are ready.
+      this.carGroup.visible = true;
+      this.carGroup.userData.modelLoading = false;
     } catch (err) {
       // If the GLB really fails, reveal the procedural fallback instead of
       // leaving the player vehicle invisible.
