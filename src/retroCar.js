@@ -118,7 +118,7 @@ export class RetroCarBuilder {
         geometry_3: { color: 0x7e0b14, metalness: 0.40, roughness: 0.38 },
         geometry_4: { color: 0x9b1019, metalness: 0.38, roughness: 0.40 },
         geometry_5: { color: 0x090b0d, metalness: 0.18, roughness: 0.68 },
-        geometry_6: { color: 0x142936, metalness: 0.10, roughness: 0.18 }
+        geometry_6: { color: 0x050609, metalness: 0.18, roughness: 0.12 }
       };
 
       model.traverse(o=>{
