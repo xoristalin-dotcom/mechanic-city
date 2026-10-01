@@ -33,7 +33,7 @@ Object.assign(state,{driving:false,speed:0,steer:0,onFoot:false});
 const input={gas:false,left:false,right:false,brake:false}; let lastSaveTick=-1;
 state.posX??=0;state.posZ??=10;state.heading??=0;state.gear??="P";state.time??=14;state.rain??=false;state.job??=null;
 state.car.oil??=42;state.car.coolant??=58;state.car.brakes??=state.car.condition;state.car.battery??=70;state.car.suspension??=state.car.condition;state.car.tires??=state.car.condition;state.car.body??=state.car.condition;state.car.parts??={};state.car.workshopIntroDone??=false;state.car.partState??={};state.car.selectedPart??=null;state.car.doorsOpen??=false;state.car.hoodOpen??=false;state.car.trunkOpen??=false;
-const PART_STATE_VERSION=3;
+const PART_STATE_VERSION=4;
 state.car.partStateVersion??=0;
 app.innerHTML=`<div class="game"><main id="viewport"></main><div id="orientation-lock"><div class="rotate-card"><span class="rotate-icon">📱↔️</span><h2>Поверни телефон горизонтально</h2><p>Mechanic City рассчитан на широкий экран.</p></div></div><div class="drive-hud"><div class="hud-top"><div class="round-btn">☰</div><div class="top-icons"><button id="mapBtn">⌖</button><button id="carInfo">⚙</button><button id="menuBtn">⋮</button></div></div><div class="speed-box"><b id="speed">0</b><small>KM/H</small><span id="gear">N</span></div><div class="fuel-box">⛽ <b id="fuel"></b>% &nbsp; 🌡 <b id="heat"></b>° &nbsp; 🕒 <b id="clock"></b></div><div class="mini-map"><div class="map-road"></div><div class="map-dot"></div></div><div class="steering-zone"><button class="steer left" data-drive="left">‹</button><button class="steer right" data-drive="right">›</button></div><div class="pedals"><button class="pedal brake" data-drive="brake">■</button><button class="pedal gas" data-drive="gas">▲</button></div><div class="drive-actions"><button id="horn">◉</button><button id="cameraBtn">▣</button><button id="fuelBtn">⛽</button><button id="serviceBtn">🔧</button><button id="doorsBtn">🚪</button><button id="hoodBtn">▱</button><button id="gearBtn">P</button><button id="exitBtn">♙</button></div><div id="message" class="message">Нажми ▲ и поехали</div></div><div id="menu" class="menu hidden"><div class="menu-card"><button data-scene="city">🏙️ Город</button><button data-scene="market">🚘 Рынок</button><button data-scene="junkyard">🛠️ Свалка</button><button data-scene="dealer">🏢 Автосалон</button><button data-scene="garage">🔧 Гараж</button><button data-scene="jobs">💼 Работа</button><button data-scene="settings">⚙️ Настройки</button></div></div><section id="panel" class="panel hidden"></section></div>`;
 const viewport=document.querySelector("#viewport"),speedEl=document.querySelector("#speed"),gearEl=document.querySelector("#gear"),fuelEl=document.querySelector("#fuel"),heatEl=document.querySelector("#heat"),messageEl=document.querySelector("#message"),menu=document.querySelector("#menu"),panel=document.querySelector("#panel"),clockEl=document.querySelector("#clock");
@@ -189,7 +189,8 @@ async function swapToBlenderCrown72(){
    for(const p of Object.values(root.userData.serviceParts)){
      const saved=state.car.partState?.[p.key];
      const condition=typeof saved?.condition==="number"?saved.condition:100;
-     p.installed=saved?.installed===false?false:true;
+     // Revision 4 deliberately starts from a factory-assembled car. Old removed-part state is invalidated.
+     p.installed=true;
      setPartState(p.key,{condition,installed:p.installed});
    }
    model.traverse(o=>{
@@ -549,8 +550,8 @@ function buildWorkshop(){
     requestAnimationFrame(loop);
     const dt=Math.min(clock.getDelta(),.05);
     if(car?.userData?.workshopDisassembled)updateArticulatedCar(dt);
-    camera.position.lerp(new THREE.Vector3(8.8,5.8,9.4),.06);
-    camera.lookAt(new THREE.Vector3(0,1.1,0));
+    camera.position.lerp(new THREE.Vector3(11.8,7.6,12.8),.07);
+    camera.lookAt(new THREE.Vector3(0,1.25,0));
     renderer.render(scene,camera);
   };
   loop();
@@ -653,13 +654,13 @@ function animate(traffic=[]){
       camera.position.lerp(target,.22);
     }else{
       const behind=cameraMode===0?1:-1;
-      const followDistance=moving?7.2:6.2;
-      const followHeight=moving?4.8:4.3;
+      const followDistance=moving?10.2:9.2;
+      const followHeight=moving?6.6:6.0;
       const horizontal=followDistance*Math.cos(camOrbitPitch);
       const sx=Math.sin(heading+camOrbitYaw)*horizontal*behind;
       const sz=Math.cos(heading+camOrbitYaw)*horizontal*behind;
       target=new THREE.Vector3(car.position.x+sx,followHeight+Math.sin(camOrbitPitch)*followDistance,car.position.z+sz);
-      look=new THREE.Vector3(car.position.x-Math.sin(heading)*2.5,.85,car.position.z-Math.cos(heading)*2.5);
+      look=new THREE.Vector3(car.position.x-Math.sin(heading)*1.9,1.05,car.position.z-Math.cos(heading)*1.9);
       camera.position.lerp(target,.13);
     }
     camera.lookAt(look);
