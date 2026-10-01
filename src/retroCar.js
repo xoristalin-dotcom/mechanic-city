@@ -647,6 +647,7 @@ export class RetroCarBuilder {
     this.buildWheels();
     this.buildEngine();
     this.buildTransmission();
+    this.buildRearDriveAssembly();
     this.buildSuspension();
     this.buildExhaust();
     this.buildInterior();
@@ -1243,6 +1244,94 @@ export class RetroCarBuilder {
 
     this.carGroup.add(transGroup);
     this.articulation.transmission = { group: transGroup, condition: 100 };
+  }
+
+  // Dodge Challenger rear drive module: differential, CV axles, hubs,
+  // subframe and driveshaft. All materials are fully opaque.
+  buildRearDriveAssembly() {
+    const group = new THREE.Group();
+    group.name = "Dodge_RearDriveAssembly";
+
+    const housingMat = new THREE.MeshStandardMaterial({color:0x24272b, metalness:0.72, roughness:0.34, transparent:false, opacity:1, depthWrite:true, side:THREE.DoubleSide});
+    const steelMat = new THREE.MeshStandardMaterial({color:0x555a60, metalness:0.82, roughness:0.30, transparent:false, opacity:1, depthWrite:true, side:THREE.DoubleSide});
+    const rubberMat = new THREE.MeshStandardMaterial({color:0x17191b, metalness:0.05, roughness:0.92, transparent:false, opacity:1, depthWrite:true, side:THREE.DoubleSide});
+    const brakeMat = new THREE.MeshStandardMaterial({color:0x7d1518, metalness:0.62, roughness:0.36, transparent:false, opacity:1, depthWrite:true, side:THREE.DoubleSide});
+
+    const rearZ = -1.48;
+
+    // Rear differential housing (Challenger-style independent rear drive unit).
+    const diff = new THREE.Mesh(new THREE.SphereGeometry(0.34, 20, 12), housingMat);
+    diff.scale.set(1.25,0.85,0.82);
+    diff.position.set(0,0.48,rearZ);
+    diff.name = "Dodge_Rear_Differential";
+    group.add(diff);
+
+    // Differential cover.
+    const cover = new THREE.Mesh(new THREE.CylinderGeometry(0.30,0.30,0.12,20), steelMat);
+    cover.rotation.x = Math.PI/2;
+    cover.position.set(0,0.48,rearZ-0.34);
+    cover.name = "Dodge_Differential_Cover";
+    group.add(cover);
+
+    // Left/right half-shafts / CV axles.
+    for (const x of [-1,1]) {
+      const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.075,1.05,12), steelMat);
+      axle.rotation.z = Math.PI/2;
+      axle.position.set(x*0.70,0.48,rearZ);
+      axle.name = x<0 ? "Dodge_CV_Axle_L" : "Dodge_CV_Axle_R";
+      group.add(axle);
+
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,0.18,16), steelMat);
+      hub.rotation.z = Math.PI/2;
+      hub.position.set(x*1.27,0.48,rearZ);
+      hub.name = x<0 ? "Dodge_Rear_Hub_L" : "Dodge_Rear_Hub_R";
+      group.add(hub);
+
+      const brake = new THREE.Mesh(new THREE.CylinderGeometry(0.27,0.27,0.075,20), brakeMat);
+      brake.rotation.z = Math.PI/2;
+      brake.position.set(x*1.31,0.48,rearZ);
+      brake.name = x<0 ? "Dodge_Rear_Brake_L" : "Dodge_Rear_Brake_R";
+      group.add(brake);
+    }
+
+    // Rear subframe rails and differential mounts.
+    for (const x of [-1,1]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.16,0.22,2.15), steelMat);
+      rail.position.set(x*1.08,0.50,rearZ+0.05);
+      rail.name = x<0 ? "Dodge_Rear_Subframe_L" : "Dodge_Rear_Subframe_R";
+      group.add(rail);
+
+      const mount = new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.11,0.42,12), rubberMat);
+      mount.position.set(x*0.54,0.67,rearZ+0.05);
+      mount.name = x<0 ? "Dodge_Diff_Mount_L" : "Dodge_Diff_Mount_R";
+      group.add(mount);
+    }
+
+    // Driveshaft from transmission toward the rear differential.
+    const driveshaft = new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.075,1.35,12), steelMat);
+    driveshaft.rotation.x = Math.PI/2;
+    driveshaft.position.set(0,0.74,-0.75);
+    driveshaft.name = "Dodge_Driveshaft";
+    group.add(driveshaft);
+
+    // Rear control arms / links.
+    for (const x of [-1,1]) {
+      for (const z of [-1.78,-1.18]) {
+        const link = new THREE.Mesh(new THREE.BoxGeometry(0.10,0.10,0.62), steelMat);
+        link.position.set(x*0.72,0.34,z);
+        link.rotation.y = x*0.16;
+        link.name = `Dodge_Rear_ControlArm_${x<0?'L':'R'}_${z<0?'rear':'front'}`;
+        group.add(link);
+      }
+    }
+
+    group.traverse(o=>{
+      if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=true;}
+    });
+    group.userData = {partKey:"rear_drive_assembly",partName:"Задний привод / дифференциал Dodge",category:"transmission",removable:true,condition:100};
+    this.carGroup.add(group);
+    this.parts.rear_drive_assembly = {mesh:group,condition:100,removable:true};
+    this.articulation.rearDrive = {group,condition:100};
   }
 
   buildSuspension() {
