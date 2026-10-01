@@ -390,26 +390,47 @@ export class RetroCarBuilder {
         Object.entries(serviceParts).map(([key,part])=>[key,{mesh:part.mesh,condition:part.condition,removable:part.removable}])
       );
 
-      // Runtime hinges for the new named panels.
+      // The articulated panels are separate source nodes. They were previously
+      // hidden by the mobile visual filter, so the hinge could rotate an invisible
+      // mesh. Keep these four real panels visible and use the body paint material.
+      const articulatedPanelNames = ["HOOD_ANIM","DOOR_LEFT_ANIM","DOOR_RIGHT_ANIM","TRUNK_ANIM"];
+      const articulatedPanelMaterial = new THREE.MeshStandardMaterial({
+        color: 0xe52a36,
+        metalness: 0.34,
+        roughness: 0.30
+      });
+      for (const nodeName of articulatedPanelNames) {
+        const panel = model.getObjectByName(nodeName);
+        if (!panel) continue;
+        let parent = panel;
+        while (parent && parent !== model) {
+          parent.visible = true;
+          parent = parent.parent;
+        }
+        panel.traverse(o=>{
+          if (!o.isMesh) return;
+          o.visible = true;
+          o.material = articulatedPanelMaterial;
+        });
+      }
+
+      // Runtime hinges for the real named panels.
       const makeHinge = (nodeName, axis, sign, angle) => {
         const mesh = model.getObjectByName(nodeName);
         if (!mesh) return null;
-        // Build a pivot at the nearest physical edge of the panel instead of
-        // rotating around the mesh center. This makes the imported Challenger
-        // panels actually swing like real doors/hood/trunk lids.
         const box = new THREE.Box3().setFromObject(mesh);
         const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
         const pivot = new THREE.Object3D();
         pivot.name = nodeName + "_RuntimeHinge";
-        mesh.parent?.add(pivot);
-        if(axis === "y"){
-          const edgeX = sign > 0 ? box.min.x : box.max.x;
-          pivot.position.set(edgeX, center.y, center.z);
-        }else{
-          const edgeZ = sign < 0 ? box.min.z : box.max.z;
-          pivot.position.set(center.x, center.y, edgeZ);
-        }
+        const parent = mesh.parent;
+        if (!parent) return null;
+        parent.add(pivot);
+        const edgeWorld = new THREE.Vector3(
+          axis === "y" ? (sign > 0 ? box.min.x : box.max.x) : center.x,
+          center.y,
+          axis === "y" ? center.z : (sign < 0 ? box.min.z : box.max.z)
+        );
+        pivot.position.copy(parent.worldToLocal(edgeWorld));
         pivot.attach(mesh);
         return {pivot,open:0,openSign:sign,axis,maxAngle:angle};
       };
