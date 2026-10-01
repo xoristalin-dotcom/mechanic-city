@@ -165,11 +165,7 @@ async function swapToBlenderCrown72(){
    root.userData.visualOffsetY=0.42;
    root.add(model);
    root.userData.articulation=setupImportedWheelSteering(model);root.userData.wheels=root.userData.articulation.wheels;root.userData.serviceParts=model.userData.serviceParts||{};
-   // Revision 14 starts as a complete car. Old saved assembly state is invalid after the new model/part system.
-   if(state.car.partStateVersion!==PART_STATE_VERSION){state.car.partState={};state.car.partStateVersion=PART_STATE_VERSION;}
-   for(const p of Object.values(root.userData.serviceParts)){const saved=state.car.partState?.[p.key];const condition=typeof saved?.condition==="number"?saved.condition:100;p.installed=saved?.installed===false?false:true;setPartState(p.key,{condition,installed:p.installed});}
-   model.traverse(o=>{const p=o.userData?.servicePart;if(p)o.visible=p.installed!==false;});
-   save();
+   // Revision 14 starts as a complete car. Old saved assembly state is invalid after the new model/part system.\n   if(state.car.partStateVersion!==PART_STATE_VERSION){state.car.partState={};state.car.partStateVersion=PART_STATE_VERSION;}\n   for(const p of Object.values(root.userData.serviceParts)){const saved=state.car.partState?.[p.key];const condition=typeof saved?.condition==="number"?saved.condition:100;p.installed=saved?.installed===false?false:true;setPartState(p.key,{condition,installed:p.installed});}\n   model.traverse(o=>{const p=o.userData?.servicePart;if(p)o.visible=p.installed!==false;});\n   save();
    // The imported coupe faces -X, while the game vehicle faces -Z.
    // Rotate only the visual asset so physics and steering keep the normal car axes.
    model.rotation.y=Math.PI/2;
@@ -798,10 +794,8 @@ function installDiagnosticMode(){
       "Renderer: "+fmt(r.renderer),
       "FPS: "+r.fps+" frames="+r.frames,
       "ERRORS (last 8):",
-      last.length?last.map(x=>new Date(x.time).toLocaleTimeString()+" ["+x.type+"] "+x.message+(x.line?(" @"+x.line+":"+x.column):"")).join("
-"):"none"
-    ].join("
-");
+      last.length?last.map(x=>new Date(x.time).toLocaleTimeString()+" ["+x.type+"] "+x.message+(x.line?(" @"+x.line+":"+x.column):"")).join("\n"):"none"
+    ].join("\n");
   };
   window.MechanicCityDebug.refresh=refresh;
   document.querySelector("#debug-copy").onclick=async()=>{
