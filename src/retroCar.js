@@ -166,9 +166,19 @@ export class RetroCarBuilder {
         ["RL",-wheelX,-wheelZ,false],["RR",wheelX,-wheelZ,false]
       ]) {
         const [name,x,z,front] = cfg;
+        // Keep steering and tire spin on separate transforms. Steering is
+        // around Y; rolling is around the wheel axle (X). This prevents the
+        // wheel from wobbling/orbiting when the steering angle changes.
         const wheel = new THREE.Group();
         wheel.name = "RuntimeWheel_" + name;
         wheel.position.set(x,wheelY,z);
+        wheel.userData.front = front;
+        wheel.userData.corner = name;
+
+        const spin = new THREE.Group();
+        spin.name = "WheelSpin_" + name;
+        wheel.add(spin);
+        wheel.userData.spin = spin;
 
         const tire = new THREE.Mesh(
           new THREE.CylinderGeometry(wheelRadius,wheelRadius,0.24,16),
@@ -177,7 +187,7 @@ export class RetroCarBuilder {
         tire.rotation.z = Math.PI / 2;
         tire.castShadow = true;
         tire.receiveShadow = true;
-        wheel.add(tire);
+        spin.add(tire);
 
         const rim = new THREE.Mesh(
           new THREE.CylinderGeometry(wheelRadius*0.56,wheelRadius*0.56,0.25,12),
@@ -185,10 +195,8 @@ export class RetroCarBuilder {
         );
         rim.rotation.z = Math.PI / 2;
         rim.castShadow = true;
-        wheel.add(rim);
+        spin.add(rim);
 
-        wheel.userData.front = front;
-        wheel.userData.corner = name;
         this.carGroup.add(wheel);
         runtimeWheels.push(wheel);
       }
