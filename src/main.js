@@ -201,6 +201,13 @@ async function swapToBlenderCrown72(){
        o.rotation.copy(r.r);
        o.scale.copy(r.s);
      }
+     // R19 contains separate replacement panels that must not be visible in
+     // the factory-assembled baseline. They were the "flying" hood/trunk.
+     const n=String(o.name||"").toLowerCase();
+     if(n==="panel_hood_replaceable"||n==="panel_trunk_replaceable"){
+       o.visible=false;
+       o.userData.authoredVisible=false;
+     }
      if(p)o.visible=p.installed!==false && p.authoredVisible!==false;
    });
    save();
