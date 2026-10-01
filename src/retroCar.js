@@ -498,6 +498,10 @@ export class RetroCarBuilder {
       this.carGroup.add(engineBay);
       this.carGroup.userData.engineBay=engineBay;
 
+      // Полный механический слой Challenger: двигатель уже в моторном отсеке,
+      // остальные узлы собраны в общей системе координат автомобиля.
+      this.addFullChallengerMechanicalLayer();
+
       // Полный непрозрачный механический слой Challenger: силовой агрегат,
       // передняя/задняя подвеска, рулевое, тормоза, топливная система и выхлоп.
       this.addFullChallengerMechanicalLayer();
@@ -762,6 +766,11 @@ export class RetroCarBuilder {
     g.traverse(o=>{
       if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=true;}
     });
+    // Подгоняем узлы под габариты реального Challenger и не допускаем
+    // прозрачных/разлетающихся деталей.
+    g.scale.set(0.76,0.72,0.88);
+    g.position.set(0,0.02,0.02);
+    g.visible = this.carGroup.userData.workshopMode === true;
     this.carGroup.add(g);
     this.carGroup.userData.fullMechanicalLayer=g;
   }
