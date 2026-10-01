@@ -45,7 +45,18 @@ export async function loadMechanicCityCoupe(){
     if(o.isMesh){
       const category=categoryFor(o.name);
       const key=o.name.replace(/[^a-zA-Z0-9_-]/g,"_");
-      o.userData.servicePart={key,name:o.name,category,condition:100,tunable:["engine","brakes","wheels","suspension","exhaust","body"].includes(category)};
+      const lower=o.name.toLowerCase();
+      const subsystem=/radiator|coolant|water/.test(lower)?"cooling":
+        /battery|alternator|starter|fuse/.test(lower)?"electrical":
+        /gearbox|transmission|clutch|differential/.test(lower)?"transmission":
+        /engine|injector|spark|intake|fuel|oil|pump/.test(lower)?"engine":
+        /brake|rotor|caliper|pad/.test(lower)?"brakes":
+        /suspension|strut|spring|arm|knuckle|tie|balljoint/.test(lower)?"suspension":
+        /wheel|tire|rim|hub|lug/.test(lower)?"wheels":
+        /door|hood|trunk|bumper|fender|rocker|quarter|spoiler|sill|panel/.test(lower)?"body":
+        /exhaust|muffler|resonator|catalyst|pipe|tip|header/.test(lower)?"exhaust":"other";
+      const removable=!/glass|window|mirror|seat|dash|console|steering|pedal|shifter/.test(lower);
+      o.userData.servicePart={key,name:o.name,category,subsystem,condition:100,installed:true,removable,tunable:["engine","brakes","wheels","suspension","exhaust","body"].includes(category)};
       serviceParts[key]=o.userData.servicePart;
     }
   });
