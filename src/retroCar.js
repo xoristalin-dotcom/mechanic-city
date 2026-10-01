@@ -69,12 +69,7 @@ export class RetroCarBuilder {
           break;
         } catch {}
       }
-      if (!buffer) {
-        this.carGroup.visible = true;
-        this.carGroup.userData.modelLoading = false;
-        console.warn("Mechanic City Challenger model unavailable; using procedural fallback.");
-        return;
-      }
+      if (!buffer) return;
 
       const model = await new Promise((resolve,reject)=>{
         loader.parse(buffer, sourcePath, g=>resolve(g.scene), reject);
@@ -91,21 +86,12 @@ export class RetroCarBuilder {
       const bodyBox = bodyMesh
         ? new THREE.Box3().setFromObject(bodyMesh)
         : new THREE.Box3().setFromObject(model);
-      if (bodyBox.isEmpty()) {
-        this.carGroup.visible = true;
-        this.carGroup.userData.modelLoading = false;
-        console.warn("Mechanic City Challenger body bounds are empty; using procedural fallback.");
-        return;
-      }
+      if (bodyBox.isEmpty()) return;
 
       const bodySize = bodyBox.getSize(new THREE.Vector3());
       const bodyCenter = bodyBox.getCenter(new THREE.Vector3());
       const bodyLength = bodySize.z;
-      if (!Number.isFinite(bodyLength) || bodyLength <= 0) {
-        this.carGroup.visible = true;
-        this.carGroup.userData.modelLoading = false;
-        return;
-      }
+      if (!Number.isFinite(bodyLength) || bodyLength <= 0) return;
 
       const targetLength = 4.95;
       const scale = targetLength / bodyLength;
@@ -347,24 +333,8 @@ export class RetroCarBuilder {
       // Build serviceable parts from named R2.1 nodes.
       const named = {
         engine: ["ENGINE_BLOCK"],
-        cylinder_head: ["CYLINDER_HEAD", "HEAD"],
-        valve_cover: ["VALVE_COVER", "ROCKER_COVER"],
         alternator: ["ALTERNATOR"],
         starter: ["STARTER"],
-        oil_filter: ["OIL_FILTER"],
-        intake: ["INTAKE"],
-        air_intake: ["AIR_INTAKE"],
-        fuel_system: ["FUEL_SYSTEM"],
-        engine_mounts: ["ENGINE_MOUNTS"],
-        radiator: ["RADIATOR"],
-        cooling_fans: ["COOLING_FANS"],
-        battery: ["BATTERY"],
-        brake_fluid_reservoir: ["BRAKE_FLUID_RESERVOIR"],
-        power_steering_reservoir: ["POWER_STEERING_RESERVOIR"],
-        transmission: ["TRANSMISSION", "GEARBOX"],
-        clutch: ["CLUTCH"],
-        driveshaft: ["DRIVESHAFT", "PROP_SHAFT"],
-        differential: ["DIFFERENTIAL"],
         hood: ["HOOD_ANIM"],
         trunk: ["TRUNK_ANIM"],
         door_FL: ["DOOR_LEFT_ANIM"],
@@ -401,8 +371,6 @@ export class RetroCarBuilder {
           baseCost: old?.baseCost || 50,
           condition: typeof old?.condition === "number" ? old.condition : 100,
           installed: old?.installed !== false,
-          workshopOnly: ["engine","cooling","electrical","transmission","steering","drivetrain","brakes","suspension"].includes(old?.category || ""),
-          driveVisible: !["engine","cooling","electrical","transmission","steering","drivetrain","brakes","suspension"].includes(old?.category || ""),
           mesh
         };
         mesh.userData.servicePart = serviceParts[key];
@@ -410,7 +378,7 @@ export class RetroCarBuilder {
         // They use the source GLB's workshop geometry and some are not
         // normalized to the vehicle body scale; showing them on the road
         // creates the giant white/black blocks seen on mobile.
-        mesh.visible = serviceParts[key].installed && (!serviceParts[key].workshopOnly || this.carGroup.userData.workshopMode === true);
+        mesh.visible = this.carGroup.userData.workshopMode === true && serviceParts[key].installed;
       }
 
       // Keep any catalog entries that are not represented by geometry.
@@ -452,7 +420,6 @@ export class RetroCarBuilder {
       }
 
       this.carGroup.userData.servicePartCount = Object.keys(serviceParts).length;
-      this.carGroup.userData.servicePartsReady = true;
       this.carGroup.userData.vehicleSpec = {
         lengthMeters: 4.95,
         revision: "MechanicCity-R3-visual",
@@ -460,11 +427,6 @@ export class RetroCarBuilder {
         editable: true,
         mobileOptimized: true
       };
-
-      // The root was hidden while the GLB loaded. Reveal it only after the
-      // final visual model, wheels and service mappings are ready.
-      this.carGroup.visible = true;
-      this.carGroup.userData.modelLoading = false;
     } catch (err) {
       // If the GLB really fails, reveal the procedural fallback instead of
       // leaving the player vehicle invisible.
