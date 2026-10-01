@@ -267,21 +267,21 @@ export class RetroCarBuilder {
           new THREE.CylinderGeometry(0.16,0.16,0.075,20),lampInner
         );
         housing.rotation.x=Math.PI/2;
-        housing.position.set(x,0.80,frontZ-0.045);
+        housing.position.set(x,0.67,frontZ-0.045);
         detailKit.add(housing);
 
         const head=new THREE.Mesh(
           new THREE.TorusGeometry(0.122,0.029,8,24),lamp
         );
         head.rotation.x=Math.PI/2;
-        head.position.set(x,0.80,frontZ-0.092);
+        head.position.set(x,0.67,frontZ-0.092);
         detailKit.add(head);
 
         const inner=new THREE.Mesh(
           new THREE.CylinderGeometry(0.054,0.054,0.032,16),lampGlow
         );
         inner.rotation.x=Math.PI/2;
-        inner.position.set(x,0.80,frontZ-0.108);
+        inner.position.set(x,0.67,frontZ-0.108);
         detailKit.add(inner);
       }
 
