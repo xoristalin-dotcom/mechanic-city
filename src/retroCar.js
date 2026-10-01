@@ -401,11 +401,12 @@ export class RetroCarBuilder {
         // Keep them hidden during normal driving until the player actually opens
         // the corresponding panel. This prevents detached/duplicate panels
         // floating around the car in the city.
-        const showPanel = this.carGroup.userData.workshopMode === true;
-        panel.visible = showPanel;
+        // Visibility is controlled by the articulation state in main.js.
+        // Do not show every movable panel just because we're in the garage.
+        panel.visible = false;
         panel.traverse(o=>{
           if (!o.isMesh) return;
-          o.visible = showPanel;
+          o.visible = false;
           if (!o.material) o.material = new THREE.MeshStandardMaterial({
             color: 0xe52a36, metalness: 0.34, roughness: 0.30
           });
