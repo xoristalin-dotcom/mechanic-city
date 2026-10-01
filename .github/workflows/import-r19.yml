@@ -1,0 +1,29 @@
+name: Import R19 model
+
+on:
+  push:
+    paths:
+      - ".github/workflows/import-r19.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download R19 GLB
+        run: |
+          curl -fL --retry 3 --silent --show-error \
+            'https://695d5a9fc666e505559765690b5db7dd.r2.cloudflarestorage.com/3d-scene-builder/projects/59a6ad85-c175-4493-818e-c292f8369a70/revisions/00000019-assemble-r18-in-blender-v1/preview.glb?X-Amz-Expires=900&X-Amz-Date=20261001T044307Z&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=f4fb15da414147020cebc9c7007b912d%2F20261001%2Fauto%2Fs3%2Faws4_request&X-Amz-SignedHeaders=host&X-Amz-Signature=c2af9260be74140e840bcce2f352e9479c94b04b9016fbbe32d206e28d33171d' \
+            -o public/models/preview.glb
+          test "$(stat -c%s public/models/preview.glb)" = "3114728"
+      - name: Commit R19
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/models/preview.glb
+          git commit -m "Replace game model with assembled Higgsfield R19" || exit 0
+          git push
