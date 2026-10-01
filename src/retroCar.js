@@ -390,20 +390,25 @@ export class RetroCarBuilder {
         Object.entries(serviceParts).map(([key,part])=>[key,{mesh:part.mesh,condition:part.condition,removable:part.removable}])
       );
 
-      // Use the source GLB's single visual body as the car appearance.
-      // Do NOT turn the hidden service/animation nodes into extra visible panels:
-      // those nodes overlap the painted body and create duplicate hood/door/trunk geometry.
+      // Keep the Challenger GLB as one visual car assembly. The named animation
+      // nodes are the ONLY panel geometry used for articulation; the base visual
+      // meshes remain the rest of the body. Their materials are preserved.
       const articulatedPanelNames = ["HOOD_ANIM","DOOR_LEFT_ANIM","DOOR_RIGHT_ANIM","TRUNK_ANIM"];
       for (const nodeName of articulatedPanelNames) {
         const panel = model.getObjectByName(nodeName);
         if (!panel) continue;
-        panel.visible = false;
+        panel.visible = true;
         panel.traverse(o=>{
-          if (o.isMesh) o.visible = false;
+          if (!o.isMesh) return;
+          o.visible = true;
+          if (!o.material) o.material = new THREE.MeshStandardMaterial({
+            color: 0xe52a36, metalness: 0.34, roughness: 0.30
+          });
         });
       }
 
-      // Runtime articulation remains available for the single visual car assembly.
+      // The panel nodes are the only moving geometry; no procedural duplicate
+      // hood, doors or trunk are created here.
       const makeHinge = (nodeName, axis, sign, angle) => {
         const mesh = model.getObjectByName(nodeName);
         if (!mesh) return null;
