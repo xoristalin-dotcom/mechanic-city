@@ -112,13 +112,13 @@ export class RetroCarBuilder {
       // Treat geometry_0..2 as painted body surfaces instead of giving them
       // unrelated trim colors; this prevents the body from turning cream/white.
       const visualStyles = {
-        geometry_0: { color: 0xd51f2a, metalness: 0.46, roughness: 0.26 },
-        geometry_1: { color: 0xb7111c, metalness: 0.42, roughness: 0.31 },
-        geometry_2: { color: 0x8e0c16, metalness: 0.38, roughness: 0.36 },
-        geometry_3: { color: 0x7e0b14, metalness: 0.40, roughness: 0.38 },
-        geometry_4: { color: 0x9b1019, metalness: 0.38, roughness: 0.40 },
+        geometry_0: { color: 0xe52a36, metalness: 0.34, roughness: 0.28 },
+        geometry_1: { color: 0xc91d2a, metalness: 0.32, roughness: 0.31 },
+        geometry_2: { color: 0xa91420, metalness: 0.30, roughness: 0.34 },
+        geometry_3: { color: 0x98141f, metalness: 0.30, roughness: 0.36 },
+        geometry_4: { color: 0xb71925, metalness: 0.30, roughness: 0.38 },
         geometry_5: { color: 0x090b0d, metalness: 0.18, roughness: 0.68 },
-        geometry_6: { color: 0x050609, metalness: 0.18, roughness: 0.12 }
+        geometry_6: { color: 0x17262d, metalness: 0.10, roughness: 0.20 }
       };
 
       model.traverse(o=>{
@@ -154,8 +154,8 @@ export class RetroCarBuilder {
       // wheel assemblies on top of those silhouettes. They are also used by
       // main.js physicsDrive() for steering + rolling animation.
       const runtimeWheels = [];
-      const wheelRadius = 0.43;
-      const wheelX = Math.max(0.92, bodySize.x * scale * 0.44);
+      const wheelRadius = 0.36;
+      const wheelX = Math.max(0.86, bodySize.x * scale * 0.43);
       const wheelZ = Math.max(1.42, bodySize.z * scale * 0.307);
       const wheelY = wheelRadius + 0.012;
       const tireMat = new THREE.MeshStandardMaterial({color:0x080808,roughness:0.78,metalness:0.05});
@@ -297,21 +297,21 @@ export class RetroCarBuilder {
       lowerIntake.position.set(0,0.42,frontZ-0.12); detailKit.add(lowerIntake);
 
       const splitter=new THREE.Mesh(
-        new THREE.BoxGeometry(bodyW*0.96,0.055,0.28),chrome
+        new THREE.BoxGeometry(bodyW*0.92,0.045,0.20),trim
       );
       splitter.position.set(0,0.33,frontZ-0.13); detailKit.add(splitter);
       const rearBumper=frontBumper.clone(); rearBumper.position.z=rearZ+0.05; detailKit.add(rearBumper);
 
       // Hood power bulge + intake.
-      const hoodBulge=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.28,0.07,1.05),new THREE.MeshStandardMaterial({color:0x202428,metalness:0.52,roughness:0.3}));
-      hoodBulge.position.set(0,0.99,-1.48); detailKit.add(hoodBulge);
-      const intake=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.18,0.035,0.38),trim);
-      intake.position.set(0,1.045,-1.58); detailKit.add(intake);
+      const hoodBulge=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.24,0.045,0.82),new THREE.MeshStandardMaterial({color:0x9d1622,metalness:0.28,roughness:0.34}));
+      hoodBulge.position.set(0,1.005,1.18); detailKit.add(hoodBulge);
+      const intake=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.15,0.025,0.30),trim);
+      intake.position.set(0,1.04,1.43); detailKit.add(intake);
 
       // Side mirrors and door handles make the silhouette read better at distance.
       for(const x of [-bodyW*0.53,bodyW*0.53]){
         const mirror=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.14,0.28),chrome);
-        mirror.position.set(x,1.12,-0.62); detailKit.add(mirror);
+        mirror.position.set(x,1.10,0.02); detailKit.add(mirror);
         const handle=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.045,0.055),chrome);
         handle.position.set(x*0.995,0.98,0.46); detailKit.add(handle);
       }
