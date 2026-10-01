@@ -159,11 +159,14 @@ async function swapToBlenderCrown72(){
      if(o.isMesh){
        o.castShadow=true;
        o.receiveShadow=true;
+       // R18 contains hidden service/tuning replacement meshes. Keep their authored
+       // visibility so the default vehicle stays physically assembled.
        o.userData.workshopRest={
          p:o.position.clone(),
          r:o.rotation.clone(),
          s:o.scale.clone()
        };
+       o.userData.authoredVisible=o.visible;
      }
    });
    const root=new THREE.Group();
@@ -197,7 +200,7 @@ async function swapToBlenderCrown72(){
        o.rotation.copy(r.r);
        o.scale.copy(r.s);
      }
-     if(p)o.visible=p.installed!==false;
+     if(p)o.visible=p.installed!==false && p.authoredVisible!==false;
    });
    save();
 
