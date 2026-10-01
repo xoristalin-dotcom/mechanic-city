@@ -75,32 +75,64 @@ export class RetroCarBuilder {
       model.name = "MechanicCity_DodgeChallenger_R2_1";
       model.updateMatrixWorld(true);
 
-      const box = new THREE.Box3().setFromObject(model);
-      if (box.isEmpty()) return;
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
-      const longest = Math.max(size.x,size.y,size.z);
-      if (!Number.isFinite(longest) || longest <= 0) return;
+      // R2.1 is authored as a normalized vehicle along the Z axis.
+      // Do not use the whole scene bounds here: the optional engine/service
+      // geometry intentionally sits above the body and would make the car
+      // several times too tall on mobile.
+      const bodyMesh = model.getObjectByName("geometry_0");
+      const bodyBox = bodyMesh
+        ? new THREE.Box3().setFromObject(bodyMesh)
+        : new THREE.Box3().setFromObject(model);
+      if (bodyBox.isEmpty()) return;
+
+      const bodySize = bodyBox.getSize(new THREE.Vector3());
+      const bodyCenter = bodyBox.getCenter(new THREE.Vector3());
+      const bodyLength = bodySize.z;
+      if (!Number.isFinite(bodyLength) || bodyLength <= 0) return;
 
       const targetLength = 4.95;
-      const scale = targetLength / longest;
-      model.scale.multiplyScalar(scale);
-      model.position.x -= center.x * scale;
-      model.position.y -= box.min.y * scale;
-      model.position.z -= center.z * scale;
+      const scale = targetLength / bodyLength;
+      model.scale.setScalar(scale);
+      model.position.set(
+        -bodyCenter.x * scale,
+        -bodyBox.min.y * scale,
+        -bodyCenter.z * scale
+      );
       model.updateMatrixWorld(true);
+
+      // The seven meshes geometry_0..geometry_6 are the actual mobile visual
+      // car. The extra service geometry is useful in the workshop but was
+      // authored at a different local scale, so keep it hidden in the driving
+      // view instead of letting it blow up the silhouette.
+      const visualStyles = {
+        geometry_0: { color: 0xb51f26, metalness: 0.28, roughness: 0.38 },
+        geometry_1: { color: 0x17191b, metalness: 0.18, roughness: 0.62 },
+        geometry_2: { color: 0x666a70, metalness: 0.78, roughness: 0.34 },
+        geometry_3: { color: 0x30343a, metalness: 0.65, roughness: 0.48 },
+        geometry_4: { color: 0x25282b, metalness: 0.55, roughness: 0.5 },
+        geometry_5: { color: 0x17191d, metalness: 0.05, roughness: 0.72 },
+        geometry_6: { color: 0x102331, metalness: 0.12, roughness: 0.2 }
+      };
 
       model.traverse(o=>{
         if (!o.isMesh) return;
         o.castShadow = true;
         o.receiveShadow = true;
         o.frustumCulled = true;
-        if (o.material) {
-          const materials = Array.isArray(o.material) ? o.material : [o.material];
-          for (const m of materials) {
-            m.needsUpdate = true;
-            if ("side" in m) m.side = THREE.FrontSide;
-          }
+
+        const style = visualStyles[o.name];
+        if (style) {
+          // The R2.1 atlas has no TEXCOORD_0 on these split meshes, so a
+          // texture-only material renders white. Use lightweight PBR colors
+          // that preserve the intended Challenger palette on WebGL/iPhone.
+          o.material = new THREE.MeshStandardMaterial({
+            color: style.color,
+            metalness: style.metalness,
+            roughness: style.roughness
+          });
+          o.visible = true;
+        } else {
+          o.visible = false;
         }
       });
 
