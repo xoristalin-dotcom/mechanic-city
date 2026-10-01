@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 
 /**
  * Retro Garage Rally-style car with full articulation
@@ -69,7 +70,7 @@ export class RetroCarBuilder {
 
     // Основной кузов - структурный элемент
     const chassis = new THREE.Mesh(
-      new THREE.BoxGeometry(bodyWidth, bodyHeight, bodyLength),
+      new RoundedBoxGeometry(bodyWidth, bodyHeight, bodyLength, 5, 0.18),
       paint
     );
     chassis.position.y = 0.62;
@@ -125,7 +126,54 @@ export class RetroCarBuilder {
       bodyGroup.add(sidePanel);
     }
 
-    this.carGroup.add(bodyGroup);
+    // Rounded classic sedan cabin: gives the Retro Car a recognizable silhouette
+    // instead of the flat box profile.
+    const cabinGroup = new THREE.Group();
+    cabinGroup.name = "ClassicCabin";
+    const roof = new THREE.Mesh(
+      new RoundedBoxGeometry(2.48, 0.58, 2.72, 5, 0.16),
+      paint
+    );
+    roof.position.set(0, 1.28, 0.18);
+    roof.scale.set(1, 1, 0.98);
+    roof.castShadow = true;
+    roof.receiveShadow = true;
+    roof.userData = {
+      partKey: "cabin",
+      partName: "Кабина кузова",
+      category: "body",
+      removable: false,
+      condition: 100
+    };
+    cabinGroup.add(roof);
+
+    // Dark recessed window bands on the classic cabin.
+    const glass = this.getMaterial("glass", 0x152733);
+    const frontGlass = new THREE.Mesh(
+      new RoundedBoxGeometry(2.12, 0.34, 0.08, 4, 0.05),
+      glass
+    );
+    frontGlass.position.set(0, 1.34, -1.18);
+    frontGlass.rotation.x = -0.16;
+    cabinGroup.add(frontGlass);
+
+    const rearGlass = new THREE.Mesh(
+      new RoundedBoxGeometry(2.12, 0.30, 0.08, 4, 0.05),
+      glass
+    );
+    rearGlass.position.set(0, 1.34, 1.48);
+    rearGlass.rotation.x = 0.12;
+    cabinGroup.add(rearGlass);
+
+    for (const side of [-1, 1]) {
+      const sideGlass = new THREE.Mesh(
+        new RoundedBoxGeometry(0.08, 0.34, 1.72, 4, 0.04),
+        glass
+      );
+      sideGlass.position.set(side * 1.25, 1.34, 0.12);
+      cabinGroup.add(sideGlass);
+    }
+    this.carGroup.add(cabinGroup);
   }
 
   buildDoors() {
