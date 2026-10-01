@@ -476,7 +476,21 @@ export class RetroCarBuilder {
         hood.geometry.computeBoundingSphere();
         pivot.add(hood);
 
-        return {pivot,open:0,openSign:1,axis:"x",maxAngle:0.95};
+        // Determine the opening direction from the real copied hood.
+        // Pick the sign that moves the front edge toward +Y (up).
+        let frontLocal = null;
+        for(let i=0;i<hp.count;i++){
+          const z=hp.getZ(i);
+          if(!frontLocal || z>frontLocal.z){
+            frontLocal=new THREE.Vector3(hp.getX(i),hp.getY(i),z);
+          }
+        }
+        const axis=new THREE.Vector3(1,0,0);
+        const plus=frontLocal?.clone().applyAxisAngle(axis,0.6);
+        const minus=frontLocal?.clone().applyAxisAngle(axis,-0.6);
+        const openSign=(plus && minus) ? (plus.y>=minus.y ? 1 : -1) : 1;
+
+        return {pivot,open:0,openSign,axis:"x",maxAngle:0.95};
       };
 
       for(const nodeName of ["HOOD_ANIM","DOOR_LEFT_ANIM","DOOR_RIGHT_ANIM","TRUNK_ANIM"]){
