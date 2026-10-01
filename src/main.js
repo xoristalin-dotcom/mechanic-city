@@ -355,15 +355,13 @@ function animate(traffic=[]){ requestAnimationFrame(()=>animate(traffic)); if(st
     camera.position.set(0,1.28,-.38);
     look=new THREE.Vector3(car.position.x,car.position.y+1.12,car.position.z);
   } else {
+    // True third-person orbit: the rig stays on the car, while its local
+    // rotation provides the orbit. This is more reliable on iOS/WebGL than
+    // moving the camera in world coordinates.
     const followDistance=moving?9.4:8.6;
     const followHeight=moving?6.1:5.7;
-    const horizontal=followDistance*Math.cos(camOrbitPitch);
-    cameraRig.rotation.set(0,0,0);
-    camera.position.set(
-      Math.sin(camOrbitYaw)*horizontal,
-      followHeight+Math.sin(camOrbitPitch)*followDistance,
-      Math.cos(camOrbitYaw)*horizontal
-    );
+    cameraRig.rotation.set(-camOrbitPitch,camOrbitYaw,0);
+    camera.position.set(0,followHeight,followDistance);
     look=new THREE.Vector3(car.position.x,car.position.y+1.0,car.position.z);
   }
   cameraRig.updateWorldMatrix(true,true);
@@ -406,16 +404,14 @@ function setupCameraControls(){
   el.style.webkitUserSelect="none";
   const isControlTarget=e=>e.target?.closest?.(".mobile-drive-controls,.floating-bar,.menu");
   const begin=(x,y,id=null)=>{camDragging=true;camLastX=x;camLastY=y;if(id!=null){try{el.setPointerCapture(id);}catch{}}};
-  const move=(x,y,e)=>{if(!camDragging)return;if(e?.cancelable)e.preventDefault();const dx=x-camLastX,dy=y-camLastY;camLastX=x;camLastY=y;camOrbitYaw-=dx*.010;camOrbitPitch=Math.min(1.05,Math.max(-.45,camOrbitPitch+dy*.006));};
+  const move=(x,y,e)=>{if(!camDragging)return;if(e?.cancelable)e.preventDefault();const dx=x-camLastX,dy=y-camLastY;camLastX=x;camLastY=y;camOrbitYaw-=dx*.012;camOrbitPitch=Math.min(.95,Math.max(-.55,camOrbitPitch+dy*.008));};
   const end=(id=null)=>{camDragging=false;if(id!=null){try{el.releasePointerCapture(id);}catch{}}};
-  el.addEventListener("pointerdown",e=>{if(isControlTarget(e))return;begin(e.clientX,e.clientY,e.pointerId);},{passive:false});
+  // Pointer Events are the single touch path on iPhone/iPad. Avoid mixing
+  // pointer + touch handlers, which can cancel each other on Safari.
+  el.addEventListener("pointerdown",e=>{if(isControlTarget(e)||e.pointerType==="mouse"&&e.button!==0)return;begin(e.clientX,e.clientY,e.pointerId);},{passive:false});
   el.addEventListener("pointermove",e=>move(e.clientX,e.clientY,e),{passive:false});
   el.addEventListener("pointerup",e=>end(e.pointerId),{passive:false});
   el.addEventListener("pointercancel",e=>end(e.pointerId),{passive:false});
-  el.addEventListener("touchstart",e=>{if(isControlTarget(e))return;const t=e.touches?.[0];if(t)begin(t.clientX,t.clientY);},{passive:false});
-  el.addEventListener("touchmove",e=>{const t=e.touches?.[0];if(t)move(t.clientX,t.clientY,e);},{passive:false});
-  el.addEventListener("touchend",e=>{if(e.cancelable)e.preventDefault();end();},{passive:false});
-  el.addEventListener("touchcancel",()=>end(),{passive:false});
 }
 function bindControls(){
   document.querySelectorAll("[data-drive]").forEach(b=>{
