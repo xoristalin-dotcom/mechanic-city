@@ -453,7 +453,13 @@ function setupCameraControls(){
   if(!renderer||!viewport)return;
   const el=viewport;
   el.style.touchAction="none";
-  const isControlTarget=e=>e.target?.closest?.(".mobile-drive-controls,.floating-bar,.menu,.panel");
+  // Allow the gas pedal to remain held while the same touch also rotates the camera.
+  const isControlTarget=e=>{
+    const target=e.target?.closest?.(".mobile-drive-controls,.floating-bar,.menu,.panel");
+    if(!target)return false;
+    const gas=e.target?.closest?.('[data-drive="gas"]');
+    return !gas;
+  };
   const begin=(x,y)=>{camDragging=true;camLastX=x;camLastY=y;};
   const move=(x,y,e)=>{
     if(!camDragging)return;
@@ -472,6 +478,9 @@ function setupCameraControls(){
     begin(e.clientX,e.clientY);
   },{passive:false,capture:true});
   el.addEventListener("pointermove",e=>move(e.clientX,e.clientY,e),{passive:false,capture:true});
+  // Pointer capture on the gas pedal can retarget move events to the button.
+  // Listen at window capture too so the camera keeps receiving those moves.
+  window.addEventListener("pointermove",e=>move(e.clientX,e.clientY,e),{passive:false,capture:true});
   el.addEventListener("pointerup",end,{passive:false,capture:true});
   el.addEventListener("pointercancel",end,{passive:false,capture:true});
 }
