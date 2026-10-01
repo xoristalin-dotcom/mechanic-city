@@ -185,7 +185,53 @@ function clearJobMarker(){if(jobMarker&&scene){scene.remove(jobMarker);jobMarker
 function createJobMarker(){clearJobMarker();if(!state.job||!scene)return; const g=new THREE.Group(); const ring=new THREE.Mesh(new THREE.TorusGeometry(2.4,.1,10,32),new THREE.MeshBasicMaterial({color:0x7cf09d,transparent:true,opacity:.8})); ring.rotation.x=Math.PI/2; g.add(ring); g.position.set(state.job.targetX,0.2,state.job.targetZ); scene.add(g); jobMarker=g; }
 function updateJob(){if(!state.job||!state.driving)return; const d=Math.hypot(state.posX-state.job.targetX,state.posZ-state.job.targetZ); if(jobMarker){ jobMarker.rotation.y+=.012; jobMarker.position.y=Math.sin(performance.now()/180)*.08+.2; } if(d<3){ msg("✅ Задание выполнено"); state.job=null; clearJobMarker(); save(); }}
 function installVisualInspectMode(){
-  const params=new URLSearchParams(location.search); if(params.get("inspect")!=="1")return; const errors=[]; window.addEventListener("error",e=>errors.push(String(e.message||e.error||"unknown error"))); window.addEventListener("unhandledrejection",e=>errors.push(String(e.reason?.message||e.reason||"unhandled rejection"))); window.MechanicCityInspect={version:2,getState:()=>({scene:state.scene,position:{x:state.posX,z:state.posZ},speed:state.speed,heading:state.heading,gear:state.gear,fuel:state.fuel,heat:state.heat,damage:state.damage,car:{...state.car},cameraMode,cameraModeName:cameraModeNames[cameraMode],viewport:{width:viewport.clientWidth,height:viewport.clientHeight},physicsReady,physicsError,errors:errors.slice(-10)}),screenshot:()=>renderer?.domElement?.toDataURL("image/png")||null,setCamera:(n)=>{cameraMode=Math.max(0,Math.min(2,Number(n)||0));camOrbitYaw=0;camOrbitPitch=.18;if(camera){camera.fov=cameraMode===2?82:cameraMode===1?68:62;camera.updateProjectionMatrix();} return window.MechanicCityInspect.getState();},setScene:(name)=>{if(["city","workshop","garage","market","junkyard","dealer","jobs","settings"].includes(name))renderScene(name); return window.MechanicCityInspect.getState();}}}; const requestedCamera=params.get("camera"); if(requestedCamera!==null)window.MechanicCityInspect.setCamera(requestedCamera); const requestedScene=params.get("scene"); if(requestedScene&&requestedScene!=="city")window.MechanicCityInspect.setScene(requestedScene); }
+  const params=new URLSearchParams(location.search);
+  if(params.get("inspect")!=="1") return;
+  const errors=[];
+  window.addEventListener("error",e=>errors.push(String(e.message||e.error||"unknown error")));
+  window.addEventListener("unhandledrejection",e=>errors.push(String(e.reason?.message||e.reason||"unhandled rejection")));
+  window.MechanicCityInspect={
+    version:2,
+    getState:()=>({
+      scene:state.scene,
+      position:{x:state.posX,z:state.posZ},
+      speed:state.speed,
+      heading:state.heading,
+      gear:state.gear,
+      fuel:state.fuel,
+      heat:state.heat,
+      damage:state.damage,
+      car:{...state.car},
+      cameraMode,
+      cameraModeName:cameraModeNames[cameraMode],
+      viewport:{width:viewport.clientWidth,height:viewport.clientHeight},
+      physicsReady,
+      physicsError,
+      errors:errors.slice(-10)
+    }),
+    screenshot:()=>renderer?.domElement?.toDataURL("image/png")||null,
+    setCamera:(n)=>{
+      cameraMode=Math.max(0,Math.min(2,Number(n)||0));
+      camOrbitYaw=0;
+      camOrbitPitch=.18;
+      if(camera){
+        camera.fov=cameraMode===2?82:cameraMode===1?68:62;
+        camera.updateProjectionMatrix();
+      }
+      return window.MechanicCityInspect.getState();
+    },
+    setScene:(name)=>{
+      if(["city","workshop","garage","market","junkyard","dealer","jobs","settings"].includes(name)){
+        renderScene(name);
+      }
+      return window.MechanicCityInspect.getState();
+    }
+  };
+  const requestedCamera=params.get("camera");
+  if(requestedCamera!==null) window.MechanicCityInspect.setCamera(requestedCamera);
+  const requestedScene=params.get("scene");
+  if(requestedScene&&requestedScene!=="city") window.MechanicCityInspect.setScene(requestedScene);
+}
 function installAITestMode(){ if(new URLSearchParams(location.search).get("test")!=="1")return; window.MechanicCityTest={version:1,getState:()=>({scene:state.scene,position:{x:state.posX,z:state.posZ},speed:state.speed,heading:state.heading,gear:state.gear,fuel:state.fuel,heat:state.heat,damage:state.damage,car:{...state.car}}),action:(name,value)=>{ if(name==="gas"){input.gas=!!value;if(value&&state.fuel>0){ if(state.gear==="P"||state.gear==="N")state.gear="D"; state.driving=true;}} else if(name==="brake"){input.brake=!!value;} else if(name==="left"){input.left=!!value;if(value)state.driving=true;} else if(name==="right"){input.right=!!value;if(value)state.driving=true;} else if(name==="gear"){ if(["P","R","N","D"].includes(value)){state.gear=value;if(value==="D"||value==="R")state.driving=true;if(value==="P")state.driving=false;}} else if(name==="camera"){const n=Math.max(0,Math.min(2,Number(value)));cameraMode=n;camOrbitYaw=0;camOrbitPitch=.18;if(camera){camera.fov=n===2?82:n===1?68:62;camera.updateProjectionMatrix();}} else if(name==="scene"&&["city","workshop","garage","market","junkyard","dealer","jobs","settings"].includes(value))renderScene(value); else if(name==="refuel"){state.fuel=100;save();} else if(name==="repair"){state.damage=0;state.car.condition=100;save();} return window.MechanicCityTest.getState();}}; const box=document.createElement("div"); box.id="ai-test-panel"; box.style.cssText="position:fixed;top:8px;left:8px;z-index:99999;background:rgba(0,0,0,.82);color:#fff;padding:8px;font:12px monospace;"; box.innerHTML="<b>AI TEST MODE</b><pre id='ai-test-state'></pre><div style='display:grid;grid-template-columns:repeat(3,1fr);gap:4px'><button data-a='left'>←</button><button data-a='gas'>GAS</button><button data-a='brake'>BRAKE</button></div><div style='display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px'><button data-c='0'>F</button><button data-c='1'>O</button><button data-c='2'>H</button></div>"; document.body.appendChild(box); box.querySelectorAll("[data-a]").forEach(b=>{const a=b.dataset.a;b.onpointerdown=e=>{e.preventDefault();window.MechanicCityTest.action(a,true)};b.onpointerup=e=>{e.preventDefault();window.MechanicCityTest.action(a,false)};}); box.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>window.MechanicCityTest.action("camera",b.dataset.c)); setInterval(()=>{const s=window.MechanicCityTest.getState(); const el=document.querySelector("#ai-test-state"); if(el)el.textContent=JSON.stringify(s,null,2).slice(0,2400)},250); }
 function msg(t){messageEl.textContent=t;}
 function stats(){speedEl.textContent=Math.round(state.speed*62);gearEl.textContent=state.gear||"P";fuelEl.textContent=Math.round(state.fuel);heatEl.textContent=Math.round(state.heat);clockEl.textContent=(function(){const h=Math.floor(state.time%24);const m=Math.floor((state.time%1)*60);return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");})();}
