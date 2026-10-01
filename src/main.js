@@ -68,33 +68,24 @@ function openPartPanel(part){
 }
 function installPartInteraction(){viewport.addEventListener("pointerdown",e=>{if(!["city","workshop"].includes(state.scene)||!car||!renderer)return;const r=renderer.domElement.getBoundingClientRect();partPointer.x=((e.clientX-r.left)/r.width)*2-1;partPointer.y=-((e.clientY-r.top)/r.height)*2+1;partRaycaster.setFromCamera(partPointer,camera);const meshes=[];car.traverse(o=>{if(o.isMesh&&o.visible)meshes.push(o);});const hit=partRaycaster.intersectObjects(meshes,false)[0];if(!hit?.object?.userData?.servicePart)return;state.car.selectedPart=hit.object.userData.servicePart.key;openPartPanel(hit.object.userData.servicePart);},{passive:true});}
 function setupImportedWheelSteering(model){
+  // R19 already contains the real assembled wheels, doors, hood and trunk.
+  // Never create procedural duplicates: doing so makes the car look disassembled.
   model.updateMatrixWorld(true);
-  const box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3()),min=box.min.clone();
-  const bodyMat=new THREE.MeshStandardMaterial({color:0x7a3f2e,roughness:.42,metalness:.35});
-  const tireMat=new THREE.MeshStandardMaterial({color:0x17191b,roughness:.82,metalness:.04});
-  const hubMat=new THREE.MeshStandardMaterial({color:0x777b80,roughness:.38,metalness:.72});
-  const frontX=min.x+size.x*.79,rearX=min.x+size.x*.21,wheelY=min.y+size.y*.25,sideZ=Math.max(.54,size.z*.34);
-  const radius=Math.max(.23,Math.min(size.y*.18,.31)),width=Math.max(.13,Math.min(size.z*.10,.20)),wheels=[];
-  const wheel=(x,z,front)=>{
-    const p=new THREE.Group();p.name=front?"FrontWheelSteerPivot":"RearWheelPivot";p.position.set(x,wheelY,z);
-    const cover=new THREE.Mesh(new THREE.CylinderGeometry(radius*1.08,radius*1.08,width*.62,28),bodyMat);cover.rotation.x=Math.PI/2;
-    const tire=new THREE.Mesh(new THREE.CylinderGeometry(radius,radius,width,24),tireMat);tire.rotation.x=Math.PI/2;tire.castShadow=true;
-    const hub=new THREE.Mesh(new THREE.CylinderGeometry(radius*.43,radius*.43,width*1.08,20),hubMat);hub.rotation.x=Math.PI/2;hub.castShadow=true;
-    p.add(cover,tire,hub);model.add(p);wheels.push(p);
-  };
-  wheel(frontX,-sideZ,true);wheel(frontX,sideZ,true);wheel(rearX,-sideZ,false);wheel(rearX,sideZ,false);
-  const doors=[],doorW=size.x*.22,doorH=size.y*.38,doorT=Math.max(.055,size.z*.035),doorY=min.y+size.y*.43,doorZ=Math.max(.50,size.z*.505);
-  const addDoor=(x,side,front)=>{
-    const p=new THREE.Group();p.name=(front?"Front":"Rear")+(side<0?"Left":"Right")+"DoorHinge";p.position.set(front?x+doorW*.5:x-doorW*.5,doorY,side*doorZ);
-    const panel=new THREE.Mesh(new RoundedBoxGeometry(doorW,doorH,doorT,4,.055),bodyMat);panel.position.x=front?-doorW*.5:doorW*.5;panel.position.z=side<0?doorT*.18:-doorT*.18;panel.castShadow=true;p.add(panel);model.add(p);doors.push({pivot:p,open:0,side,front});
-  };
-  addDoor(min.x+size.x*.63,-1,true);addDoor(min.x+size.x*.63,1,true);addDoor(min.x+size.x*.39,-1,false);addDoor(min.x+size.x*.39,1,false);
-  const hood=new THREE.Group();hood.name="HoodHinge";hood.position.set(min.x+size.x*.77,min.y+size.y*.78,0);
-  const hp=new THREE.Mesh(new RoundedBoxGeometry(size.x*.25,size.y*.075,size.z*.92,4,.045),bodyMat);hp.position.x=-size.x*.125;hp.position.y=.015;hp.castShadow=true;hood.add(hp);model.add(hood);
-  const trunk=new THREE.Group();trunk.name="TrunkHinge";trunk.position.set(min.x+size.x*.22,min.y+size.y*.72,0);
-  const tp=new THREE.Mesh(new RoundedBoxGeometry(size.x*.22,size.y*.065,size.z*.9,4,.04),bodyMat);tp.position.x=size.x*.11;tp.position.y=.015;tp.castShadow=true;trunk.add(tp);model.add(trunk);
-  const steering=new THREE.Group();steering.name="SteeringWheel";steering.position.set(min.x+size.x*.66,min.y+size.y*.48,0);
-  const sw=new THREE.Mesh(new THREE.TorusGeometry(Math.max(.16,radius*.62),Math.max(.035,radius*.09),10,24),hubMat);sw.rotation.y=Math.PI/2;steering.add(sw);model.add(steering);
+  const find=(name)=>model.getObjectByName(name)||null;
+  const wheelPivots=[
+    find("WheelPivot_FL"),find("WheelPivot_FR"),
+    find("WheelPivot_RL"),find("WheelPivot_RR")
+  ].filter(Boolean);
+  const wheels=wheelPivots;
+  const doors=[
+    {pivot:find("L_Front_Door_Hinge"),open:0,side:-1,front:true},
+    {pivot:find("R_Front_Door_Hinge"),open:0,side:1,front:true},
+    {pivot:find("L_Rear_Door_Hinge"),open:0,side:-1,front:false},
+    {pivot:find("R_Rear_Door_Hinge"),open:0,side:1,front:false}
+  ].filter(d=>d.pivot);
+  const hood=find("Hood_Hinge")||find("Pivot_Hood");
+  const trunk=find("Trunk_Hinge")||find("Pivot_Trunk");
+  const steering=find("SteeringWheel")||find("Steering_Wheel");
   return {wheels,doors,hood,trunk,steering};
 }
 function updateArticulatedCar(dt){
