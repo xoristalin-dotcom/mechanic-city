@@ -4,6 +4,7 @@ import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeom
 import { RetroCarBuilder } from "./retroCar.js";
 import { makeRetroCar, makeRetroParkedCar, RETRO_COLORS } from "./retroStyle.js";
 import {
+  PART_CATALOG,
   initializeCarParts,
   syncCarPartsFromCatalog,
   removePart,
