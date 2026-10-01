@@ -394,10 +394,22 @@ export class RetroCarBuilder {
       const makeHinge = (nodeName, axis, sign, angle) => {
         const mesh = model.getObjectByName(nodeName);
         if (!mesh) return null;
+        // Build a pivot at the nearest physical edge of the panel instead of
+        // rotating around the mesh center. This makes the imported Challenger
+        // panels actually swing like real doors/hood/trunk lids.
+        const box = new THREE.Box3().setFromObject(mesh);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
         const pivot = new THREE.Object3D();
         pivot.name = nodeName + "_RuntimeHinge";
         mesh.parent?.add(pivot);
-        pivot.position.copy(mesh.position);
+        if(axis === "y"){
+          const edgeX = sign > 0 ? box.min.x : box.max.x;
+          pivot.position.set(edgeX, center.y, center.z);
+        }else{
+          const edgeZ = sign < 0 ? box.max.z : box.min.z;
+          pivot.position.set(center.x, center.y, edgeZ);
+        }
         pivot.attach(mesh);
         return {pivot,open:0,openSign:sign,axis,maxAngle:angle};
       };
