@@ -25,25 +25,24 @@ export const PART_CATALOG = {
     tunable: false,
     baseCost: 120
   },
-  starter: { name: "Стартер", category: "engine", subsystem: "engine", removable: true, tunable: false, baseCost: 85 },
-  cylinder_head: { name: "Головка блока цилиндров", category: "engine", subsystem: "engine", removable: true, tunable: false, baseCost: 320 },
-  valve_cover: { name: "Крышка клапанов", category: "engine", subsystem: "engine", removable: true, tunable: true, baseCost: 95 },
-  oil_filter: { name: "Масляный фильтр", category: "engine", subsystem: "lubrication", removable: true, tunable: false, baseCost: 28 },
-  intake: { name: "Впускной коллектор", category: "engine", subsystem: "air", removable: true, tunable: true, baseCost: 180 },
-  air_intake: { name: "Воздухозаборник", category: "engine", subsystem: "air", removable: true, tunable: true, baseCost: 110 },
-  fuel_system: { name: "Топливная система", category: "engine", subsystem: "fuel", removable: true, tunable: false, baseCost: 190 },
-  engine_mounts: { name: "Опоры двигателя", category: "engine", subsystem: "mounts", removable: true, tunable: false, baseCost: 120 },
-  radiator: { name: "Радиатор", category: "cooling", subsystem: "cooling", removable: true, tunable: false, baseCost: 160 },
-  cooling_fans: { name: "Вентиляторы охлаждения", category: "cooling", subsystem: "cooling", removable: true, tunable: true, baseCost: 130 },
-  battery: { name: "Аккумулятор", category: "electrical", subsystem: "electrical", removable: true, tunable: false, baseCost: 120 },
-  brake_fluid_reservoir: { name: "Бачок тормозной жидкости", category: "brakes", subsystem: "brakes", removable: true, tunable: false, baseCost: 55 },
-  power_steering_reservoir: { name: "Бачок ГУР", category: "steering", subsystem: "steering", removable: true, tunable: false, baseCost: 55 },
+  starter: {
+    name: "Стартер",
+    category: "engine",
+    subsystem: "engine",
+    removable: true,
+    tunable: false,
+    baseCost: 85
+  },
 
-  // TRANSMISSION / DRIVETRAIN
-  transmission: { name: "Коробка передач", category: "transmission", subsystem: "transmission", removable: true, tunable: true, baseCost: 380 },
-  clutch: { name: "Сцепление", category: "transmission", subsystem: "transmission", removable: true, tunable: true, baseCost: 220 },
-  driveshaft: { name: "Карданный вал", category: "transmission", subsystem: "drivetrain", removable: true, tunable: false, baseCost: 140 },
-  differential: { name: "Дифференциал", category: "transmission", subsystem: "drivetrain", removable: true, tunable: true, baseCost: 260 },
+  // TRANSMISSION
+  transmission: {
+    name: "Коробка передач",
+    category: "transmission",
+    subsystem: "transmission",
+    removable: true,
+    tunable: true,
+    baseCost: 380
+  },
 
   // BODY PARTS
   hood: {
@@ -102,18 +101,14 @@ export const PART_CATALOG = {
     tunable: false,
     baseCost: 75
   },
-  bumper_rear: { name: "Задний бампер", category: "body", subsystem: "body", removable: true, tunable: false, baseCost: 65 },
-  fender_FL: { name: "Переднее левое крыло", category: "body", subsystem: "body", removable: true, tunable: false, baseCost: 135 },
-  fender_FR: { name: "Переднее правое крыло", category: "body", subsystem: "body", removable: true, tunable: false, baseCost: 135 },
-  fender_RL: { name: "Заднее левое крыло", category: "body", subsystem: "body", removable: true, tunable: false, baseCost: 150 },
-  fender_RR: { name: "Заднее правое крыло", category: "body", subsystem: "body", removable: true, tunable: false, baseCost: 150 },
-  rocker_L: { name: "Левый порог", category: "body", subsystem: "body", removable: true, tunable: false, baseCost: 100 },
-  rocker_R: { name: "Правый порог", category: "body", subsystem: "body", removable: true, tunable: false, baseCost: 100 },
-  grille: { name: "Решётка радиатора", category: "body", subsystem: "body", removable: true, tunable: true, baseCost: 70 },
-  mirror_L: { name: "Левое зеркало", category: "body", subsystem: "body", removable: true, tunable: false, baseCost: 60 },
-  mirror_R: { name: "Правое зеркало", category: "body", subsystem: "body", removable: true, tunable: false, baseCost: 60 },
-  roof_panel: { name: "Панель крыши", category: "body", subsystem: "body", removable: true, tunable: false, baseCost: 240 },
-  floor_panel: { name: "Панель пола", category: "body", subsystem: "body", removable: true, tunable: false, baseCost: 220 },
+  bumper_rear: {
+    name: "Задний бампер",
+    category: "body",
+    subsystem: "body",
+    removable: true,
+    tunable: false,
+    baseCost: 65
+  },
 
   // WHEELS
   tire_FL: {
