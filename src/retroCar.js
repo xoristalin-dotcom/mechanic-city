@@ -239,42 +239,46 @@ export class RetroCarBuilder {
         rearStripe.position.set(x,0.985,-0.82); detailKit.add(rearStripe);
       }
 
-      // Reference-inspired front fascia: a wide black grille, four round halo
-      // projectors, a thin upper opening and a deeper lower intake.
+      // Front fascia: central grille with two properly spaced headlight pairs.
+      // The lights sit outside the grille, like a real Challenger front end,
+      // instead of four lights clustered across the middle.
       const grille = new THREE.Mesh(
-        new THREE.BoxGeometry(Math.min(1.72,bodyW*0.62),0.34,0.075),trim
+        new THREE.BoxGeometry(Math.min(1.38,bodyW*0.50),0.34,0.075),trim
       );
       grille.position.set(0,0.69,frontZ-0.025); detailKit.add(grille);
 
       const grilleTop = new THREE.Mesh(
-        new THREE.BoxGeometry(Math.min(1.82,bodyW*0.68),0.075,0.055),trim
+        new THREE.BoxGeometry(Math.min(1.50,bodyW*0.56),0.075,0.055),trim
       );
       grilleTop.position.set(0,0.84,frontZ-0.035); detailKit.add(grilleTop);
 
-      for(let i=-7;i<=7;i++){
+      for(let i=-6;i<=6;i++){
         const bar=new THREE.Mesh(new THREE.BoxGeometry(0.026,0.27,0.042),chrome);
         bar.position.set(i*0.085,0.69,frontZ-0.072); detailKit.add(bar);
       }
 
-      // Four round headlights like the reference: two projectors per side,
-      // each with a bright halo ring and dark recessed housing.
-      for(const x of [-bodyW*0.31,-bodyW*0.16,bodyW*0.16,bodyW*0.31]){
+      // Four headlights: wide outer/inner spacing, symmetric left and right pairs.
+      const headlightXs=[
+        -bodyW*0.39,-bodyW*0.25,
+         bodyW*0.25, bodyW*0.39
+      ];
+      for(const x of headlightXs){
         const housing=new THREE.Mesh(
-          new THREE.CylinderGeometry(0.19,0.19,0.075,20),lampInner
+          new THREE.CylinderGeometry(0.16,0.16,0.075,20),lampInner
         );
         housing.rotation.x=Math.PI/2;
         housing.position.set(x,0.80,frontZ-0.045);
         detailKit.add(housing);
 
         const head=new THREE.Mesh(
-          new THREE.TorusGeometry(0.145,0.032,8,24),lamp
+          new THREE.TorusGeometry(0.122,0.029,8,24),lamp
         );
         head.rotation.x=Math.PI/2;
         head.position.set(x,0.80,frontZ-0.092);
         detailKit.add(head);
 
         const inner=new THREE.Mesh(
-          new THREE.CylinderGeometry(0.064,0.064,0.032,16),lampGlow
+          new THREE.CylinderGeometry(0.054,0.054,0.032,16),lampGlow
         );
         inner.rotation.x=Math.PI/2;
         inner.position.set(x,0.80,frontZ-0.108);
