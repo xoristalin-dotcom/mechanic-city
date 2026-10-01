@@ -1,0 +1,1049 @@
+import * as THREE from "three";
+
+/**
+ * Retro Garage Rally-style car with full articulation
+ * - All doors, hood, trunk can open
+ * - Wheels can be removed/replaced
+ * - Engine, transmission, suspension can be dismantled
+ * - Each part has condition state and visual wear
+ */
+
+export class RetroCarBuilder {
+  constructor(config = {}) {
+    this.config = {
+      color: 0x244b77,
+      type: 'sedan',        // sedan, truck, sport, van
+      year: 1975,
+      damageLevel: 0,       // 0-100
+      ...config
+    };
+
+    this.carGroup = new THREE.Group();
+    this.carGroup.name = "RetroCarAssembly";
+
+    // Track all removable parts
+    this.parts = {};
+    this.pivots = {};      // For hinges (doors, hood, trunk)
+    this.articulation = {
+      doors: {},
+      hood: null,
+      trunk: null,
+      wheels: {},
+      engine: null,
+      transmission: null,
+      suspension: {},
+      exhaust: null
+    };
+
+    this.build();
+  }
+
+  build() {
+    this.buildChassis();
+    this.buildBody();
+    this.buildDoors();
+    this.buildHoodAndTrunk();
+    this.buildWindows();
+    this.buildLights();
+    this.buildBumpers();
+    this.buildWheels();
+    this.buildEngine();
+    this.buildTransmission();
+    this.buildSuspension();
+    this.buildExhaust();
+    this.buildInterior();
+    this.buildMirrors();
+  }
+
+  // ====== ГЛАВНАЯ КОНСТРУКЦИЯ ======
+
+  buildChassis() {
+    // Несущая конструкция (не снимается)
+    const paint = this.getMaterial('paint', this.config.color);
+    const chassisGroup = new THREE.Group();
+    chassisGroup.name = "Chassis";
+
+    const bodyHeight = this.config.type === 'truck' ? 0.75 : 0.68;
+    const bodyLength = this.getBodyLength();
+    const bodyWidth = this.getBodyWidth();
+
+    // Основной кузов - структурный элемент
+    const chassis = new THREE.Mesh(
+      new THREE.BoxGeometry(bodyWidth, bodyHeight, bodyLength),
+      paint
+    );
+    chassis.position.y = 0.62;
+    chassis.castShadow = true;
+    chassis.receiveShadow = true;
+    chassis.userData = {
+      partKey: "chassis",
+      partName: "Кузов (несущая конструкция)",
+      category: "body",
+      removable: false,
+      condition: 100
+    };
+
+    chassisGroup.add(chassis);
+    this.carGroup.add(chassisGroup);
+    this.parts.chassis = { mesh: chassis, condition: 100 };
+  }
+
+  buildBody() {
+    const paint = this.getMaterial('paint', this.config.color);
+    const bodyGroup = new THREE.Group();
+    bodyGroup.name = "BodyPanels";
+
+    const bodyWidth = this.getBodyWidth();
+    const bodyHeight = this.config.type === 'truck' ? 0.75 : 0.68;
+    const bodyLength = this.getBodyLength();
+
+    // Капот (съёмный!)
+    this.createRemovablePart("hood", "Капот", "body",
+      new THREE.BoxGeometry(bodyWidth - 0.1, 0.18, 1.4),
+      paint,
+      new THREE.Vector3(0, 0.95, -bodyLength / 2 + 0.8),
+      bodyGroup
+    );
+
+    // Багажник (съёмный!)
+    this.createRemovablePart("trunk", "Багажник", "body",
+      new THREE.BoxGeometry(bodyWidth - 0.1, 0.18, 0.9),
+      paint,
+      new THREE.Vector3(0, 0.95, bodyLength / 2 - 0.5),
+      bodyGroup
+    );
+
+    // Боковые панели (структурные, не снимаются)
+    for (const side of [-1, 1]) {
+      const sidePanel = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.6, bodyLength - 0.5),
+        paint
+      );
+      sidePanel.position.set(side * (bodyWidth / 2 + 0.04), 0.7, 0);
+      sidePanel.castShadow = true;
+      sidePanel.receiveShadow = true;
+      bodyGroup.add(sidePanel);
+    }
+
+    this.carGroup.add(bodyGroup);
+  }
+
+  buildDoors() {
+    const paint = this.getMaterial('paint', this.config.color);
+    const doorsGroup = new THREE.Group();
+    doorsGroup.name = "Doors";
+
+    const doorConfigs = [
+      { name: "FrontLeft", side: -1, front: true, position: [-1.5, 0.9, -0.4] },
+      { name: "FrontRight", side: 1, front: true, position: [1.5, 0.9, -0.4] },
+      { name: "RearLeft", side: -1, front: false, position: [-1.5, 0.9, 0.6] },
+      { name: "RearRight", side: 1, front: false, position: [1.5, 0.9, 0.6] }
+    ];
+
+    for (const config of doorConfigs) {
+      const doorGroup = new THREE.Group();
+      doorGroup.name = `Door_${config.name}`;
+
+      // Создаём шарнир (pivot)
+      const hingePivot = new THREE.Group();
+      hingePivot.name = `${config.name}_Hinge`;
+      hingePivot.position.copy(new THREE.Vector3(...config.position));
+
+      // Дверь
+      const door = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.55, 0.9),
+        paint
+      );
+      door.castShadow = true;
+      door.receiveShadow = true;
+      door.userData = {
+        partKey: `door_${config.name}`,
+        partName: `Дверь ${config.name}`,
+        category: "body",
+        removable: true,
+        condition: 100,
+        side: config.side,
+        isFront: config.front
+      };
+
+      hingePivot.add(door);
+      doorGroup.add(hingePivot);
+      doorsGroup.add(doorGroup);
+
+      this.articulation.doors[config.name] = {
+        pivot: hingePivot,
+        door: door,
+        openAngle: 0,
+        maxAngle: config.side < 0 ? Math.PI / 2.2 : -Math.PI / 2.2,
+        side: config.side
+      };
+
+      this.parts[`door_${config.name}`] = { 
+        mesh: door, 
+        condition: 100,
+        removable: true 
+      };
+    }
+
+    this.carGroup.add(doorsGroup);
+  }
+
+  buildHoodAndTrunk() {
+    const paint = this.getMaterial('paint', this.config.color);
+    const lidsGroup = new THREE.Group();
+    lidsGroup.name = "Lids";
+
+    const bodyLength = this.getBodyLength();
+
+    // Капот - открывается вверх-назад
+    const hoodPivot = new THREE.Group();
+    hoodPivot.name = "Hood_Hinge";
+    hoodPivot.position.set(0, 1.2, -bodyLength / 2 + 1.0);
+
+    const hood = new THREE.Mesh(
+      new THREE.BoxGeometry(this.getBodyWidth() - 0.1, 0.1, 1.2),
+      paint
+    );
+    hood.castShadow = true;
+    hood.receiveShadow = true;
+    hood.position.z = 0.6; // Смещение от оси вращения
+    hood.userData = {
+      partKey: "hood_lid",
+      partName: "Крышка капота",
+      category: "body",
+      removable: true,
+      condition: 100
+    };
+
+    hoodPivot.add(hood);
+    lidsGroup.add(hoodPivot);
+
+    this.articulation.hood = {
+      pivot: hoodPivot,
+      lid: hood,
+      openAngle: 0,
+      maxAngle: -Math.PI / 1.8
+    };
+
+    this.parts.hood_lid = { mesh: hood, condition: 100, removable: true };
+
+    // Багажник - открывается вверх
+    const trunkPivot = new THREE.Group();
+    trunkPivot.name = "Trunk_Hinge";
+    trunkPivot.position.set(0, 1.2, bodyLength / 2 - 0.6);
+
+    const trunk = new THREE.Mesh(
+      new THREE.BoxGeometry(this.getBodyWidth() - 0.1, 0.1, 0.7),
+      paint
+    );
+    trunk.castShadow = true;
+    trunk.receiveShadow = true;
+    trunk.position.z = -0.35;
+    trunk.userData = {
+      partKey: "trunk_lid",
+      partName: "Крышка багажника",
+      category: "body",
+      removable: true,
+      condition: 100
+    };
+
+    trunkPivot.add(trunk);
+    lidsGroup.add(trunkPivot);
+
+    this.articulation.trunk = {
+      pivot: trunkPivot,
+      lid: trunk,
+      openAngle: 0,
+      maxAngle: Math.PI / 1.8
+    };
+
+    this.parts.trunk_lid = { mesh: trunk, condition: 100, removable: true };
+
+    this.carGroup.add(lidsGroup);
+  }
+
+  buildWindows() {
+    const glassRetro = this.getMaterial('glass', 0x1a3a4a);
+    const windowsGroup = new THREE.Group();
+    windowsGroup.name = "Windows";
+
+    const bodyWidth = this.getBodyWidth();
+
+    // Передние окна
+    const frontWindow = new THREE.Mesh(
+      new THREE.BoxGeometry(bodyWidth - 0.3, 0.01, 1.2),
+      glassRetro
+    );
+    frontWindow.position.set(0, 1.32, -0.8);
+    frontWindow.userData = {
+      partKey: "window_front",
+      partName: "Переднее стекло",
+      category: "glass",
+      removable: true,
+      condition: 100
+    };
+    windowsGroup.add(frontWindow);
+    this.parts.window_front = { mesh: frontWindow, condition: 100, removable: true };
+
+    // Боковые окна
+    for (const x of [-1.55, 1.55]) {
+      const sideWindow = new THREE.Mesh(
+        new THREE.BoxGeometry(0.01, 0.4, 1.8),
+        glassRetro
+      );
+      sideWindow.position.set(x, 1.15, 0.2);
+      sideWindow.userData = {
+        partKey: `window_side_${x > 0 ? 'r' : 'l'}`,
+        partName: `Боковое окно ${x > 0 ? 'справа' : 'слева'}`,
+        category: "glass",
+        removable: true,
+        condition: 100
+      };
+      windowsGroup.add(sideWindow);
+      this.parts[sideWindow.userData.partKey] = { mesh: sideWindow, condition: 100, removable: true };
+    }
+
+    // Заднее окно
+    const rearWindow = new THREE.Mesh(
+      new THREE.BoxGeometry(bodyWidth - 0.3, 0.01, 0.8),
+      glassRetro
+    );
+    rearWindow.position.set(0, 1.3, 1.4);
+    rearWindow.userData = {
+      partKey: "window_rear",
+      partName: "Заднее стекло",
+      category: "glass",
+      removable: true,
+      condition: 100
+    };
+    windowsGroup.add(rearWindow);
+    this.parts.window_rear = { mesh: rearWindow, condition: 100, removable: true };
+
+    this.carGroup.add(windowsGroup);
+  }
+
+  buildLights() {
+    const lightsGroup = new THREE.Group();
+    lightsGroup.name = "Lights";
+
+    const bodyLength = this.getBodyLength();
+
+    // Передние фары
+    const headlight = this.getMaterial('headlight', 0xffeb3b);
+    for (const x of [-1.2, 1.2]) {
+      const light = new THREE.Mesh(
+        new THREE.BoxGeometry(0.35, 0.3, 0.15),
+        headlight
+      );
+      light.position.set(x, 0.75, -bodyLength / 2 - 0.18);
+      light.castShadow = true;
+      light.userData = {
+        partKey: `headlight_${x > 0 ? 'r' : 'l'}`,
+        partName: `Фара ${x > 0 ? 'справа' : 'слева'}`,
+        category: "lights",
+        removable: true,
+        condition: 100
+      };
+      lightsGroup.add(light);
+      this.parts[light.userData.partKey] = { mesh: light, condition: 100, removable: true };
+    }
+
+    // Задние фонари
+    const taillight = this.getMaterial('taillight', 0xcc3333);
+    for (const x of [-1.2, 1.2]) {
+      const light = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, 0.25, 0.1),
+        taillight
+      );
+      light.position.set(x, 0.7, bodyLength / 2 + 0.18);
+      light.castShadow = true;
+      light.userData = {
+        partKey: `taillight_${x > 0 ? 'r' : 'l'}`,
+        partName: `Задний фонарь ${x > 0 ? 'справа' : 'слева'}`,
+        category: "lights",
+        removable: true,
+        condition: 100
+      };
+      lightsGroup.add(light);
+      this.parts[light.userData.partKey] = { mesh: light, condition: 100, removable: true };
+    }
+
+    this.carGroup.add(lightsGroup);
+  }
+
+  buildBumpers() {
+    const chrome = this.getMaterial('chrome', 0xa8a8a8);
+    const bumperGroup = new THREE.Group();
+    bumperGroup.name = "Bumpers";
+
+    const bodyLength = this.getBodyLength();
+    const bodyWidth = this.getBodyWidth();
+
+    // Передний бампер (снимаемый)
+    const frontBumper = new THREE.Mesh(
+      new THREE.BoxGeometry(bodyWidth + 0.3, 0.12, 0.25),
+      chrome
+    );
+    frontBumper.position.set(0, 0.48, -bodyLength / 2 - 0.15);
+    frontBumper.castShadow = true;
+    frontBumper.userData = {
+      partKey: "bumper_front",
+      partName: "Передний бампер",
+      category: "body",
+      removable: true,
+      condition: 100
+    };
+    bumperGroup.add(frontBumper);
+    this.parts.bumper_front = { mesh: frontBumper, condition: 100, removable: true };
+
+    // Задний бампер (снимаемый)
+    const rearBumper = frontBumper.clone();
+    rearBumper.position.z = bodyLength / 2 + 0.15;
+    rearBumper.userData = {
+      partKey: "bumper_rear",
+      partName: "Задний бампер",
+      category: "body",
+      removable: true,
+      condition: 100
+    };
+    bumperGroup.add(rearBumper);
+    this.parts.bumper_rear = { mesh: rearBumper, condition: 100, removable: true };
+
+    this.carGroup.add(bumperGroup);
+  }
+
+  buildWheels() {
+    const wheelGroup = new THREE.Group();
+    wheelGroup.name = "Wheels";
+
+    const wheelRadius = 0.43;
+    const wheelPositions = [
+      { name: "FL", pos: [-1.34, 0.43, -1.52] },
+      { name: "FR", pos: [1.34, 0.43, -1.52] },
+      { name: "RL", pos: [-1.34, 0.43, 1.52] },
+      { name: "RR", pos: [1.34, 0.43, 1.52] }
+    ];
+
+    const tireMat = this.getMaterial('tire', 0x0a0a0a);
+    const rimMat = this.getMaterial('rim', 0xcccccc);
+    const hubMat = this.getMaterial('chrome', 0xa8a8a8);
+
+    for (const config of wheelPositions) {
+      const wheelAssembly = new THREE.Group();
+      wheelAssembly.name = `Wheel_${config.name}`;
+      wheelAssembly.position.set(...config.pos);
+
+      // Шина (съёмная)
+      const tireGeo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, 0.28, 16);
+      const tire = new THREE.Mesh(tireGeo, tireMat);
+      tire.rotation.z = Math.PI / 2;
+      tire.castShadow = true;
+      tire.userData = {
+        partKey: `tire_${config.name}`,
+        partName: `Шина ${config.name}`,
+        category: "wheels",
+        removable: true,
+        condition: 100
+      };
+      wheelAssembly.add(tire);
+      this.parts[`tire_${config.name}`] = { 
+        mesh: tire, 
+        condition: 100, 
+        removable: true,
+        wheelAssembly: wheelAssembly 
+      };
+
+      // Диск (съёмный)
+      const rimGeo = new THREE.CylinderGeometry(wheelRadius - 0.12, wheelRadius - 0.12, 0.3, 12);
+      const rim = new THREE.Mesh(rimGeo, rimMat);
+      rim.rotation.z = Math.PI / 2;
+      rim.userData = {
+        partKey: `rim_${config.name}`,
+        partName: `Диск ${config.name}`,
+        category: "wheels",
+        removable: true,
+        condition: 100
+      };
+      wheelAssembly.add(rim);
+      this.parts[`rim_${config.name}`] = { 
+        mesh: rim, 
+        condition: 100, 
+        removable: true,
+        wheelAssembly: wheelAssembly 
+      };
+
+      // Центральный колпак
+      const hubGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.32, 8);
+      const hub = new THREE.Mesh(hubGeo, hubMat);
+      hub.rotation.z = Math.PI / 2;
+      wheelAssembly.add(hub);
+
+      // Тормозной ротор (видно из-под колеса)
+      const rotorGeo = new THREE.CylinderGeometry(wheelRadius - 0.08, wheelRadius - 0.08, 0.05, 12);
+      const rotor = new THREE.Mesh(rotorGeo, this.getMaterial('rotor', 0x333333));
+      rotor.rotation.z = Math.PI / 2;
+      rotor.position.x = 0.2;
+      rotor.userData = {
+        partKey: `rotor_${config.name}`,
+        partName: `Тормозной ротор ${config.name}`,
+        category: "brakes",
+        removable: true,
+        condition: 100
+      };
+      wheelAssembly.add(rotor);
+      this.parts[`rotor_${config.name}`] = { mesh: rotor, condition: 100, removable: true };
+
+      wheelGroup.add(wheelAssembly);
+      this.articulation.wheels[config.name] = {
+        assembly: wheelAssembly,
+        tire: tire,
+        rim: rim
+      };
+    }
+
+    this.carGroup.add(wheelGroup);
+  }
+
+  buildEngine() {
+    const engineGroup = new THREE.Group();
+    engineGroup.name = "Engine";
+
+    // Двигатель (съёмный!) - видно в открытом капоте
+    const engineBody = new THREE.Mesh(
+      new THREE.BoxGeometry(1.2, 0.6, 1.0),
+      this.getMaterial('engine', 0x1a1a1a)
+    );
+    engineBody.position.set(0, 1.5, -1.8);
+    engineBody.castShadow = true;
+    engineBody.userData = {
+      partKey: "engine",
+      partName: "Двигатель",
+      category: "engine",
+      removable: true,
+      condition: 100,
+      tunable: true
+    };
+    engineGroup.add(engineBody);
+    this.parts.engine = { mesh: engineBody, condition: 100, removable: true };
+
+    // Блок цилиндров
+    for (let i = 0; i < 4; i++) {
+      const cylinder = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.1, 0.1, 0.4, 8),
+        this.getMaterial('cylinder', 0x2a2a2a)
+      );
+      cylinder.position.set(-0.3 + i * 0.2, 1.85, -1.8);
+      cylinder.rotation.z = Math.PI / 2;
+      engineGroup.add(cylinder);
+    }
+
+    // Генератор
+    const alternator = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.15, 0.15, 0.3, 8),
+      this.getMaterial('alternator', 0x4a4a4a)
+    );
+    alternator.position.set(0.7, 1.6, -1.8);
+    alternator.rotation.z = Math.PI / 2;
+    alternator.userData = {
+      partKey: "alternator",
+      partName: "Генератор",
+      category: "engine",
+      removable: true,
+      condition: 100
+    };
+    engineGroup.add(alternator);
+    this.parts.alternator = { mesh: alternator, condition: 100, removable: true };
+
+    // Стартер
+    const starter = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.12, 0.25, 8),
+      this.getMaterial('starter', 0x3a3a3a)
+    );
+    starter.position.set(-0.7, 1.4, -1.8);
+    starter.rotation.z = Math.PI / 2;
+    starter.userData = {
+      partKey: "starter",
+      partName: "Стартер",
+      category: "engine",
+      removable: true,
+      condition: 100
+    };
+    engineGroup.add(starter);
+    this.parts.starter = { mesh: starter, condition: 100, removable: true };
+
+    this.carGroup.add(engineGroup);
+    this.articulation.engine = { group: engineGroup, condition: 100 };
+  }
+
+  buildTransmission() {
+    const transGroup = new THREE.Group();
+    transGroup.name = "Transmission";
+
+    const transmission = new THREE.Mesh(
+      new THREE.BoxGeometry(0.8, 0.5, 1.2),
+      this.getMaterial('transmission', 0x1a1a1a)
+    );
+    transmission.position.set(0, 1.2, -0.2);
+    transmission.castShadow = true;
+    transmission.userData = {
+      partKey: "transmission",
+      partName: "Коробка передач",
+      category: "transmission",
+      removable: true,
+      condition: 100,
+      tunable: true
+    };
+    transGroup.add(transmission);
+    this.parts.transmission = { mesh: transmission, condition: 100, removable: true };
+
+    this.carGroup.add(transGroup);
+    this.articulation.transmission = { group: transGroup, condition: 100 };
+  }
+
+  buildSuspension() {
+    const suspensionGroup = new THREE.Group();
+    suspensionGroup.name = "Suspension";
+
+    const suspPositions = [
+      { name: "FL", pos: [-1.34, 0.5, -1.52] },
+      { name: "FR", pos: [1.34, 0.5, -1.52] },
+      { name: "RL", pos: [-1.34, 0.5, 1.52] },
+      { name: "RR", pos: [1.34, 0.5, 1.52] }
+    ];
+
+    for (const config of suspPositions) {
+      // Стойка амортизатора
+      const strut = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08, 0.08, 0.6, 8),
+        this.getMaterial('suspension', 0x3a3a3a)
+      );
+      strut.position.set(...config.pos);
+      strut.rotation.x = Math.PI / 6;
+      strut.castShadow = true;
+      strut.userData = {
+        partKey: `strut_${config.name}`,
+        partName: `Амортизатор ${config.name}`,
+        category: "suspension",
+        removable: true,
+        condition: 100
+      };
+      suspensionGroup.add(strut);
+      this.parts[`strut_${config.name}`] = { mesh: strut, condition: 100, removable: true };
+
+      // Пружина
+      const spring = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.12, 0.5, 8),
+        this.getMaterial('spring', 0x2a2a2a)
+      );
+      spring.position.set(...config.pos);
+      spring.position.y += 0.1;
+      spring.userData = {
+        partKey: `spring_${config.name}`,
+        partName: `Пружина ${config.name}`,
+        category: "suspension",
+        removable: true,
+        condition: 100
+      };
+      suspensionGroup.add(spring);
+      this.parts[`spring_${config.name}`] = { mesh: spring, condition: 100, removable: true };
+    }
+
+    this.carGroup.add(suspensionGroup);
+  }
+
+  buildExhaust() {
+    const exhaustGroup = new THREE.Group();
+    exhaustGroup.name = "Exhaust";
+
+    // Выхлопная труба
+    const pipe = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.1, 0.1, 2.0, 8),
+      this.getMaterial('exhaust', 0x1a1a1a)
+    );
+    pipe.position.set(0, 0.3, 1.8);
+    pipe.rotation.x = Math.PI / 12;
+    pipe.castShadow = true;
+    pipe.userData = {
+      partKey: "exhaust_pipe",
+      partName: "Выхлопная труба",
+      category: "exhaust",
+      removable: true,
+      condition: 100
+    };
+    exhaustGroup.add(pipe);
+    this.parts.exhaust_pipe = { mesh: pipe, condition: 100, removable: true };
+
+    // Глушитель
+    const muffler = new THREE.Mesh(
+      new THREE.BoxGeometry(0.25, 0.2, 0.4),
+      this.getMaterial('muffler', 0x2a2a2a)
+    );
+    muffler.position.set(0, 0.25, 2.8);
+    muffler.castShadow = true;
+    muffler.userData = {
+      partKey: "muffler",
+      partName: "Глушитель",
+      category: "exhaust",
+      removable: true,
+      condition: 100
+    };
+    exhaustGroup.add(muffler);
+    this.parts.muffler = { mesh: muffler, condition: 100, removable: true };
+
+    this.carGroup.add(exhaustGroup);
+    this.articulation.exhaust = { group: exhaustGroup, condition: 100 };
+  }
+
+  buildInterior() {
+    const interiorGroup = new THREE.Group();
+    interiorGroup.name = "Interior";
+
+    // Рулевое колесо
+    const steering = new THREE.Mesh(
+      new THREE.TorusGeometry(0.25, 0.05, 8, 32),
+      this.getMaterial('steering', 0x1a1a1a)
+    );
+    steering.position.set(-0.4, 1.4, -0.8);
+    steering.rotation.y = Math.PI / 4;
+    steering.userData = {
+      partKey: "steering_wheel",
+      partName: "Рулевое колесо",
+      category: "interior",
+      removable: true,
+      condition: 100
+    };
+    interiorGroup.add(steering);
+    this.parts.steering_wheel = { mesh: steering, condition: 100, removable: true };
+
+    // Сиденья
+    for (const side of [-1, 1]) {
+      const seat = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.4, 0.6),
+        this.getMaterial('seat', 0x4a4a4a)
+      );
+      seat.position.set(side * 0.6, 1.0, -0.3);
+      seat.castShadow = true;
+      seat.userData = {
+        partKey: `seat_${side > 0 ? 'r' : 'l'}`,
+        partName: `Сидение ${side > 0 ? 'справа' : 'слева'}`,
+        category: "interior",
+        removable: true,
+        condition: 100
+      };
+      interiorGroup.add(seat);
+      this.parts[seat.userData.partKey] = { mesh: seat, condition: 100, removable: true };
+    }
+
+    this.carGroup.add(interiorGroup);
+  }
+
+  buildMirrors() {
+    const mirrorGroup = new THREE.Group();
+    mirrorGroup.name = "Mirrors";
+
+    const chrome = this.getMaterial('chrome', 0xa8a8a8);
+
+    for (const x of [-1.55, 1.55]) {
+      const mirror = new THREE.Mesh(
+        new THREE.BoxGeometry(0.15, 0.2, 0.2),
+        chrome
+      );
+      mirror.position.set(x, 1.1, -0.8);
+      mirror.castShadow = true;
+      mirror.userData = {
+        partKey: `mirror_${x > 0 ? 'r' : 'l'}`,
+        partName: `Зеркало ${x > 0 ? 'справа' : 'слева'}`,
+        category: "body",
+        removable: true,
+        condition: 100
+      };
+      mirrorGroup.add(mirror);
+      this.parts[mirror.userData.partKey] = { mesh: mirror, condition: 100, removable: true };
+    }
+
+    this.carGroup.add(mirrorGroup);
+  }
+
+  // ====== УТИЛИТЫ ======
+
+  getMaterial(type, color = 0xcccccc) {
+    const materials = {
+      paint: () => new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.35,
+        roughness: 0.45
+      }),
+      chrome: () => new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.85,
+        roughness: 0.2
+      }),
+      glass: () => new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.05,
+        roughness: 0.3,
+        transparent: true,
+        opacity: 0.8
+      }),
+      tire: () => new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.95
+      }),
+      rim: () => new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.7,
+        roughness: 0.4
+      }),
+      rotor: () => new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.5,
+        roughness: 0.6
+      }),
+      headlight: () => new THREE.MeshStandardMaterial({
+        color,
+        emissive: 0xffb300,
+        emissiveIntensity: 0.8,
+        roughness: 0.18
+      }),
+      taillight: () => new THREE.MeshStandardMaterial({
+        color,
+        emissive: 0x990000,
+        emissiveIntensity: 0.7,
+        roughness: 0.25
+      }),
+      engine: () => new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.9,
+        metalness: 0.2
+      }),
+      cylinder: () => new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.6,
+        roughness: 0.5
+      }),
+      alternator: () => new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.7,
+        roughness: 0.4
+      }),
+      starter: () => new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.65,
+        roughness: 0.45
+      }),
+      transmission: () => new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.8,
+        metalness: 0.3
+      }),
+      suspension: () => new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.6,
+        roughness: 0.5
+      }),
+      spring: () => new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.7,
+        roughness: 0.4
+      }),
+      exhaust: () => new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.4,
+        roughness: 0.7
+      }),
+      muffler: () => new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.3,
+        roughness: 0.8
+      }),
+      steering: () => new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.6
+      }),
+      seat: () => new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.8
+      })
+    };
+
+    return materials[type] ? materials[type]() : new THREE.MeshStandardMaterial({ color });
+  }
+
+  getBodyWidth() {
+    return this.config.type === 'van' ? 3.2 : 3.04;
+  }
+
+  getBodyLength() {
+    return this.config.type === 'van' ? 5.2 : this.config.type === 'truck' ? 4.8 : 4.98;
+  }
+
+  createRemovablePart(partKey, partName, category, geometry, material, position, parent) {
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.copy(position);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData = {
+      partKey,
+      partName,
+      category,
+      removable: true,
+      condition: 100
+    };
+
+    parent.add(mesh);
+    this.parts[partKey] = { mesh, condition: 100, removable: true };
+
+    return mesh;
+  }
+
+  // ====== ВЗАИМОДЕЙСТВИЕ ======
+
+  openDoor(doorName, targetAngle = null) {
+    const door = this.articulation.doors[doorName];
+    if (!door) return;
+
+    door.targetAngle = targetAngle !== null ? targetAngle : door.maxAngle;
+  }
+
+  closeDoor(doorName) {
+    const door = this.articulation.doors[doorName];
+    if (!door) return;
+
+    door.targetAngle = 0;
+  }
+
+  openHood(targetAngle = null) {
+    if (!this.articulation.hood) return;
+    this.articulation.hood.targetAngle = targetAngle !== null ? targetAngle : this.articulation.hood.maxAngle;
+  }
+
+  closeHood() {
+    if (!this.articulation.hood) return;
+    this.articulation.hood.targetAngle = 0;
+  }
+
+  openTrunk(targetAngle = null) {
+    if (!this.articulation.trunk) return;
+    this.articulation.trunk.targetAngle = targetAngle !== null ? targetAngle : this.articulation.trunk.maxAngle;
+  }
+
+  closeTrunk() {
+    if (!this.articulation.trunk) return;
+    this.articulation.trunk.targetAngle = 0;
+  }
+
+  removePart(partKey) {
+    const part = this.parts[partKey];
+    if (!part || !part.removable) return false;
+
+    // Если часть не видна, не снимаем
+    if (part.mesh && !part.mesh.visible) return false;
+
+    part.mesh.visible = false;
+    part.installed = false;
+    return true;
+  }
+
+  installPart(partKey) {
+    const part = this.parts[partKey];
+    if (!part || !part.removable) return false;
+
+    part.mesh.visible = true;
+    part.installed = true;
+    return true;
+  }
+
+  repairPart(partKey, amount = 100) {
+    const part = this.parts[partKey];
+    if (!part) return;
+
+    part.condition = Math.min(100, (part.condition || 0) + amount);
+    this.updatePartVisualCondition(partKey);
+  }
+
+  damagePart(partKey, amount = 10) {
+    const part = this.parts[partKey];
+    if (!part) return;
+
+    part.condition = Math.max(0, (part.condition || 100) - amount);
+    this.updatePartVisualCondition(partKey);
+  }
+
+  updatePartVisualCondition(partKey) {
+    const part = this.parts[partKey];
+    if (!part || !part.mesh) return;
+
+    const condition = part.condition || 100;
+
+    if (condition < 30) {
+      // Сильное повреждение - ржавчина
+      if (part.mesh.material) {
+        if (Array.isArray(part.mesh.material)) {
+          part.mesh.material.forEach(m => {
+            m.color.setHex(0x8b4513);
+            m.roughness = 1;
+          });
+        } else {
+          part.mesh.material.color.setHex(0x8b4513);
+          part.mesh.material.roughness = 1;
+        }
+      }
+    } else if (condition < 60) {
+      // Среднее повреждение
+      if (part.mesh.material) {
+        if (Array.isArray(part.mesh.material)) {
+          part.mesh.material.forEach(m => m.roughness = 0.7);
+        } else {
+          part.mesh.material.roughness = 0.7;
+        }
+      }
+    }
+  }
+
+  getPart(partKey) {
+    return this.parts[partKey] || null;
+  }
+
+  getAllParts() {
+    return this.parts;
+  }
+
+  updateArticulation(dt) {
+    // Двери
+    for (const door of Object.values(this.articulation.doors)) {
+      if (door.targetAngle !== undefined) {
+        door.openAngle = THREE.MathUtils.damp(
+          door.openAngle,
+          door.targetAngle,
+          8,
+          dt
+        );
+        door.pivot.rotation.y = door.openAngle;
+      }
+    }
+
+    // Капот
+    if (this.articulation.hood) {
+      const hood = this.articulation.hood;
+      if (hood.targetAngle !== undefined) {
+        hood.openAngle = THREE.MathUtils.damp(hood.openAngle, hood.targetAngle, 8, dt);
+        hood.pivot.rotation.x = hood.openAngle;
+      }
+    }
+
+    // Багажник
+    if (this.articulation.trunk) {
+      const trunk = this.articulation.trunk;
+      if (trunk.targetAngle !== undefined) {
+        trunk.openAngle = THREE.MathUtils.damp(trunk.openAngle, trunk.targetAngle, 8, dt);
+        trunk.pivot.rotation.x = trunk.openAngle;
+      }
+    }
+  }
+
+  getGroup() {
+    return this.carGroup;
+  }
+}
+
+export default RetroCarBuilder;
