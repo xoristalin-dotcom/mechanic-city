@@ -408,6 +408,34 @@ export class RetroCarBuilder {
       bayFloor.position.set(0,0.72,0.72);
       engineBay.add(bayFloor);
 
+      // ОПАКОВКА моторного отсека: непрозрачные внутренние стенки.
+      // Они закрывают пустоты по бокам/сзади двигателя и не используют alpha.
+      const innerWallMat=new THREE.MeshStandardMaterial({
+        color:0x24262a, metalness:0.62, roughness:0.34,
+        transparent:false, opacity:1, depthWrite:true, side:THREE.DoubleSide
+      });
+      const leftInnerWall=new THREE.Mesh(
+        new THREE.BoxGeometry(0.16,1.05,2.05),innerWallMat
+      );
+      leftInnerWall.position.set(-1.28,1.10,0.78);
+      leftInnerWall.name="EngineBay_LeftInnerWall";
+      const rightInnerWall=leftInnerWall.clone();
+      rightInnerWall.position.x=1.28;
+      rightInnerWall.name="EngineBay_RightInnerWall";
+
+      const firewall=new THREE.Mesh(
+        new THREE.BoxGeometry(2.55,1.08,0.14),innerWallMat
+      );
+      firewall.position.set(0,1.10,-0.30);
+      firewall.name="EngineBay_Firewall";
+
+      const frontInnerWall=new THREE.Mesh(
+        new THREE.BoxGeometry(2.55,0.82,0.14),innerWallMat
+      );
+      frontInnerWall.position.set(0,0.98,1.90);
+      frontInnerWall.name="EngineBay_RadiatorWall";
+      engineBay.add(leftInnerWall,rightInnerWall,firewall,frontInnerWall);
+
       const engine=new THREE.Mesh(new THREE.BoxGeometry(1.35,0.72,1.15),metalMat);
       engine.position.set(0,1.05,0.80);
       engine.name="Dodge_V8_Engine_Block";
