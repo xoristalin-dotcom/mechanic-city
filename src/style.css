@@ -51,14 +51,16 @@ button,.steer,.pedal{user-select:none;-webkit-user-select:none;-webkit-touch-cal
 button{cursor:pointer}
 
 
-/* Fixed landscape game canvas. The game always renders in the same landscape layout.
-   If the phone is held portrait, the entire game rotates in-place so the player
-   does not have to physically turn the phone. */
+/* Fixed landscape game canvas.
+   iOS was showing this layer rotated the wrong way when the phone stayed portrait.
+   Keep the internal canvas landscape, but rotate it counter-clockwise so the HUD
+   and controls remain readable in the captured portrait viewport. */
 @media (orientation:portrait) and (max-width:900px){
   .game{
-    width:100dvh;height:100vw;
+    width:100dvh;
+    height:100vw;
     transform-origin:top left;
-    transform:rotate(90deg) translateY(-100%);
+    transform:rotate(-90deg) translateX(-100%);
   }
 }
 @media (orientation:landscape){
