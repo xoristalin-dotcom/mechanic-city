@@ -542,14 +542,13 @@ function buildWorkshop(){
   car.userData.workshopMode=true;
   swapToBlenderCrown72().then(()=>{
     if(!car?.userData?.serviceParts)return;
-    disassembleWorkshopCar();
-    msg("🔧 Машина разобрана на подъёмнике. Выбери деталь для работы.");
+    car.userData.workshopDisassembled=false;
+    msg("🔧 Машина собрана на подъёмнике. Нажми на деталь, чтобы открыть её обслуживание.");
   }).catch(err=>window.MechanicCityDebugLog?.({type:"workshop-load",message:String(err?.message||err)}));
   const label=document.createElement("div");
   label.className="workshop-hud";
-  label.innerHTML="<div><b>МАСТЕРСКАЯ</b><span>Автомобиль разобран на подъёмнике</span></div><button id='assembleBtn'>🔩 Собрать автомобиль</button>";
+  label.innerHTML="<div><b>МАСТЕРСКАЯ</b><span>Автомобиль собран. Выбери деталь для обслуживания.</span></div>";
   viewport.appendChild(label);
-  document.querySelector("#assembleBtn").onclick=assembleWorkshopCar;
   clock=new THREE.Clock();
   const loop=()=>{
     if(state.scene!=="workshop"||!renderer||!scene||!camera)return;
