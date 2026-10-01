@@ -358,11 +358,13 @@ function animate(traffic=[]){ requestAnimationFrame(()=>animate(traffic)); if(st
     const followHeight=moving?6.1:5.7;
     const orbitDistance=Math.max(1.2,Math.cos(camOrbitPitch)*followDistance);
     const localY=followHeight+Math.sin(camOrbitPitch)*followDistance*.55;
-    const localZ=orbitDistance;
+    // The imported Challenger faces local +Z, so its rear is local -Z.
+    // Keep the camera behind the rear, then rotate only around the car.
+    const localZ=-orbitDistance;
     cameraRig.rotation.set(0,camOrbitYaw,0);
     camera.position.set(0,localY,localZ);
-    // Camera looks at a point 1m above the car in local coordinates.
-    camera.rotation.set(Math.atan2(1-localY,localZ),Math.PI,0);
+    // Look forward from the rear toward a point above the car.
+    camera.rotation.set(Math.atan2(1-localY,orbitDistance),0,0);
   }
 }
 } else {
