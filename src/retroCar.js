@@ -452,10 +452,15 @@ export class RetroCarBuilder {
         hood.castShadow=true;
         hood.receiveShadow=true;
 
+        // IMPORTANT: model already carries the GLB normalization scale.
+        // The hood dimensions below are world/game units, so the movable hood
+        // must live under carGroup (scale 1), not under the scaled GLB model.
+        // Putting it under model was double-scaling it and made a giant hood
+        // float above the car.
         const pivot=new THREE.Object3D();
         pivot.name="RuntimeRealHoodHinge";
         pivot.position.set(0,1.00,0.34);
-        model.add(pivot);
+        this.carGroup.add(pivot);
 
         // Local Z starts at the rear hinge and runs toward the front.
         hood.position.set(0,0,hoodL*0.5);
@@ -469,7 +474,7 @@ export class RetroCarBuilder {
         );
         bay.name="RuntimeEngineBay";
         bay.position.set(0,0.90,0.98);
-        model.add(bay);
+        this.carGroup.add(bay);
 
         return {pivot,open:0,openSign:1,axis:"x",maxAngle:0.95};
       };
