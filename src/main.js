@@ -181,7 +181,7 @@ function createRetroPlayerCar(){
   const root=builder.getGroup();
   root.name="RetroCar_Player";
   root.userData.retroBuilder=builder;
-  root.userData.workshopMode=true;
+  root.userData.workshopMode=false;
   root.userData.visualOffsetY=0;
   root.userData.physicsBodyOffsetY=1.2;
   root.userData.wheels=Object.values(builder.articulation.wheels||{}).map(w=>w.assembly).filter(Boolean);
