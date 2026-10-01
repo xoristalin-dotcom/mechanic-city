@@ -353,7 +353,7 @@ function animate(traffic=[]){ requestAnimationFrame(()=>animate(traffic)); if(st
   if(cameraMode===2){
     cameraRig.rotation.set(0,0,0);
     camera.position.set(0,1.28,-.38);
-    look=new THREE.Vector3(0,1.12,0);
+    look=new THREE.Vector3(car.position.x,car.position.y+1.12,car.position.z);
   } else {
     const followDistance=moving?9.4:8.6;
     const followHeight=moving?6.1:5.7;
@@ -364,7 +364,7 @@ function animate(traffic=[]){ requestAnimationFrame(()=>animate(traffic)); if(st
       followHeight+Math.sin(camOrbitPitch)*followDistance,
       Math.cos(camOrbitYaw)*horizontal
     );
-    look=new THREE.Vector3(0,1.0,0);
+    look=new THREE.Vector3(car.position.x,car.position.y+1.0,car.position.z);
   }
   cameraRig.updateWorldMatrix(true,true);
 } else {
