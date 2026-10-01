@@ -3,9 +3,9 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 
 export async function loadMechanicCityCoupe(){
-  // Authoritative game model slot. Revision 18 is the authoritative Higgsfield 3D Jutsu asset;
-  // the deployed build can override this with VITE_MECHANIC_CITY_MODEL_URL.
-  const path=import.meta.env.VITE_MECHANIC_CITY_MODEL_URL || "https://www.dropbox.com/scl/fi/nfjq6aktqx8lunamnt9r3/preview.glb?rlkey=g8d2e98k9esriwh8jiusdakb8&st=t3hfczn0&dl=1";
+  // Authoritative game model: Higgsfield 3D Jutsu Revision 18.
+  // The GLB is committed to this repository at /public/models/preview.glb.
+  const path=import.meta.env.VITE_MECHANIC_CITY_MODEL_URL || "/models/preview.glb";
   const response=await fetch(path,{cache:"no-store"});
   if(!response.ok) throw new Error("Mechanic City Revision 18 GLB unavailable: HTTP "+response.status+" "+path);
   const buffer=await response.arrayBuffer();
@@ -33,8 +33,6 @@ export async function loadMechanicCityCoupe(){
   model.position.z-=center.z*scale;
   model.updateMatrixWorld(true);
   const serviceParts={}; const keyCounts={};
-  // Revision 18 exposes explicit service groups. Prefer those groups over
-  // fuzzy name matching so workshop actions stay attached to the authored slots.
   const groupCategory=(name)=>{
     const n=String(name||"").toUpperCase();
     if(n==="SERVICE_ENGINE") return "engine";
@@ -80,8 +78,6 @@ export async function loadMechanicCityCoupe(){
         /wheel|tire|rim|hub|lug/.test(lower)?"wheels":
         /door|hood|trunk|bumper|fender|rocker|quarter|spoiler|sill|panel/.test(lower)?"body":
         /exhaust|muffler|resonator|catalyst|pipe|tip|header/.test(lower)?"exhaust":"other";
-      // Every mesh is a first-class workshop part. Even interior/glass pieces stay
-      // addressable so the mechanic can inspect, replace and interact with them.
       const structural=/^(chassis|floor_pan|underbody|body_shell)$/i.test(o.name) ||
         /^SERVICE_|^TUNING_PARTS$/i.test(o.name);
       const removable=!structural;
