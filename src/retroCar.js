@@ -124,18 +124,20 @@ export class RetroCarBuilder {
         trunk: ["TRUNK_ANIM"],
         door_FL: ["DOOR_LEFT_ANIM"],
         door_FR: ["DOOR_RIGHT_ANIM"],
-        rotor_FL: ["BRAKE_FRONT_LEFT"],
-        rotor_FR: ["BRAKE_FRONT_RIGHT"],
-        rotor_RL: ["BRAKE_REAR_LEFT"],
-        rotor_RR: ["BRAKE_REAR_RIGHT"],
-        strut_FL: ["STRUT_FRONT_LEFT"],
-        strut_FR: ["STRUT_FRONT_RIGHT"],
-        strut_RL: ["STRUT_REAR_LEFT"],
-        strut_RR: ["STRUT_REAR_RIGHT"],
-        spring_FL: ["SPRING_FRONT_LEFT"],
-        spring_FR: ["SPRING_FRONT_RIGHT"],
-        spring_RL: ["SPRING_REAR_LEFT"],
-        spring_RR: ["SPRING_REAR_RIGHT"]
+        // R2.1 keeps the body/service naming stable; the source GLB also
+        // contains a few legacy geometry_* nodes, so use them as fallbacks.
+        rotor_FL: ["BRAKE_FRONT_LEFT", "geometry_21"],
+        rotor_FR: ["BRAKE_FRONT_RIGHT", "geometry_25"],
+        rotor_RL: ["BRAKE_REAR_LEFT", "geometry_23"],
+        rotor_RR: ["BRAKE_REAR_RIGHT", "geometry_27"],
+        strut_FL: ["STRUT_FRONT_LEFT", "geometry_40"],
+        strut_FR: ["STRUT_FRONT_RIGHT", "geometry_42"],
+        strut_RL: ["STRUT_REAR_LEFT", "geometry_41"],
+        strut_RR: ["STRUT_REAR_RIGHT", "geometry_43"],
+        spring_FL: ["SPRING_FRONT_LEFT", "geometry_29"],
+        spring_FR: ["SPRING_FRONT_RIGHT", "geometry_35"],
+        spring_RL: ["SPRING_REAR_LEFT", "geometry_32"],
+        spring_RR: ["SPRING_REAR_RIGHT", "geometry_38"]
       };
 
       const previous = this.carGroup.userData.serviceParts || {};
