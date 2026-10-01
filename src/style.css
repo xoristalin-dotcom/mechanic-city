@@ -51,23 +51,15 @@ button,.steer,.pedal{user-select:none;-webkit-user-select:none;-webkit-touch-cal
 button{cursor:pointer}
 
 
-/* Landscape-first driving layout. On iPhone Safari the browser controls orientation;
-   portrait shows a clear rotate prompt instead of squeezing the driving HUD. */
-#orientation-lock{display:none}
+/* Fixed landscape game canvas. The game always renders in the same landscape layout.
+   If the phone is held portrait, the entire game rotates in-place so the player
+   does not have to physically turn the phone. */
 @media (orientation:portrait) and (max-width:900px){
-  .game > *{visibility:hidden}
-  #orientation-lock{
-    display:flex;visibility:visible;position:fixed;inset:0;z-index:9999;
-    align-items:center;justify-content:center;text-align:center;padding:28px;
-    background:radial-gradient(circle at 50% 35%,#30383e,#0d1012 72%);
+  .game{
+    width:100dvh;height:100vw;
+    transform-origin:top left;
+    transform:rotate(90deg) translateY(-100%);
   }
-  #orientation-lock .rotate-card{
-    max-width:420px;padding:26px 24px;border:1px solid #ffffff22;border-radius:22px;
-    background:#171c20ee;box-shadow:0 18px 60px #000b;
-  }
-  #orientation-lock .rotate-icon{font-size:52px;display:block;margin-bottom:12px}
-  #orientation-lock h2{margin:0 0 8px;font-size:24px}
-  #orientation-lock p{margin:0;color:#bfc7cd;font-size:14px;line-height:1.45}
 }
 @media (orientation:landscape){
   .hud-top{top:max(8px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right))}
