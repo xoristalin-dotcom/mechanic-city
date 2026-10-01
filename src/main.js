@@ -78,6 +78,10 @@ appRoot.innerHTML = `
   <aside id="menu" class="menu hidden"></aside>
 `;
 
+const lockLandscape=async()=>{try{if(screen.orientation?.lock)await screen.orientation.lock("landscape");}catch{}};
+window.addEventListener("load",lockLandscape,{once:true});
+document.addEventListener("pointerdown",lockLandscape,{once:true,passive:true});
+
 const viewport=document.querySelector("#viewport"),speedEl=document.querySelector("#speed"),gearEl=document.querySelector("#gear"),fuelEl=document.querySelector("#fuel"),heatEl=document.querySelector("#heat"),clockEl=document.querySelector("#clock"),messageEl=document.querySelector("#message"),menu=document.querySelector("#menu");
 let renderer,camera,car,scene,clock,cameraRig,traffic=[],trafficLights=[],smoke=[],rainDrops=[],jobMarker=null,vehicleController=null,chassisBody=null,physicsWorld=null,physicsReady=false,physicsError=null;
 const partRaycaster=new THREE.Raycaster(); const partPointer=new THREE.Vector2(); let cameraMode=0,camOrbitYaw=0,camOrbitPitch=.18,camDragging=false,camLastX=0,camLastY=0;
