@@ -3,9 +3,9 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 
 export async function loadMechanicCityCoupe(){
-  // Revision 17 from Higgsfield 3D Jutsu is the single authoritative vehicle model.
-  // Never fall back to the legacy challenger model.
-  const path="/models/MechanicCity_Coupe_Repaired.glb";
+  // Authoritative game model slot. Revision 9 is prepared in Higgsfield 3D Jutsu;
+  // the deployed build can override this with VITE_MECHANIC_CITY_MODEL_URL.
+  const path=import.meta.env.VITE_MECHANIC_CITY_MODEL_URL || "/models/MechanicCity_Coupe_Repaired.glb";
   const response=await fetch(path,{cache:"no-store"});
   if(!response.ok) throw new Error("Mechanic City Revision 17 GLB unavailable: HTTP "+response.status+" "+path);
   const buffer=await response.arrayBuffer();
@@ -15,8 +15,8 @@ export async function loadMechanicCityCoupe(){
   const model=await new Promise((resolve,reject)=>{
     loader.parse(buffer,"/models/",g=>resolve(g.scene),reject);
   });
-  model.name="MechanicCity_Coupe_Repaired";
-  model.userData.sourcePath=loadedPath;
+  model.name="MechanicCity_Challenger_R9";
+  model.userData.sourcePath=path;
   model.updateMatrixWorld(true);
   const box=new THREE.Box3().setFromObject(model);
   if(box.isEmpty()) throw new Error("MechanicCity Coupe GLB contains no visible geometry");
@@ -75,6 +75,7 @@ export async function loadMechanicCityCoupe(){
   });
   model.userData.serviceParts=serviceParts;
   model.userData.servicePartCount=Object.keys(serviceParts).length;
+  model.userData.vehicleSpec={lengthMeters:4.881,widthMeters:1.921,heightMeters:1.326,revision:"Higgsfield-R9",editable:true};
   model.traverse(o=>{
     if(o.isMesh){
       o.castShadow=true;
