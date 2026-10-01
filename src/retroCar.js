@@ -107,8 +107,8 @@ export class RetroCarBuilder {
     bodyGroup.add(lower);
 
     this.createRemovablePart("hood","Капот","body",
-      new RoundedBoxGeometry(bodyWidth - 0.22,0.16,1.48,4,0.07),paint,
-      new THREE.Vector3(0,1.00,-1.60),bodyGroup);
+      new RoundedBoxGeometry(bodyWidth - 0.42,0.16,1.70,5,0.07),paint,
+      new THREE.Vector3(0,1.00,-1.56),bodyGroup);
 
     this.createRemovablePart("trunk","Багажник","body",
       new RoundedBoxGeometry(bodyWidth - 0.22,0.16,0.88,4,0.07),paint,
@@ -235,10 +235,10 @@ export class RetroCarBuilder {
 
     const hoodPivot = new THREE.Group();
     hoodPivot.name = "Hood_Hinge";
-    hoodPivot.position.set(0,1.04,-2.04);
+    hoodPivot.position.set(0,1.04,-2.41);
     const hood = new THREE.Mesh(
-      new RoundedBoxGeometry(this.getBodyWidth()-0.22,0.14,1.52,4,0.06),paint);
-    hood.position.z = 0.76;
+      new RoundedBoxGeometry(this.getBodyWidth()-0.42,0.14,1.70,5,0.06),paint);
+    hood.position.z = 0.85;
     hood.castShadow = true;
     hood.receiveShadow = true;
     hood.userData = {partKey:"hood_lid",partName:"Крышка капота",category:"body",removable:true,condition:100};
