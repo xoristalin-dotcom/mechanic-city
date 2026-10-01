@@ -104,14 +104,18 @@ export class RetroCarBuilder {
       // car. The extra service geometry is useful in the workshop but was
       // authored at a different local scale, so keep it hidden in the driving
       // view instead of letting it blow up the silhouette.
+      // The source GLB has no TEXCOORD_0 on its seven visual meshes, so
+      // embedded atlas textures cannot be sampled reliably in mobile WebGL.
+      // Treat geometry_0..2 as painted body surfaces instead of giving them
+      // unrelated trim colors; this prevents the body from turning cream/white.
       const visualStyles = {
-        geometry_0: { color: 0xb51f26, metalness: 0.28, roughness: 0.38 },
-        geometry_1: { color: 0x17191b, metalness: 0.18, roughness: 0.62 },
-        geometry_2: { color: 0x666a70, metalness: 0.78, roughness: 0.34 },
-        geometry_3: { color: 0x30343a, metalness: 0.65, roughness: 0.48 },
-        geometry_4: { color: 0x25282b, metalness: 0.55, roughness: 0.5 },
-        geometry_5: { color: 0x17191d, metalness: 0.05, roughness: 0.72 },
-        geometry_6: { color: 0x102331, metalness: 0.12, roughness: 0.2 }
+        geometry_0: { color: 0xb51f26, metalness: 0.32, roughness: 0.34 },
+        geometry_1: { color: 0x8e151c, metalness: 0.30, roughness: 0.40 },
+        geometry_2: { color: 0x6f1016, metalness: 0.26, roughness: 0.44 },
+        geometry_3: { color: 0x15171a, metalness: 0.70, roughness: 0.38 },
+        geometry_4: { color: 0x24272b, metalness: 0.58, roughness: 0.46 },
+        geometry_5: { color: 0x090b0d, metalness: 0.18, roughness: 0.68 },
+        geometry_6: { color: 0x142936, metalness: 0.10, roughness: 0.18 }
       };
 
       model.traverse(o=>{
