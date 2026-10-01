@@ -48,7 +48,7 @@ const appRoot = document.createElement("div"); appRoot.className = "game"; app.i
 appRoot.innerHTML = `
   <main id="viewport"></main>
   <div id="orientation-lock">
-    <div class="rotate-card"><span class="rotate-icon">📱↔️</span><h2>Поверни телефон горизонтально</h2><p>Игра разработана для мобильного управления.</p></div>
+    <div class="rotate-card"><span class="rotate-icon">📱</span><h2>Поверни телефон вертикально</h2><p>Mechanic City запускается в вертикальном режиме.</p></div>
   </div>
   <div class="drive-hud">
     <div class="hud-line"><span>Скорость</span><b id="speed">0</b></div>
@@ -77,6 +77,10 @@ appRoot.innerHTML = `
   </div>
   <aside id="menu" class="menu hidden"></aside>
 `;
+
+const lockPortrait=async()=>{try{if(screen.orientation?.lock)await screen.orientation.lock("portrait");}catch{}};
+window.addEventListener("load",lockPortrait,{once:true});
+document.addEventListener("pointerdown",lockPortrait,{once:true,passive:true});
 
 const viewport=document.querySelector("#viewport"),speedEl=document.querySelector("#speed"),gearEl=document.querySelector("#gear"),fuelEl=document.querySelector("#fuel"),heatEl=document.querySelector("#heat"),clockEl=document.querySelector("#clock"),messageEl=document.querySelector("#message"),menu=document.querySelector("#menu");
 let renderer,camera,car,scene,clock,cameraRig,traffic=[],trafficLights=[],smoke=[],rainDrops=[],jobMarker=null,vehicleController=null,chassisBody=null,physicsWorld=null,physicsReady=false,physicsError=null;
