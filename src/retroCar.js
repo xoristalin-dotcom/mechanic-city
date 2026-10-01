@@ -306,7 +306,16 @@ export class RetroCarBuilder {
       const hoodBulge=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.24,0.045,0.82),new THREE.MeshStandardMaterial({color:0x9d1622,metalness:0.28,roughness:0.34}));
       hoodBulge.position.set(0,1.005,1.18); detailKit.add(hoodBulge);
       const hoodIntake=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.15,0.025,0.30),trim);
+      hoodIntake.name="Hood_Grille_Trim";
       hoodIntake.position.set(0,1.04,1.43); detailKit.add(hoodIntake);
+      // Small real-looking hood vent grille: it must travel with the hood,
+      // not stay glued to the static body.
+      for(let i=-2;i<=2;i++){
+        const slat=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.105,0.018,0.018),chrome);
+        slat.name="Hood_Grille_Slat_"+(i+2);
+        slat.position.set(0,1.058,1.43+i*0.052);
+        detailKit.add(slat);
+      }
 
       // Side mirrors and door handles make the silhouette read better at distance.
       for(const x of [-bodyW*0.53,bodyW*0.53]){
@@ -605,6 +614,20 @@ export class RetroCarBuilder {
         const plus=frontLocal?.clone().applyAxisAngle(axis,0.6);
         const minus=frontLocal?.clone().applyAxisAngle(axis,-0.6);
         const openSign=(plus && minus) ? (plus.y>=minus.y ? 1 : -1) : 1;
+
+        // Move the hood vent/grille assembly onto the same hinge as the real hood.
+        // These parts were originally children of the static detail kit, so without
+        // this re-parenting they would visibly remain behind when the hood opens.
+        const hoodTrimNames = ["Hood_Grille_Trim","Hood_Grille_Slat_0","Hood_Grille_Slat_1","Hood_Grille_Slat_2","Hood_Grille_Slat_3","Hood_Grille_Slat_4"];
+        for(const name of hoodTrimNames){
+          const trimPart=detailKit.getObjectByName(name);
+          if(!trimPart)continue;
+          detailKit.remove(trimPart);
+          trimPart.position.x-=hinge.x;
+          trimPart.position.y-=hinge.y;
+          trimPart.position.z-=hinge.z;
+          pivot.add(trimPart);
+        }
 
         return {pivot,open:0,openSign,axis:"x",maxAngle:0.95};
       };
