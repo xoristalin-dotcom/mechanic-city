@@ -519,6 +519,10 @@ export class RetroCarBuilder {
       // DOOR_*_ANIM are only markers, so use the actual side-panel triangles
       // just like the real hood above.
       const createDoorAssemblies = () => {
+        // The GLB loader may have the normalized model transform pending.
+        // Freeze the transform before extracting the real door triangles.
+        model.updateMatrix();
+        model.updateMatrixWorld(true);
         const body = model.getObjectByName("geometry_0");
         if(!body?.geometry?.attributes?.position) return [];
         const src=body.geometry, pos=src.attributes.position, idx=src.index;
@@ -529,8 +533,8 @@ export class RetroCarBuilder {
           // Normalized R2.1 side-door area: between the wheel arches,
           // below the belt line and outside the central body.
           return (side<0 ? x<=-0.125 : x>=0.125) &&
-            Math.abs(x)<=0.205 && y>=-0.005 && y<=0.078 &&
-            z>=-0.27 && z<=0.25;
+            Math.abs(x)<=0.215 && y>=-0.035 && y<=0.105 &&
+            z>=-0.34 && z<=0.34;
         };
         for(let t=0;t<triCount;t++){
           const ia=idx?idx.getX(t*3):t*3;
@@ -574,6 +578,7 @@ export class RetroCarBuilder {
           mesh.name=name+"_RealDoor"; mesh.castShadow=true; mesh.receiveShadow=true;
           const pivot=new THREE.Object3D();
           pivot.name=name+"_Hinge";
+          pivot.userData.isVehicleDoor=true;
           pivot.position.copy(hinge);
           this.carGroup.add(pivot);
           const hp=geo.attributes.position;
@@ -591,7 +596,7 @@ export class RetroCarBuilder {
           const plusOut=side<0 ? -plus.x : plus.x;
           const minusOut=side<0 ? -minus.x : minus.x;
           const openSign=plusOut>=minusOut ? 1 : -1;
-          return {pivot,open:0,openSign,axis:"y",maxAngle:1.05};
+          return {pivot,open:0,openSign,axis:"y",maxAngle:1.12};
         };
         return [
           makeDoor(leftTris,-1,"Door_Left"),
@@ -722,6 +727,9 @@ export class RetroCarBuilder {
       }
 
       const doorAssemblies=createDoorAssemblies();
+      // Keep the real door assemblies authoritative; the marker/procedural
+      // doors must never overwrite them after the GLB finishes loading.
+      if (doorAssemblies.length) this.carGroup.userData.realDoorCount=doorAssemblies.length;
       const articulation = {
         doors: doorAssemblies,
         hood: createHoodAssembly(),
