@@ -170,8 +170,12 @@ function physicsDrive(dt){
     }catch{}
   }
   for(const w of(car.userData?.wheels||[])){
-    if(w?.rotation)w.rotation.y=steerAngle;
-    if(w?.children?.length)w.rotation.x-=state.speed*dt/.39;
+    // Only the front axle steers. Rear wheels stay aligned with the chassis.
+    if(w?.userData?.front && w?.rotation) w.rotation.y=steerAngle;
+    // Rolling is applied to a dedicated child so steering cannot tilt the
+    // wheel's spin axis and create the "figure-eight" wobble.
+    const spin=w?.userData?.spin;
+    if(spin?.rotation) spin.rotation.x-=state.speed*dt/.39;
   }
 }
 
