@@ -305,8 +305,8 @@ export class RetroCarBuilder {
       // Hood power bulge + intake.
       const hoodBulge=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.24,0.045,0.82),new THREE.MeshStandardMaterial({color:0x9d1622,metalness:0.28,roughness:0.34}));
       hoodBulge.position.set(0,1.005,1.18); detailKit.add(hoodBulge);
-      const intake=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.15,0.025,0.30),trim);
-      intake.position.set(0,1.04,1.43); detailKit.add(intake);
+      const hoodIntake=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.15,0.025,0.30),trim);
+      hoodIntake.position.set(0,1.04,1.43); detailKit.add(hoodIntake);
 
       // Side mirrors and door handles make the silhouette read better at distance.
       for(const x of [-bodyW*0.53,bodyW*0.53]){
@@ -451,10 +451,10 @@ export class RetroCarBuilder {
         m.name=name;
         engineBay.add(m);
       };
-      addWire([-0.62,1.34,0.82,-0.92,1.48,0.54],0.035,wireMats[0],"Ignition_Wire_L");
-      addWire([0.62,1.34,0.82,0.92,1.48,0.54],0.035,wireMats[0],"Ignition_Wire_R");
-      addWire([-0.92,1.20,0.55,-1.18,1.08,0.18],0.045,wireMats[1],"Power_Cable");
-      addWire([0.35,1.39,0.90,0.92,1.35,1.18],0.032,wireMats[2],"Sensor_Wire");
+      addWire([-0.62,1.34,0.82],[-0.92,1.48,0.54],0.035,wireMats[0],"Ignition_Wire_L");
+      addWire([0.62,1.34,0.82],[0.92,1.48,0.54],0.035,wireMats[0],"Ignition_Wire_R");
+      addWire([-0.92,1.20,0.55],[-1.18,1.08,0.18],0.045,wireMats[1],"Power_Cable");
+      addWire([0.35,1.39,0.90],[0.92,1.35,1.18],0.032,wireMats[2],"Sensor_Wire");
 
       engineBay.traverse(o=>{
         if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=true;}
