@@ -390,31 +390,20 @@ export class RetroCarBuilder {
         Object.entries(serviceParts).map(([key,part])=>[key,{mesh:part.mesh,condition:part.condition,removable:part.removable}])
       );
 
-      // The articulated panels are separate source nodes. They were previously
-      // hidden by the mobile visual filter, so the hinge could rotate an invisible
-      // mesh. Keep these four real panels visible and use the body paint material.
+      // Use the source GLB's single visual body as the car appearance.
+      // Do NOT turn the hidden service/animation nodes into extra visible panels:
+      // those nodes overlap the painted body and create duplicate hood/door/trunk geometry.
       const articulatedPanelNames = ["HOOD_ANIM","DOOR_LEFT_ANIM","DOOR_RIGHT_ANIM","TRUNK_ANIM"];
-      const articulatedPanelMaterial = new THREE.MeshStandardMaterial({
-        color: 0xe52a36,
-        metalness: 0.34,
-        roughness: 0.30
-      });
       for (const nodeName of articulatedPanelNames) {
         const panel = model.getObjectByName(nodeName);
         if (!panel) continue;
-        let parent = panel;
-        while (parent && parent !== model) {
-          parent.visible = true;
-          parent = parent.parent;
-        }
+        panel.visible = false;
         panel.traverse(o=>{
-          if (!o.isMesh) return;
-          o.visible = true;
-          o.material = articulatedPanelMaterial;
+          if (o.isMesh) o.visible = false;
         });
       }
 
-      // Runtime hinges for the real named panels.
+      // Runtime articulation remains available for the single visual car assembly.
       const makeHinge = (nodeName, axis, sign, angle) => {
         const mesh = model.getObjectByName(nodeName);
         if (!mesh) return null;
