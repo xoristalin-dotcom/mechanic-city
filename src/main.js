@@ -476,7 +476,8 @@ function workshopPartOffset(part){
   }
   return new THREE.Vector3((Math.random()-.5)*3.8,1.2,(Math.random()-.5)*4.8);
 }
-// Legacy exploded-workshop routine kept only for backwards compatibility; it is never used for startup.\nfunction disassembleWorkshopCar(){
+// Legacy exploded-workshop routine kept only for backwards compatibility; it is never used for startup.
+function disassembleWorkshopCar(){
   // Legacy API kept for compatibility. Revision 17 workshop is always assembled.
   if(car) car.userData.workshopDisassembled=false;
 }
