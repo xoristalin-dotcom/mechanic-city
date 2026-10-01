@@ -526,6 +526,34 @@ export class RetroCarBuilder {
         // some side triangles, which created the large holes seen on mobile.
         // We use the detected door region only to measure the real Challenger
         // door, then build a solid opaque panel with a proper front hinge.
+        // Mask the original GLB door skin so it cannot remain visible
+        // underneath the animated replacement.
+        const maskStaticDoor=(mat,side)=>{
+          const m=mat.clone();
+          m.transparent=false;
+          m.depthWrite=true;
+          const oldCompile=m.onBeforeCompile;
+          m.onBeforeCompile=(shader)=>{
+            if(oldCompile)oldCompile(shader);
+            shader.vertexShader=shader.vertexShader
+              .replace("#include <common>","#include <common>\\nvarying vec3 vDoorLocal;")
+              .replace("#include <begin_vertex>","#include <begin_vertex>\\nvDoorLocal=transformed;");
+            const sideExpr=side<0?"vDoorLocal.x <= -0.125":"vDoorLocal.x >= 0.125";
+            shader.fragmentShader=shader.fragmentShader
+              .replace("#include <common>","#include <common>\\nvarying vec3 vDoorLocal;")
+              .replace("#include <color_fragment","#include <color_fragment");
+            shader.fragmentShader=shader.fragmentShader.replace(
+              "#include <color_fragment>",
+              "bool inDoor = ("+sideExpr+") && abs(vDoorLocal.x) <= 0.215 && vDoorLocal.y >= -0.035 && vDoorLocal.y <= 0.105 && vDoorLocal.z >= -0.34 && vDoorLocal.z <= 0.34;\\nif(inDoor) discard;\\n#include <color_fragment>"
+            );
+          };
+          m.needsUpdate=true;
+          return m;
+        };
+        const originalBodyMaterials=Array.isArray(body.material)?body.material:[body.material];
+        body.material=originalBodyMaterials.map((m,i)=>maskStaticDoor(m,i===0?-1:1));
+        body.userData.staticDoorMasked=true;
+
         const src=body.geometry, pos=src.attributes.position, idx=src.index;
         const triCount=idx ? idx.count/3 : pos.count/3;
         const regions=[[],[]];
