@@ -407,7 +407,7 @@ export function syncCarPartsFromCatalog(car, state) {
 
     // Visibility based on installation state
     if (part.mesh) {
-      part.mesh.visible = part.installed;
+      part.mesh.visible = part.installed && car.userData.workshopMode === true;
     }
   }
 }
@@ -489,7 +489,7 @@ export function installPart(state, car, key) {
   part.installed = true;
 
   if (part.mesh) {
-    part.mesh.visible = true;
+    part.mesh.visible = car.userData.workshopMode === true;
   }
 
   return true;
