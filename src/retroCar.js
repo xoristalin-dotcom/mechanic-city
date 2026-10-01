@@ -101,7 +101,11 @@ export class RetroCarBuilder {
       const bodySize = bodyBox.getSize(new THREE.Vector3());
       const bodyCenter = bodyBox.getCenter(new THREE.Vector3());
       const bodyLength = bodySize.z;
-      if (!Number.isFinite(bodyLength) || bodyLength <= 0) {\n        this.carGroup.visible = true;\n        this.carGroup.userData.modelLoading = false;\n        return;\n      }
+      if (!Number.isFinite(bodyLength) || bodyLength <= 0) {
+        this.carGroup.visible = true;
+        this.carGroup.userData.modelLoading = false;
+        return;
+      }
 
       const targetLength = 4.95;
       const scale = targetLength / bodyLength;
