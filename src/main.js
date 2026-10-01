@@ -394,7 +394,25 @@ function teleportToMapCenter(){
   msg("🎯 Машина телепортирована в центр карты");
 }
 function driveOn(){if(state.fuel<=0){msg("⛽ Бак пуст — нужна заправка.");return;}if(state.gear==="P"||state.gear==="N")state.gear="D";state.driving=true;msg("За рулём.");}
-function setupCameraControls(){if(!renderer)return;const el=renderer.domElement;el.style.touchAction="none";const isControlTarget=e=>e.target?.closest?.(".mobile-drive-controls,.floating-bar,.menu");const start=e=>{if(isControlTarget(e))return;camDragging=true;camLastX=e.clientX;camLastY=e.clientY;try{el.setPointerCapture(e.pointerId);}catch{}};const move=e=>{if(!camDragging)return;e.preventDefault();const dx=e.clientX-camLastX;const dy=e.clientY-camLastY;camLastX=e.clientX;camLastY=e.clientY;camOrbitYaw-=dx*0.008;camOrbitPitch=Math.min(Math.PI/2.2,Math.max(-.3,camOrbitPitch+dy*0.005));};const end=e=>{camDragging=false;try{el.releasePointerCapture(e.pointerId);}catch{}};el.addEventListener("pointerdown",start,{passive:false});el.addEventListener("pointermove",move,{passive:false});el.addEventListener("pointerup",end,{passive:false});el.addEventListener("pointercancel",end,{passive:false});}
+function setupCameraControls(){
+  if(!renderer)return;
+  const el=renderer.domElement;
+  el.style.touchAction="none";
+  el.style.userSelect="none";
+  el.style.webkitUserSelect="none";
+  const isControlTarget=e=>e.target?.closest?.(".mobile-drive-controls,.floating-bar,.menu");
+  const begin=(x,y,id=null)=>{camDragging=true;camLastX=x;camLastY=y;if(id!=null){try{el.setPointerCapture(id);}catch{}}};
+  const move=(x,y,e)=>{if(!camDragging)return;if(e?.cancelable)e.preventDefault();const dx=x-camLastX,dy=y-camLastY;camLastX=x;camLastY=y;camOrbitYaw-=dx*.010;camOrbitPitch=Math.min(1.05,Math.max(-.45,camOrbitPitch+dy*.006));};
+  const end=(id=null)=>{camDragging=false;if(id!=null){try{el.releasePointerCapture(id);}catch{}}};
+  el.addEventListener("pointerdown",e=>{if(isControlTarget(e))return;begin(e.clientX,e.clientY,e.pointerId);},{passive:false});
+  el.addEventListener("pointermove",e=>move(e.clientX,e.clientY,e),{passive:false});
+  el.addEventListener("pointerup",e=>end(e.pointerId),{passive:false});
+  el.addEventListener("pointercancel",e=>end(e.pointerId),{passive:false});
+  el.addEventListener("touchstart",e=>{if(isControlTarget(e))return;const t=e.touches?.[0];if(t)begin(t.clientX,t.clientY);},{passive:false});
+  el.addEventListener("touchmove",e=>{const t=e.touches?.[0];if(t)move(t.clientX,t.clientY,e);},{passive:false});
+  el.addEventListener("touchend",e=>{if(e.cancelable)e.preventDefault();end();},{passive:false});
+  el.addEventListener("touchcancel",()=>end(),{passive:false});
+}
 function bindControls(){
   document.querySelectorAll("[data-drive]").forEach(b=>{
     const v=b.dataset.drive;
