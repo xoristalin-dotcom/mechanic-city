@@ -195,7 +195,11 @@ export class RetroCarBuilder {
           mesh
         };
         mesh.userData.servicePart = serviceParts[key];
-        mesh.visible = serviceParts[key].installed;
+        // Service meshes are intentionally hidden in the driving view.
+        // They use the source GLB's workshop geometry and some are not
+        // normalized to the vehicle body scale; showing them on the road
+        // creates the giant white/black blocks seen on mobile.
+        mesh.visible = this.carGroup.userData.workshopMode === true && serviceParts[key].installed;
       }
 
       // Keep any catalog entries that are not represented by geometry.
