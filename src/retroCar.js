@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 
 /**
  * Retro Garage Rally-style car with full articulation
@@ -37,6 +39,176 @@ export class RetroCarBuilder {
     };
 
     this.build();
+    // Upgrade the procedural placeholder to the mobile-optimized Challenger
+    // asynchronously. The existing physics/HUD lifecycle remains synchronous.
+    this.loadMechanicCityModel();
+  }
+
+  async loadMechanicCityModel() {
+    const paths = [
+      import.meta.env.VITE_MECHANIC_CITY_MODEL_URL || "/models/dodge_challenger_mechanic_city_r2_1.glb",
+      "/models/challenger-r9.glb"
+    ].filter((v,i,a)=>v && a.indexOf(v)===i);
+
+    try {
+      const loader = new GLTFLoader();
+      loader.setMeshoptDecoder(MeshoptDecoder);
+      if (MeshoptDecoder.ready) await MeshoptDecoder.ready;
+
+      let buffer = null;
+      let sourcePath = null;
+      for (const path of paths) {
+        try {
+          const response = await fetch(path, {cache:"no-store"});
+          if (!response.ok) continue;
+          buffer = await response.arrayBuffer();
+          sourcePath = path;
+          break;
+        } catch {}
+      }
+      if (!buffer) return;
+
+      const model = await new Promise((resolve,reject)=>{
+        loader.parse(buffer, sourcePath, g=>resolve(g.scene), reject);
+      });
+
+      model.name = "MechanicCity_DodgeChallenger_R2_1";
+      model.updateMatrixWorld(true);
+
+      const box = new THREE.Box3().setFromObject(model);
+      if (box.isEmpty()) return;
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+      const longest = Math.max(size.x,size.y,size.z);
+      if (!Number.isFinite(longest) || longest <= 0) return;
+
+      const targetLength = 4.95;
+      const scale = targetLength / longest;
+      model.scale.multiplyScalar(scale);
+      model.position.x -= center.x * scale;
+      model.position.y -= box.min.y * scale;
+      model.position.z -= center.z * scale;
+      model.updateMatrixWorld(true);
+
+      model.traverse(o=>{
+        if (!o.isMesh) return;
+        o.castShadow = true;
+        o.receiveShadow = true;
+        o.frustumCulled = true;
+        if (o.material) {
+          const materials = Array.isArray(o.material) ? o.material : [o.material];
+          for (const m of materials) {
+            m.needsUpdate = true;
+            if ("side" in m) m.side = THREE.FrontSide;
+          }
+        }
+      });
+
+      // Preserve the procedural root object so main.js physics, camera and HUD
+      // references remain valid; only replace its visual children.
+      const oldChildren = [...this.carGroup.children];
+      for (const child of oldChildren) this.carGroup.remove(child);
+      this.carGroup.add(model);
+
+      this.carGroup.name = "MechanicCity_DodgeChallenger_R2_1";
+      this.carGroup.userData.modelRevision = "MechanicCity-R2.1";
+      this.carGroup.userData.modelSource = sourcePath;
+      this.carGroup.userData.mobileOptimized = true;
+
+      // Build serviceable parts from named R2.1 nodes.
+      const named = {
+        engine: ["ENGINE_BLOCK"],
+        alternator: ["ALTERNATOR"],
+        starter: ["STARTER"],
+        hood: ["HOOD_ANIM"],
+        trunk: ["TRUNK_ANIM"],
+        door_FL: ["DOOR_LEFT_ANIM"],
+        door_FR: ["DOOR_RIGHT_ANIM"],
+        rotor_FL: ["BRAKE_FRONT_LEFT"],
+        rotor_FR: ["BRAKE_FRONT_RIGHT"],
+        rotor_RL: ["BRAKE_REAR_LEFT"],
+        rotor_RR: ["BRAKE_REAR_RIGHT"],
+        strut_FL: ["STRUT_FRONT_LEFT"],
+        strut_FR: ["STRUT_FRONT_RIGHT"],
+        strut_RL: ["STRUT_REAR_LEFT"],
+        strut_RR: ["STRUT_REAR_RIGHT"],
+        spring_FL: ["SPRING_FRONT_LEFT"],
+        spring_FR: ["SPRING_FRONT_RIGHT"],
+        spring_RL: ["SPRING_REAR_LEFT"],
+        spring_RR: ["SPRING_REAR_RIGHT"]
+      };
+
+      const previous = this.carGroup.userData.serviceParts || {};
+      const serviceParts = {};
+      for (const [key,names] of Object.entries(named)) {
+        const mesh = names.map(n=>model.getObjectByName(n)).find(Boolean);
+        if (!mesh) continue;
+        const old = previous[key];
+        serviceParts[key] = {
+          key,
+          name: old?.name || key,
+          category: old?.category || "other",
+          subsystem: old?.subsystem || "other",
+          removable: true,
+          tunable: !!old?.tunable,
+          baseCost: old?.baseCost || 50,
+          condition: typeof old?.condition === "number" ? old.condition : 100,
+          installed: old?.installed !== false,
+          mesh
+        };
+        mesh.userData.servicePart = serviceParts[key];
+        mesh.visible = serviceParts[key].installed;
+      }
+
+      // Keep any catalog entries that are not represented by geometry.
+      for (const [key,part] of Object.entries(previous)) {
+        if (!serviceParts[key]) serviceParts[key] = part;
+      }
+      this.carGroup.userData.serviceParts = serviceParts;
+      this.parts = Object.fromEntries(
+        Object.entries(serviceParts).map(([key,part])=>[key,{mesh:part.mesh,condition:part.condition,removable:part.removable}])
+      );
+
+      // Runtime hinges for the new named panels.
+      const makeHinge = (nodeName, axis, sign, angle) => {
+        const mesh = model.getObjectByName(nodeName);
+        if (!mesh) return null;
+        const pivot = new THREE.Object3D();
+        pivot.name = nodeName + "_RuntimeHinge";
+        mesh.parent?.add(pivot);
+        pivot.position.copy(mesh.position);
+        pivot.attach(mesh);
+        return {pivot,open:0,openSign:sign,axis,maxAngle:angle};
+      };
+
+      const articulation = {
+        doors: [
+          makeHinge("DOOR_LEFT_ANIM","y",1,1.12),
+          makeHinge("DOOR_RIGHT_ANIM","y",-1,1.12)
+        ].filter(Boolean),
+        hood: makeHinge("HOOD_ANIM","x",-1,.88),
+        trunk: makeHinge("TRUNK_ANIM","x",1,.78),
+        steering: null
+      };
+
+      // main.js created this object synchronously; mutate it in place if present.
+      if (this.carGroup.userData.articulation) {
+        this.carGroup.userData.articulation.doors = articulation.doors;
+        this.carGroup.userData.articulation.hood = articulation.hood;
+        this.carGroup.userData.articulation.trunk = articulation.trunk;
+      }
+
+      this.carGroup.userData.servicePartCount = Object.keys(serviceParts).length;
+      this.carGroup.userData.vehicleSpec = {
+        lengthMeters: 4.95,
+        revision: "MechanicCity-R2.1",
+        sourcePath,
+        editable: true,
+        mobileOptimized: true
+      };
+    } catch (err) {
+      console.warn("Mechanic City Challenger R2.1 load failed; keeping procedural car.", err);
+    }
   }
 
   build() {
