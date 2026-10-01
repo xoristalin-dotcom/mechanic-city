@@ -13,6 +13,7 @@ test.describe('Mechanic City live smoke', () => {
     expect(state.physicsReady).toBe(true);
     expect(state.scene).toBe('city');
     expect(state.cameraMode).toBe(0);
+    expect(state.cameraAttached).toBe(true);
     expect(errors).toEqual([]);
   });
 
