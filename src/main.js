@@ -155,7 +155,17 @@ async function swapToBlenderCrown72(){
  try{
    const model=await loadMechanicCityCoupe();
    model.name="MechanicCity_Coupe_Repaired";
-   model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+   model.traverse(o=>{
+     if(o.isMesh){
+       o.castShadow=true;
+       o.receiveShadow=true;
+       o.userData.workshopRest={
+         p:o.position.clone(),
+         r:o.rotation.clone(),
+         s:o.scale.clone()
+       };
+     }
+   });
    const root=new THREE.Group();
    root.name="MechanicCity_Coupe_Repaired_Root";
    root.position.copy(car.position);
@@ -163,18 +173,51 @@ async function swapToBlenderCrown72(){
    root.rotation.copy(car.rotation);
    root.userData.wheels=[];
    root.userData.visualOffsetY=0.42;
-   root.add(model);
-   root.userData.articulation=setupImportedWheelSteering(model);root.userData.wheels=root.userData.articulation.wheels;root.userData.serviceParts=model.userData.serviceParts||{};
-   // Revision 14 starts as a complete car. Old saved assembly state is invalid after the new model/part system.\n   if(state.car.partStateVersion!==PART_STATE_VERSION){state.car.partState={};state.car.partStateVersion=PART_STATE_VERSION;}\n   for(const p of Object.values(root.userData.serviceParts)){const saved=state.car.partState?.[p.key];const condition=typeof saved?.condition==="number"?saved.condition:100;p.installed=saved?.installed===false?false:true;setPartState(p.key,{condition,installed:p.installed});}\n   model.traverse(o=>{const p=o.userData?.servicePart;if(p)o.visible=p.installed!==false;});\n   save();
+   root.userData.articulation=setupImportedWheelSteering(model);
+   root.userData.wheels=root.userData.articulation.wheels;
+   root.userData.serviceParts=model.userData.serviceParts||{};
+
+   // City spawn is always assembled. Saved installed/removed state controls
+   // visibility only; workshop is the only mode allowed to move parts apart.
+   if(state.car.partStateVersion!==PART_STATE_VERSION){
+     state.car.partState={};
+     state.car.partStateVersion=PART_STATE_VERSION;
+   }
+   for(const p of Object.values(root.userData.serviceParts)){
+     const saved=state.car.partState?.[p.key];
+     const condition=typeof saved?.condition==="number"?saved.condition:100;
+     p.installed=saved?.installed===false?false:true;
+     setPartState(p.key,{condition,installed:p.installed});
+   }
+   model.traverse(o=>{
+     const p=o.userData?.servicePart;
+     const r=o.userData?.workshopRest;
+     if(r){
+       o.position.copy(r.p);
+       o.rotation.copy(r.r);
+       o.scale.copy(r.s);
+     }
+     if(p)o.visible=p.installed!==false;
+   });
+   save();
+
    // The imported coupe faces -X, while the game vehicle faces -Z.
-   // Rotate only the visual asset so physics and steering keep the normal car axes.
    model.rotation.y=Math.PI/2;
+
    root.add(model);
-   const old=car; car=root; scene.add(car); scene.remove(old);
-   if(physicsReady&&chassisBody){const p=chassisBody.translation();car.position.set(p.x,p.y-PHYSICS_Y,p.z);}
-   msg("🚗 MechanicCity Coupe Repaired загружена");
- }catch(err){window.MechanicCityDebugLog?.({type:"blender-model",message:String(err?.message||err),stack:String(err?.stack||"")});console.warn("Blender Crown 72 load failed; procedural fallback remains.",err);}
-}
+   const old=car;
+   car=root;
+   scene.add(car);
+   scene.remove(old);
+   if(physicsReady&&chassisBody){
+     const p=chassisBody.translation();
+     car.position.set(p.x,p.y-PHYSICS_Y,p.z);
+   }
+   msg("🚗 MechanicCity Coupe Repaired загружена — машина собрана");
+ }catch(err){
+   window.MechanicCityDebugLog?.({type:"blender-model",message:String(err?.message||err),stack:String(err?.stack||"")});
+   console.warn("Blender Crown 72 load failed; procedural fallback remains.",err);
+ }}
 function save(){localStorage.setItem("mechanic-city",JSON.stringify(state));}
 function clearJobMarker(){if(jobMarker&&scene){scene.remove(jobMarker);jobMarker=null;}}
 function createJobMarker(){clearJobMarker();if(!state.job||!scene)return;const g=new THREE.Group();const ring=new THREE.Mesh(new THREE.TorusGeometry(2.4,.1,10,32),new THREE.MeshBasicMaterial({color:0xffc84a,transparent:true,opacity:.9}));ring.rotation.x=-Math.PI/2;const beam=new THREE.Mesh(new THREE.CylinderGeometry(.06,.32,5.5,12,1,true),new THREE.MeshBasicMaterial({color:0xffc84a,transparent:true,opacity:.18,side:THREE.DoubleSide}));beam.position.y=2.7;g.add(ring,beam);g.position.set(state.job.targetX,.08,state.job.targetZ);scene.add(g);jobMarker=g;}
