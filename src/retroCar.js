@@ -69,7 +69,12 @@ export class RetroCarBuilder {
           break;
         } catch {}
       }
-      if (!buffer) {\n        this.carGroup.visible = true;\n        this.carGroup.userData.modelLoading = false;\n        console.warn("Mechanic City Challenger model unavailable; using procedural fallback.");\n        return;\n      }
+      if (!buffer) {
+        this.carGroup.visible = true;
+        this.carGroup.userData.modelLoading = false;
+        console.warn("Mechanic City Challenger model unavailable; using procedural fallback.");
+        return;
+      }
 
       const model = await new Promise((resolve,reject)=>{
         loader.parse(buffer, sourcePath, g=>resolve(g.scene), reject);
@@ -86,12 +91,17 @@ export class RetroCarBuilder {
       const bodyBox = bodyMesh
         ? new THREE.Box3().setFromObject(bodyMesh)
         : new THREE.Box3().setFromObject(model);
-      if (bodyBox.isEmpty()) {\n        this.carGroup.visible = true;\n        this.carGroup.userData.modelLoading = false;\n        console.warn("Mechanic City Challenger body bounds are empty; using procedural fallback.");\n        return;\n      }
+      if (bodyBox.isEmpty()) {
+        this.carGroup.visible = true;
+        this.carGroup.userData.modelLoading = false;
+        console.warn("Mechanic City Challenger body bounds are empty; using procedural fallback.");
+        return;
+      }
 
       const bodySize = bodyBox.getSize(new THREE.Vector3());
       const bodyCenter = bodyBox.getCenter(new THREE.Vector3());
       const bodyLength = bodySize.z;
-      if (!Number.isFinite(bodyLength) || bodyLength <= 0) return;
+      if (!Number.isFinite(bodyLength) || bodyLength <= 0) {\n        this.carGroup.visible = true;\n        this.carGroup.userData.modelLoading = false;\n        return;\n      }
 
       const targetLength = 4.95;
       const scale = targetLength / bodyLength;
