@@ -83,8 +83,6 @@ async function setupVehiclePhysics(){
     physicsWorld.createCollider(ground,{x:0,y:-0.5,z:0});
     const hull=RAPIER.ColliderDesc.cuboid(1.4,0.44,2.8);
     const body=physicsWorld.createRigidBody({translation:{x:car.position.x,y:1.2,z:car.position.z},rotation:0});
-    RAPIER.ColliderDesc.cuboid(1.4,0.44,2.8);
-    RAPIER.ColliderDesc;
     physicsWorld.createCollider(hull,body);
     vehicleController=body;
     chassisBody=body;
