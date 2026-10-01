@@ -112,11 +112,11 @@ export class RetroCarBuilder {
       // Treat geometry_0..2 as painted body surfaces instead of giving them
       // unrelated trim colors; this prevents the body from turning cream/white.
       const visualStyles = {
-        geometry_0: { color: 0xb5121b, metalness: 0.48, roughness: 0.28 },
-        geometry_1: { color: 0x8f0d16, metalness: 0.44, roughness: 0.34 },
-        geometry_2: { color: 0x680810, metalness: 0.40, roughness: 0.40 },
-        geometry_3: { color: 0x15171a, metalness: 0.70, roughness: 0.38 },
-        geometry_4: { color: 0x24272b, metalness: 0.58, roughness: 0.46 },
+        geometry_0: { color: 0xd51f2a, metalness: 0.46, roughness: 0.26 },
+        geometry_1: { color: 0xb7111c, metalness: 0.42, roughness: 0.31 },
+        geometry_2: { color: 0x8e0c16, metalness: 0.38, roughness: 0.36 },
+        geometry_3: { color: 0x7e0b14, metalness: 0.40, roughness: 0.38 },
+        geometry_4: { color: 0x9b1019, metalness: 0.38, roughness: 0.40 },
         geometry_5: { color: 0x090b0d, metalness: 0.18, roughness: 0.68 },
         geometry_6: { color: 0x142936, metalness: 0.10, roughness: 0.18 }
       };
@@ -222,20 +222,21 @@ export class RetroCarBuilder {
 
       // Red metallic delivery livery with two narrow black center stripes.
       // The existing glass material is deliberately left unchanged.
-      const stripeMat = new THREE.MeshStandardMaterial({color:0x090b0d,metalness:0.62,roughness:0.30});
-      const stripeWidth = bodyW * 0.035;
-      const stripeGap = bodyW * 0.035;
+      const stripeMat = new THREE.MeshStandardMaterial({color:0x17191c,metalness:0.55,roughness:0.32});
+      const stripeWidth = bodyW * 0.028;
+      const stripeGap = bodyW * 0.045;
       const stripeX = stripeGap / 2 + stripeWidth / 2;
 
       for(const x of [-stripeX, stripeX]){
-        const hoodStripe=new THREE.Mesh(new THREE.BoxGeometry(stripeWidth,0.025,targetLength*0.36),stripeMat);
-        hoodStripe.position.set(x,1.055,0.70); detailKit.add(hoodStripe);
+        // Keep the stripes close to the body so they read as paint, not floating parts.
+        const hoodStripe=new THREE.Mesh(new THREE.BoxGeometry(stripeWidth,0.018,targetLength*0.42),stripeMat);
+        hoodStripe.position.set(x,1.005,0.78); detailKit.add(hoodStripe);
 
-        const roofStripe=new THREE.Mesh(new THREE.BoxGeometry(stripeWidth,0.025,targetLength*0.25),stripeMat);
-        roofStripe.position.set(x,1.255,0); detailKit.add(roofStripe);
+        const roofStripe=new THREE.Mesh(new THREE.BoxGeometry(stripeWidth,0.018,targetLength*0.30),stripeMat);
+        roofStripe.position.set(x,1.235,0); detailKit.add(roofStripe);
 
-        const rearStripe=new THREE.Mesh(new THREE.BoxGeometry(stripeWidth,0.025,targetLength*0.26),stripeMat);
-        rearStripe.position.set(x,1.015,-0.78); detailKit.add(rearStripe);
+        const rearStripe=new THREE.Mesh(new THREE.BoxGeometry(stripeWidth,0.018,targetLength*0.22),stripeMat);
+        rearStripe.position.set(x,0.985,-0.82); detailKit.add(rearStripe);
       }
 
       // Reference-inspired front fascia: a wide black grille, four round halo
