@@ -39,7 +39,7 @@ state.car.doorsOpen=false; state.car.hoodOpen=false; state.car.trunkOpen=false; 
 state.car.partStateVersion??=0;
 app.innerHTML=`<div class="game"><main id="viewport"></main><div id="orientation-lock"><div class="rotate-card"><span class="rotate-icon">📱↔️</span><h2>Поверни телефон горизонтально</h2><p>Mechanic City рассчитан на широкий экран.</p></div></div><div class="drive-hud"><div class="hud-top"><div class="round-btn">☰</div><div class="top-icons"><button id="mapBtn">⌖</button><button id="carInfo">⚙</button><button id="menuBtn">⋮</button></div></div><div class="speed-box"><b id="speed">0</b><small>KM/H</small><span id="gear">N</span></div><div class="fuel-box">⛽ <b id="fuel"></b>% &nbsp; 🌡 <b id="heat"></b>° &nbsp; 🕒 <b id="clock"></b></div><div class="mini-map"><div class="map-road"></div><div class="map-dot"></div></div><div class="steering-zone"><button class="steer left" data-drive="left">‹</button><button class="steer right" data-drive="right">›</button></div><div class="pedals"><button class="pedal brake" data-drive="brake">■</button><button class="pedal gas" data-drive="gas">▲</button></div><div class="drive-actions"><button id="horn">◉</button><button id="cameraBtn">▣</button><button id="fuelBtn">⛽</button><button id="serviceBtn">🔧</button><button id="doorsBtn">🚪</button><button id="hoodBtn">▱</button><button id="gearBtn">P</button><button id="exitBtn">♙</button></div><div id="message" class="message">Нажми ▲ и поехали</div></div><div id="menu" class="menu hidden"><div class="menu-card"><button data-scene="city">🏙️ Город</button><button data-scene="market">🚘 Рынок</button><button data-scene="junkyard">🛠️ Свалка</button><button data-scene="dealer">🏢 Автосалон</button><button data-scene="garage">🔧 Гараж</button><button data-scene="jobs">💼 Работа</button><button data-scene="settings">⚙️ Настройки</button></div></div><section id="panel" class="panel hidden"></section></div>`;
 const viewport=document.querySelector("#viewport"),speedEl=document.querySelector("#speed"),gearEl=document.querySelector("#gear"),fuelEl=document.querySelector("#fuel"),heatEl=document.querySelector("#heat"),messageEl=document.querySelector("#message"),menu=document.querySelector("#menu"),panel=document.querySelector("#panel"),clockEl=document.querySelector("#clock");
-let renderer,camera,car,scene,clock,traffic=[],trafficLights=[],smoke=[],rainDrops=[],jobMarker=null;const partRaycaster=new THREE.Raycaster();const partPointer=new THREE.Vector2();let cameraMode=0,camOrbitYaw=0,camOrbitPitch=.18,camDragging=false,camLastX=0,camLastY=0;let physicsWorld=null,vehicleController=null,chassisBody=null,physicsReady=false,physicsError="";const PHYSICS_Y=1.08;const cameraModeNames=["Вид сзади","Вид спереди","От первого лица"];
+let renderer,camera,car,scene,clock,traffic=[],trafficLights=[],smoke=[],rainDrops=[],jobMarker=null;const partRaycaster=new THREE.Raycaster();const partPointer=new THREE.Vector2();let cameraMode=0,camOrbitYaw=0,camOrbitPitch=.18,camDragging=false,camLastX=0,camLastY=0;let physicsWorld=null,vehicleController=null,chassisBody=null,physicsReady=false,physicsError="";const PHYSICS_Y=1.08;const cameraModeNames=["Вид сзади","Вид спереди","Инспекция механика"];
 async function initPhysics(){await RAPIER.init();}
 function resetPhysics(){if(vehicleController){try{vehicleController.free();}catch{}}vehicleController=null;chassisBody=null;physicsWorld=null;physicsReady=false;}
 function setupVehiclePhysics(){if(!RAPIER||!car)throw new Error("Rapier or car is not ready");resetPhysics();physicsWorld=new RAPIER.World({x:0,y:-9.81,z:0});const ground=RAPIER.ColliderDesc.cuboid(110,.08,110).setFriction(.95);physicsWorld.createCollider(ground);for(const b of[RAPIER.ColliderDesc.cuboid(110,2,.25).setTranslation(0,2,110),RAPIER.ColliderDesc.cuboid(110,2,.25).setTranslation(0,2,-110),RAPIER.ColliderDesc.cuboid(.25,2,110).setTranslation(110,2,0),RAPIER.ColliderDesc.cuboid(.25,2,110).setTranslation(-110,2,0)])physicsWorld.createCollider(b);const desc=RAPIER.RigidBodyDesc.dynamic().setTranslation(state.posX,PHYSICS_Y,state.posZ).setLinearDamping(.08).setAngularDamping(1.5).setCcdEnabled(true).setCanSleep(false);chassisBody=physicsWorld.createRigidBody(desc);const chassis=RAPIER.ColliderDesc.cuboid(1.18,.42,2.18).setMass(1180).setFriction(.78);physicsWorld.createCollider(chassis,chassisBody);vehicleController=physicsWorld.createVehicleController(chassisBody);if(typeof vehicleController.setIndexForwardAxis==="function")vehicleController.setIndexForwardAxis(2);const wheelPos=[[-1.27,-.34,-1.5],[1.27,-.34,-1.5],[-1.27,-.34,1.5],[1.27,-.34,1.5]];for(const p of wheelPos)vehicleController.addWheel({x:p[0],y:p[1],z:p[2]},{x:0,y:-1,z:0},{x:1,y:0,z:0},.34,.39);for(let i=0;i<4;i++){vehicleController.setWheelSuspensionStiffness(i,30);vehicleController.setWheelSuspensionCompression(i,5);vehicleController.setWheelSuspensionRelaxation(i,6);vehicleController.setWheelMaxSuspensionForce(i,12000);if(typeof vehicleController.setWheelMaxSuspensionTravel==="function")vehicleController.setWheelMaxSuspensionTravel(i,.24);vehicleController.setWheelFrictionSlip(i,1.35);if(typeof vehicleController.setWheelSideFrictionStiffness==="function")vehicleController.setWheelSideFrictionStiffness(i,1.45);}physicsReady=true;}
@@ -70,11 +70,10 @@ function openPartPanel(part){
 }
 function installPartInteraction(){viewport.addEventListener("pointerdown",e=>{if(!["city","workshop"].includes(state.scene)||!car||!renderer)return;const r=renderer.domElement.getBoundingClientRect();partPointer.x=((e.clientX-r.left)/r.width)*2-1;partPointer.y=-((e.clientY-r.top)/r.height)*2+1;partRaycaster.setFromCamera(partPointer,camera);const meshes=[];car.traverse(o=>{if(o.isMesh&&o.visible)meshes.push(o);});const hit=partRaycaster.intersectObjects(meshes,false)[0];if(!hit?.object?.userData?.servicePart)return;state.car.selectedPart=hit.object.userData.servicePart.key;openPartPanel(hit.object.userData.servicePart);},{passive:true});}
 function setupImportedWheelSteering(model,root){
-  // Build a clean runtime articulation rig from the authored assembled meshes.
-  // We deliberately do not trust the old Blender hinge parents: several of
-  // those pivots were authored below the visible panels. Three.js attach()
-  // preserves the panel's world transform while letting our new pivots control
-  // the correct axis.
+  // Runtime articulation uses the actual authored car axes:
+  // local X = front/rear, local Y = left/right, local Z = height.
+  // Standard car doors hinge on a vertical Z axis and swing outward.
+  // Hood/trunk hinge on the transverse Y axis and lift upward.
   model.updateWorldMatrix(true,true,true);
   root.updateWorldMatrix(true,true,true);
   const find=(name)=>model.getObjectByName(name)||null;
@@ -82,7 +81,6 @@ function setupImportedWheelSteering(model,root){
     find("WheelPivot_FL"),find("WheelPivot_FR"),
     find("WheelPivot_RL"),find("WheelPivot_RR")
   ].filter(Boolean);
-  const wheels=wheelPivots;
 
   const worldCorners=(obj)=>{
     const box=new THREE.Box3().setFromObject(obj,true);
@@ -96,6 +94,7 @@ function setupImportedWheelSteering(model,root){
     for(const p of pts){min.min(p);max.max(p);}
     return {min,max};
   };
+
   const makePivot=(name,pos)=>{
     const pivot=new THREE.Object3D();
     pivot.name=name;
@@ -103,18 +102,22 @@ function setupImportedWheelSteering(model,root){
     root.add(pivot);
     return pivot;
   };
+
   const attachDoor=(name,side,front)=>{
     const mesh=find(name);
     if(!mesh)return null;
     const b=worldCorners(mesh);
     const center=b.min.clone().add(b.max).multiplyScalar(.5);
+    // Front doors hinge on their front edge; rear doors hinge on their rear edge.
     const hingeX=front?b.max.x:b.min.x;
     const hingeY=side<0?b.min.y:b.max.y;
-    const hinge=new THREE.Vector3(hingeX,hingeY,center.z);
-    const pivot=makePivot(name+"_RuntimeHinge",hinge);
+    // The hinge line is vertical in this model: local Z is the car's up axis.
+    const pivot=makePivot(name+"_RuntimeHinge",new THREE.Vector3(hingeX,hingeY,center.z));
     pivot.attach(mesh);
-    return {pivot,open:0,side,front};
+    const openSign=front?(side<0?1:-1):(side<0?-1:1);
+    return {pivot,open:0,side,front,openSign};
   };
+
   const doors=[
     attachDoor("L_Front_Door",-1,true),
     attachDoor("R_Front_Door",1,true),
@@ -127,32 +130,60 @@ function setupImportedWheelSteering(model,root){
     if(!mesh)return null;
     const b=worldCorners(mesh);
     const center=b.min.clone().add(b.max).multiplyScalar(.5);
-    // Hood hinge is at the windshield/rear edge; trunk hinge is at the
-    // rear-window/front edge. Both lids rotate around the car's side-to-side Y axis.
+    // Hood: rear/cowl edge. Trunk: front edge. Both use the transverse Y axis.
     const hingeX=front?b.min.x:b.max.x;
-    const hinge=new THREE.Vector3(hingeX,center.y,b.max.z);
-    const pivot=makePivot(name+"_RuntimeHinge",hinge);
+    const pivot=makePivot(
+      name+"_RuntimeHinge",
+      new THREE.Vector3(hingeX,center.y,b.max.z)
+    );
     pivot.attach(mesh);
-    return pivot;
+    return {pivot,open:0,front};
   };
+
   const hood=attachLid("Hood",true);
   const trunk=attachLid("Trunk",false);
   const steering=find("SteeringWheel")||find("Steering_Wheel");
-  return {wheels,doors,hood,trunk,steering};
+
+  // Brake rotors/calipers and other service meshes stay authored and stationary.
+  // Record an audit list so diagnostics can verify every visible service part.
+  const audit=[];
+  model.traverse(o=>{
+    if(o.isMesh && o.visible){
+      audit.push({
+        name:o.name,
+        category:o.userData?.servicePart?.category||"unknown",
+        subsystem:o.userData?.servicePart?.subsystem||"unknown"
+      });
+    }
+  });
+  root.userData.articulationAudit=audit;
+  return {wheels:wheelPivots,doors,hood,trunk,steering};
 }
 function updateArticulatedCar(dt){
   const a=car?.userData?.articulation;
   if(!a||!state.car.articulationActive)return;
+
   const doorTarget=state.car.doorsOpen?1:0;
   for(const d of a.doors){
     d.open=THREE.MathUtils.damp(d.open,doorTarget,8,dt);
-    // Doors rotate around a vertical hinge line on the side of the body.
-    d.pivot.rotation.set(0,(d.side<0?1:-1)*1.12*d.open,0);
+    // Correct conventional door motion: outward around a vertical hinge.
+    d.pivot.rotation.set(0,0,d.openSign*1.12*d.open);
   }
-  // Hood and trunk rotate upward around side-to-side hinge axes, never around Z.
-  if(a.hood)a.hood.rotation.y=THREE.MathUtils.damp(a.hood.rotation.y,state.car.hoodOpen?-0.88:0,7,dt);
-  if(a.trunk)a.trunk.rotation.y=THREE.MathUtils.damp(a.trunk.rotation.y,state.car.trunkOpen?0.78:0,7,dt);
-  if(a.steering)a.steering.rotation.x=THREE.MathUtils.damp(a.steering.rotation.x,-state.steer*.62,9,dt);
+
+  // Correct conventional bonnet/boot motion: upward around a transverse hinge.
+  if(a.hood){
+    const target=state.car.hoodOpen?-0.88:0;
+    a.hood.rotation.y=THREE.MathUtils.damp(a.hood.rotation.y,target,7,dt);
+  }
+  if(a.trunk){
+    const target=state.car.trunkOpen?0.78:0;
+    a.trunk.rotation.y=THREE.MathUtils.damp(a.trunk.rotation.y,target,7,dt);
+  }
+
+  if(a.steering){
+    // Steering wheel rotates around its own steering column axis.
+    a.steering.rotation.x=THREE.MathUtils.damp(a.steering.rotation.x,-state.steer*.62,9,dt);
+  }
 }
 function physicsDrive(dt){
  if(!physicsReady||!physicsWorld||!chassisBody){fallbackDrive(dt);return;}
@@ -605,16 +636,9 @@ function buildWorkshop(){
   const key=new THREE.DirectionalLight(0xffffff,2.1);key.position.set(5,10,-7);key.castShadow=true;key.shadow.mapSize.set(1024,1024);scene.add(key);
   const floor=new THREE.Mesh(new THREE.PlaneGeometry(32,24),new THREE.MeshStandardMaterial({color:0x34383b,roughness:.92,map:metalTex}));
   floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
-  const platform=new THREE.Mesh(new THREE.BoxGeometry(7.2,.18,8.2),new THREE.MeshStandardMaterial({color:0x555b60,metalness:.35,roughness:.5,map:metalTex}));
-  platform.position.y=.15;platform.receiveShadow=true;scene.add(platform);
-  for(const x of[-2.8,2.8])for(const z of[-3.1,3.1]){
-    const post=new THREE.Mesh(new THREE.BoxGeometry(.18,1.55,.18),new THREE.MeshStandardMaterial({color:0x202428,metalness:.7,roughness:.28}));
-    post.position.set(x,.92,z);post.castShadow=true;scene.add(post);
-  }
-  const lift=new THREE.Mesh(new THREE.BoxGeometry(6.5,.22,7.5),new THREE.MeshStandardMaterial({color:0x202428,metalness:.72,roughness:.32}));
-  lift.position.y=1.05;lift.castShadow=true;scene.add(lift);
+  // No platform/lift slab: the car sits directly on the workshop floor.
   car=makeCar(0x252b31);
-  car.position.set(0,1.48,0);
+  car.position.set(0,0.02,0);
   car.rotation.y=0;
   scene.add(car);
   car.userData.workshopMode=true;
@@ -632,9 +656,16 @@ function buildWorkshop(){
     if(state.scene!=="workshop"||!renderer||!scene||!camera)return;
     requestAnimationFrame(loop);
     const dt=Math.min(clock.getDelta(),.05);
-    if(car?.userData?.workshopDisassembled)updateArticulatedCar(dt);
-    camera.position.lerp(new THREE.Vector3(6.5,4.6,7.0),.11);
-    camera.lookAt(new THREE.Vector3(0,1.25,0));
+    updateArticulatedCar(dt);
+    // Close mechanic inspection framing: the vehicle, not the empty room, is the subject.
+    const box=car?new THREE.Box3().setFromObject(car,true):null;
+    const center=box?.getCenter(new THREE.Vector3())||new THREE.Vector3(0,1,0);
+    const size=box?.getSize(new THREE.Vector3())||new THREE.Vector3(5,1.5,5);
+    const radius=Math.max(size.x,size.y,size.z);
+    const inspectionDistance=Math.max(4.4,radius*1.18);
+    const desired=new THREE.Vector3(center.x+inspectionDistance*.78,center.y+inspectionDistance*.52,center.z+inspectionDistance*.78);
+    camera.position.lerp(desired,.16);
+    camera.lookAt(center);
     renderer.render(scene,camera);
   };
   loop();
