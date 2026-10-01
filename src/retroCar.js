@@ -413,10 +413,10 @@ export class RetroCarBuilder {
       engine.name="Dodge_V8_Engine_Block";
       engineBay.add(engine);
 
-      const intake=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.20,0.82),rubberMat);
-      intake.position.set(0,1.43,0.84);
-      intake.name="Dodge_V8_Intake";
-      engineBay.add(intake);
+      const v8Intake=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.20,0.82),rubberMat);
+      v8Intake.position.set(0,1.43,0.84);
+      v8Intake.name="Dodge_V8_Intake";
+      engineBay.add(v8Intake);
 
       for(const x of [-0.62,0.62]){
         const valve=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.34,0.94),redMat);
