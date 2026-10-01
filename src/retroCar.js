@@ -515,6 +515,79 @@ export class RetroCarBuilder {
       // передняя/задняя подвеска, рулевое, тормоза, топливная система и выхлоп.
       this.addFullChallengerMechanicalLayer();
 
+      // Build real animated doors from the original Challenger body mesh.
+      // DOOR_*_ANIM are only markers, so use the actual side-panel triangles
+      // just like the real hood above.
+      const createDoorAssemblies = () => {
+        const body = model.getObjectByName("geometry_0");
+        if(!body?.geometry?.attributes?.position) return [];
+        const src=body.geometry, pos=src.attributes.position, idx=src.index;
+        const triCount=idx ? idx.count/3 : pos.count/3;
+        const leftTris=[], rightTris=[], keepTris=[];
+        const isDoorVertex=(i,side)=>{
+          const x=pos.getX(i), y=pos.getY(i), z=pos.getZ(i);
+          // Normalized R2.1 side-door area: between the wheel arches,
+          // below the belt line and outside the central body.
+          return (side<0 ? x<=-0.125 : x>=0.125) &&
+            Math.abs(x)<=0.205 && y>=-0.005 && y<=0.078 &&
+            z>=-0.27 && z<=0.25;
+        };
+        for(let t=0;t<triCount;t++){
+          const ia=idx?idx.getX(t*3):t*3;
+          const ib=idx?idx.getX(t*3+1):t*3+1;
+          const ic=idx?idx.getX(t*3+2):t*3+2;
+          const l=isDoorVertex(ia,-1)&&isDoorVertex(ib,-1)&&isDoorVertex(ic,-1);
+          const rr=isDoorVertex(ia,1)&&isDoorVertex(ib,1)&&isDoorVertex(ic,1);
+          if(l)leftTris.push([ia,ib,ic]);
+          else if(rr)rightTris.push([ia,ib,ic]);
+          else keepTris.push([ia,ib,ic]);
+        }
+        if(!leftTris.length&&!rightTris.length)return [];
+
+        const build=(tris)=>{
+          const out=[];
+          for(const [a,b,c] of tris) for(const i of [a,b,c])
+            out.push(pos.getX(i),pos.getY(i),pos.getZ(i));
+          const g=new THREE.BufferGeometry();
+          g.setAttribute("position",new THREE.Float32BufferAttribute(out,3));
+          g.computeVertexNormals(); g.computeBoundingSphere(); return g;
+        };
+        body.geometry=build(keepTris);
+
+        const makeDoor=(tris,side,name)=>{
+          if(!tris.length)return null;
+          const geo=build(tris), p=geo.attributes.position;
+          for(let i=0;i<p.count;i++){
+            const v=new THREE.Vector3(p.getX(i),p.getY(i),p.getZ(i)).applyMatrix4(model.matrix);
+            p.setXYZ(i,v.x,v.y,v.z);
+          }
+          p.needsUpdate=true; geo.computeVertexNormals(); geo.computeBoundingBox(); geo.computeBoundingSphere();
+          const box=geo.boundingBox;
+          const hingeLocal=new THREE.Vector3(
+            side<0 ? box.min.x : box.max.x,
+            box.min.y + (box.max.y-box.min.y)*0.10,
+            (box.min.z+box.max.z)*0.5
+          );
+          const hinge=new THREE.Vector3().copy(hingeLocal);
+          const mat=new THREE.MeshStandardMaterial({color:0xe52a36,metalness:0.34,roughness:0.28,transparent:false,opacity:1,side:THREE.DoubleSide});
+          const mesh=new THREE.Mesh(geo,mat);
+          mesh.name=name+"_RealDoor"; mesh.castShadow=true; mesh.receiveShadow=true;
+          const pivot=new THREE.Object3D();
+          pivot.name=name+"_Hinge";
+          pivot.position.copy(hinge);
+          this.carGroup.add(pivot);
+          const hp=geo.attributes.position;
+          for(let i=0;i<hp.count;i++) hp.setXYZ(i,hp.getX(i)-hinge.x,hp.getY(i)-hinge.y,hp.getZ(i)-hinge.z);
+          hp.needsUpdate=true; geo.computeBoundingBox(); geo.computeBoundingSphere();
+          pivot.add(mesh);
+          return {pivot,open:0,openSign:side<0?-1:1,axis:"y",maxAngle:1.05};
+        };
+        return [
+          makeDoor(leftTris,-1,"Door_Left"),
+          makeDoor(rightTris,1,"Door_Right")
+        ].filter(Boolean);
+      };
+
       // The *_ANIM nodes are only markers. Use the ACTUAL hood surface
       // from geometry_0: copy its real triangles, remove those triangles from
       // the static body, and put the copy on a hinge. No fake hood, no black bay.
@@ -637,8 +710,9 @@ export class RetroCarBuilder {
         if(marker)marker.visible=false;
       }
 
+      const doorAssemblies=createDoorAssemblies();
       const articulation = {
-        doors: [],
+        doors: doorAssemblies,
         hood: createHoodAssembly(),
         trunk: null,
         steering: null
