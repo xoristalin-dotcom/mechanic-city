@@ -410,12 +410,8 @@ if(car){
     camera.position.set(0,1.35,.55);
     camera.rotation.set(-0.03,Math.PI,0);
   }else{
-    // Use a lower, closer follow camera on portrait phones so the car does not
-    // look top-down inside the narrow vertical viewport.
-    const portrait=viewport.clientHeight>viewport.clientWidth;
-    const distance=portrait?7.2:(moving?9.4:8.6);
-    const baseHeight=portrait?4.2:(moving?6.1:5.7);
-    const height=baseHeight+Math.sin(camOrbitPitch)*distance*.55;
+    const distance=moving?9.4:8.6;
+    const height=(moving?6.1:5.7)+Math.sin(camOrbitPitch)*distance*.55;
     const z=-Math.max(1.2,Math.cos(camOrbitPitch)*distance);
     camera.position.set(0,height,z);
     camera.rotation.set(
