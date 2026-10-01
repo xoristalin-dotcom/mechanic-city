@@ -456,6 +456,10 @@ export class RetroCarBuilder {
       addWire([-0.92,1.20,0.55],[-1.18,1.08,0.18],0.045,wireMats[1],"Power_Cable");
       addWire([0.35,1.39,0.90],[0.92,1.35,1.18],0.032,wireMats[2],"Sensor_Wire");
 
+      // Масштабируем моторный отсек под реальный объём Challenger:
+      // двигатель должен находиться внутри кузова, а не выступать через капот.
+      engineBay.scale.setScalar(0.68);
+      engineBay.position.set(0,0.35,0.18);
       engineBay.traverse(o=>{
         if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=true;}
       });
