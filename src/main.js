@@ -348,24 +348,23 @@ async function buildCity(){ clearJobMarker(); traffic=[]; trafficLights=[]; smok
   addBuilding(-32,-24,14,11,10,0x6f7a82); addBuilding(30,-15,18,15,12,0x7b6f63); addBuilding(14,32,16,12,11,0x5e6d7a); addBuilding(-20,34,15,17,12,0x5d6667); addStreetProps(); try{ car=createRetroPlayerCar(); car.position.set(state.posX,0,state.posZ); car.rotation.y=state.heading; scene.add(car); cameraRig=new THREE.Object3D(); cameraRig.name="ThirdPersonCameraRig"; car.add(cameraRig); cameraRig.position.set(0,0,0); cameraRig.add(camera); camera.position.set(0,5.7,8.6); camera.rotation.set(0,0,0); setupCameraControls(); clock=new THREE.Clock(); animate(traffic); setupVehiclePhysics().catch(err=>{window.MechanicCityDebugLog?.({type:"physics-async",message:String(err?.message||err),stack:String(err?.stack||"")}); console.warn("Async Rapier setup failed; fallback driving remains active.",err);}); for(let i=0;i<9;i++){ const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4],false); npc.scale.setScalar(.86); npc.position.set((i%4)*13-19,0,-12-i*18); npc.userData.speed=1.4+(i%3)*.35; npc.rotation.y=Math.PI; scene.add(npc); traffic.push(npc); } createJobMarker(); }catch(err){window.MechanicCityBuildError=String(err?.message||err); window.MechanicCityDebugLog?.({type:"city-build",message:String(err?.message||err),stack:String(err?.stack||"")}); console.error("City build failed",err); renderEmergencyScene();}}
 function animate(traffic=[]){ requestAnimationFrame(()=>animate(traffic)); if(state.scene!=="city")return; if(!renderer||!scene||!camera)return; const dt=Math.min(clock?.getDelta()||.016,.05); try{ if((state.driving||state.throttle||input.gas)&&state.fuel>0){ physicsDrive(dt); if(state.fuel>0) state.fuel=Math.max(0,state.fuel-dt*(.018+Math.abs(state.speed)*.014)); state.car.oil=Math.max(0,state.car.oil-dt*.004); state.car.coolant=Math.max(0,state.car.coolant-dt*.002); state.heat=Math.min(125,state.heat+dt*(.08+Math.abs(state.speed)*.055)); if(state.car.oil<15||state.car.coolant<15)state.damage=Math.min(100,state.damage+dt*.08); state.car.mileage+=Math.abs(state.speed)*dt*.006; if(state.heat>108)state.damage=Math.min(100,state.damage+dt*.06); for(const npc of traffic){ if(!npc?.position||!car?.position)continue; const d=car.position.distanceTo(npc.position); if(d<2.25&&Math.abs(state.speed)>.35){ state.damage=Math.min(100,state.damage+dt*7); if(chassisBody){ const v=chassisBody.linvel(); chassisBody.setLinvel({x:v.x*.65,y:v.y,z:v.z*.65},true);} msg("⚠️ Столкновение: кузов повреждён."); } } if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();} }
  updateJob(); updateArticulatedCar(dt); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25; let target,look; if(cameraRig){
-  // Third-person camera stays behind the player car.
-  // The extra PI flips the orbit from the car front to its rear.
-  const targetY=car.position.y+1.0;
-  look=new THREE.Vector3(car.position.x,targetY,car.position.z);
+  // Camera is parented to the car: use only local-space transforms.
   if(cameraMode===2){
-    // Hood camera is also physically attached to the car.
     cameraRig.rotation.set(0,0,0);
     camera.position.set(0,1.28,-0.38);
-    camera.lookAt(car.position.x, targetY, car.position.z);
+    camera.rotation.set(-0.04,0,0);
   } else {
-    // Real third-person attachment: the camera is parented to the car,
-    // so translation and heading follow automatically.
     const followDistance=moving?9.4:8.6;
     const followHeight=moving?6.1:5.7;
-    cameraRig.rotation.set(camOrbitPitch,camOrbitYaw,0);
-    camera.position.set(0,followHeight,followDistance);
-    camera.lookAt(car.position.x,targetY,car.position.z);
+    const orbitDistance=Math.max(1.2,Math.cos(camOrbitPitch)*followDistance);
+    const localY=followHeight+Math.sin(camOrbitPitch)*followDistance*.55;
+    const localZ=orbitDistance;
+    cameraRig.rotation.set(0,camOrbitYaw,0);
+    camera.position.set(0,localY,localZ);
+    // Camera looks at a point 1m above the car in local coordinates.
+    camera.rotation.set(Math.atan2(1-localY,localZ),Math.PI,0);
   }
+}
 } else {
   target=new THREE.Vector3(car.position.x+8,5.8,car.position.z+12);
   look=new THREE.Vector3(car.position.x,1.05,car.position.z);
