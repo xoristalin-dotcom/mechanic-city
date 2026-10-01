@@ -243,7 +243,7 @@ function createRetroPlayerCar(){
     const savedPart=state.car.partState?.[key];
     part.condition=typeof savedPart?.condition==="number"?savedPart.condition:100;
     part.installed=savedPart?.installed!==false;
-    part.mesh.visible=part.installed;
+    part.mesh.visible=part.installed && root.userData.workshopMode === true;
   }
   root.updateWorldMatrix(true,true,true);
   return root;
