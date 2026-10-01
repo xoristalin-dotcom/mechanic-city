@@ -456,10 +456,13 @@ export class RetroCarBuilder {
       addWire([-0.92,1.20,0.55],[-1.18,1.08,0.18],0.045,wireMats[1],"Power_Cable");
       addWire([0.35,1.39,0.90],[0.92,1.35,1.18],0.032,wireMats[2],"Sensor_Wire");
 
-      // Масштабируем моторный отсек под реальный объём Challenger:
-      // двигатель должен находиться внутри кузова, а не выступать через капот.
-      engineBay.scale.setScalar(0.68);
-      engineBay.position.set(0,0.35,0.18);
+      // Привязываем моторный отсек к реальным координатам кузова R2.1.
+      // geometry_0 после нормализации имеет нижнюю кромку кузова около Y=0.61,
+      // а настоящий капот проходит примерно от Z=0.62 до Z=2.4.
+      // Поэтому мотор должен лежать ниже капота и в передней половине кузова,
+      // а не висеть над машиной.
+      engineBay.scale.setScalar(0.48);
+      engineBay.position.set(0,0.12,0.85);
       engineBay.traverse(o=>{
         if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=true;}
       });
