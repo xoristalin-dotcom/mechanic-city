@@ -40,7 +40,7 @@ const PART_STATE_VERSION = 2;
 const state = saved || {money:18500,fuel:72,heat:82,damage:8,car:{name:"Crown 72",year:1972,mileage:214320,engine:68,condition:61,turbo:false,sportBrakes:false,wheels:"stock",oil:42,coolant:58,brakes:61,battery:70,suspension:61,tires:61,body:60,gearbox:57,parts:{}}, scene:"city"};
 Object.assign(state,{driving:false,speed:0,steer:0,onFoot:false,throttle:false});
 const input={gas:false,brake:false,left:false,right:false};
-state.posX??=0;state.posZ??=10;state.heading??=0;state.gear??="P";state.time??=14;state.rain??=false;state.job??=null;
+state.fuel=100;state.posX??=0;state.posZ??=10;state.heading??=0;state.gear??="P";state.time??=14;state.rain??=false;state.job??=null;
 state.car.name="Retro Car";state.car.year??=1975;state.car.oil??=42;state.car.coolant??=58;state.car.brakes??=state.car.condition;state.car.battery??=70;state.car.suspension??=state.car.condition;state.car.tires??=state.car.condition;state.car.body??=state.car.condition;state.car.engine??=state.car.condition;state.car.gearbox??=state.car.condition;state.car.partState??={};state.car.parts??={};
 initializeCarParts(state);
 
