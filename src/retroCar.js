@@ -220,27 +220,63 @@ export class RetroCarBuilder {
       const tail = new THREE.MeshStandardMaterial({color:0x8f1018,emissive:0x300004,emissiveIntensity:0.55,roughness:0.25});
       const glass = new THREE.MeshStandardMaterial({color:0x15242b,metalness:0.08,roughness:0.18});
 
-      const grille = new THREE.Mesh(new THREE.BoxGeometry(Math.min(1.55,bodyW*0.52),0.28,0.075),trim);
+      // Reference-inspired front fascia: a wide black grille, four round halo
+      // projectors, a thin upper opening and a deeper lower intake.
+      const grille = new THREE.Mesh(
+        new THREE.BoxGeometry(Math.min(1.72,bodyW*0.62),0.34,0.075),trim
+      );
       grille.position.set(0,0.69,frontZ-0.025); detailKit.add(grille);
-      for(let i=-5;i<=5;i++){
-        const bar=new THREE.Mesh(new THREE.BoxGeometry(0.035,0.20,0.045),chrome);
-        bar.position.set(i*0.12,0.69,frontZ-0.07); detailKit.add(bar);
+
+      const grilleTop = new THREE.Mesh(
+        new THREE.BoxGeometry(Math.min(1.82,bodyW*0.68),0.075,0.055),trim
+      );
+      grilleTop.position.set(0,0.84,frontZ-0.035); detailKit.add(grilleTop);
+
+      for(let i=-7;i<=7;i++){
+        const bar=new THREE.Mesh(new THREE.BoxGeometry(0.026,0.27,0.042),chrome);
+        bar.position.set(i*0.085,0.69,frontZ-0.072); detailKit.add(bar);
       }
-      for(const x of [-bodyW*0.28,bodyW*0.28]){
-        // Halo-style projector headlights.
-        const housing=new THREE.Mesh(new THREE.CylinderGeometry(0.285,0.285,0.075,20),lampInner);
-        housing.rotation.x=Math.PI/2; housing.position.set(x,0.79,frontZ-0.045); detailKit.add(housing);
-        const head=new THREE.Mesh(new THREE.TorusGeometry(0.225,0.045,8,24),lamp);
-        head.rotation.x=Math.PI/2; head.position.set(x,0.79,frontZ-0.09); detailKit.add(head);
-        const inner=new THREE.Mesh(new THREE.CylinderGeometry(0.105,0.105,0.035,16),lampGlow);
-        inner.rotation.x=Math.PI/2; inner.position.set(x,0.79,frontZ-0.105); detailKit.add(inner);
-        const bezel=new THREE.Mesh(new THREE.TorusGeometry(0.29,0.022,6,20),chrome);
-        bezel.rotation.x=Math.PI/2; bezel.position.set(x,0.79,frontZ-0.115); detailKit.add(bezel);
-        const rear=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.20,0.07),tail);
-        rear.position.set(x,0.77,rearZ+0.04); detailKit.add(rear);
+
+      // Four round headlights like the reference: two projectors per side,
+      // each with a bright halo ring and dark recessed housing.
+      for(const x of [-bodyW*0.31,-bodyW*0.16,bodyW*0.16,bodyW*0.31]){
+        const housing=new THREE.Mesh(
+          new THREE.CylinderGeometry(0.19,0.19,0.075,20),lampInner
+        );
+        housing.rotation.x=Math.PI/2;
+        housing.position.set(x,0.80,frontZ-0.045);
+        detailKit.add(housing);
+
+        const head=new THREE.Mesh(
+          new THREE.TorusGeometry(0.145,0.032,8,24),lamp
+        );
+        head.rotation.x=Math.PI/2;
+        head.position.set(x,0.80,frontZ-0.092);
+        detailKit.add(head);
+
+        const inner=new THREE.Mesh(
+          new THREE.CylinderGeometry(0.064,0.064,0.032,16),lampGlow
+        );
+        inner.rotation.x=Math.PI/2;
+        inner.position.set(x,0.80,frontZ-0.108);
+        detailKit.add(inner);
       }
-      const frontBumper=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.88,0.16,0.18),chrome);
+
+      // Aggressive lower bumper / splitter shape from the reference.
+      const frontBumper=new THREE.Mesh(
+        new THREE.BoxGeometry(bodyW*0.90,0.17,0.20),trim
+      );
       frontBumper.position.set(0,0.48,frontZ-0.05); detailKit.add(frontBumper);
+
+      const lowerIntake=new THREE.Mesh(
+        new THREE.BoxGeometry(bodyW*0.72,0.22,0.08),trim
+      );
+      lowerIntake.position.set(0,0.42,frontZ-0.12); detailKit.add(lowerIntake);
+
+      const splitter=new THREE.Mesh(
+        new THREE.BoxGeometry(bodyW*0.96,0.055,0.28),chrome
+      );
+      splitter.position.set(0,0.33,frontZ-0.13); detailKit.add(splitter);
       const rearBumper=frontBumper.clone(); rearBumper.position.z=rearZ+0.05; detailKit.add(rearBumper);
 
       // Hood power bulge + intake.
