@@ -373,7 +373,7 @@ function installVisualInspectMode(){
       return window.MechanicCityInspect.getState();
     },
     setScene:(name)=>{
-      if(["city","garage","market","junkyard","dealer","jobs","settings"].includes(name))renderScene(name);
+      if(["city","workshop","garage","market","junkyard","dealer","jobs","settings"].includes(name))renderScene(name);
       return window.MechanicCityInspect.getState();
     }
   };
@@ -394,7 +394,7 @@ else if(name==="left"){input.left=!!value;if(value)state.driving=true;}
 else if(name==="right"){input.right=!!value;if(value)state.driving=true;}
 else if(name==="gear"){if(["P","R","N","D"].includes(value)){state.gear=value;if(value==="D"||value==="R")state.driving=true;if(value==="P")state.driving=false;}}
 else if(name==="camera"){const n=Math.max(0,Math.min(2,Number(value)));cameraMode=n;camOrbitYaw=0;camOrbitPitch=.18;if(camera){camera.fov=n===2?82:n===1?68:62;camera.updateProjectionMatrix();}}
-else if(name==="scene"&&["city","garage","market","junkyard","dealer","jobs","settings"].includes(value))renderScene(value);
+else if(name==="scene"&&["city","workshop","garage","market","junkyard","dealer","jobs","settings"].includes(value))renderScene(value);
 else if(name==="refuel"){state.fuel=100;save();}
 else if(name==="repair"){state.damage=0;state.car.condition=100;save();}
 return window.MechanicCityTest.getState();
@@ -662,7 +662,7 @@ function buildWorkshop(){
     const center=box?.getCenter(new THREE.Vector3())||new THREE.Vector3(0,1,0);
     const size=box?.getSize(new THREE.Vector3())||new THREE.Vector3(5,1.5,5);
     const radius=Math.max(size.x,size.y,size.z);
-    const inspectionDistance=Math.max(3.45,radius*.86);
+    const inspectionDistance=Math.max(2.8,radius*.62);
     const desired=new THREE.Vector3(center.x+inspectionDistance*.78,center.y+inspectionDistance*.62,center.z+inspectionDistance*.78);
     camera.position.lerp(desired,.16);
     camera.lookAt(center);
