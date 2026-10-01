@@ -5,7 +5,7 @@ import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 export async function loadMechanicCityCoupe(){
   // Authoritative game model slot. Revision 18 is the authoritative Higgsfield 3D Jutsu asset;
   // the deployed build can override this with VITE_MECHANIC_CITY_MODEL_URL.
-  const path=import.meta.env.VITE_MECHANIC_CITY_MODEL_URL || "/models/MechanicCity_Coupe_Repaired.glb";
+  const path=import.meta.env.VITE_MECHANIC_CITY_MODEL_URL || "https://www.dropbox.com/scl/fi/nfjq6aktqx8lunamnt9r3/preview.glb?rlkey=g8d2e98k9esriwh8jiusdakb8&st=t3hfczn0&dl=1";
   const response=await fetch(path,{cache:"no-store"});
   if(!response.ok) throw new Error("Mechanic City Revision 18 GLB unavailable: HTTP "+response.status+" "+path);
   const buffer=await response.arrayBuffer();
@@ -13,7 +13,7 @@ export async function loadMechanicCityCoupe(){
   loader.setMeshoptDecoder(MeshoptDecoder);
   if(MeshoptDecoder.ready) await MeshoptDecoder.ready;
   const model=await new Promise((resolve,reject)=>{
-    loader.parse(buffer,"/models/",g=>resolve(g.scene),reject);
+    loader.parse(buffer,path,g=>resolve(g.scene),reject);
   });
   model.name="MechanicCity_Coupe_R18";
   model.userData.revision=18;
