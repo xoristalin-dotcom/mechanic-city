@@ -84,7 +84,7 @@ document.addEventListener("pointerdown",lockLandscape,{once:true,passive:true});
 
 const viewport=document.querySelector("#viewport"),speedEl=document.querySelector("#speed"),gearEl=document.querySelector("#gear"),fuelEl=document.querySelector("#fuel"),heatEl=document.querySelector("#heat"),clockEl=document.querySelector("#clock"),messageEl=document.querySelector("#message"),menu=document.querySelector("#menu");
 let renderer,camera,car,scene,clock,cameraRig,traffic=[],trafficLights=[],smoke=[],rainDrops=[],jobMarker=null,vehicleController=null,chassisBody=null,physicsWorld=null,physicsReady=false,physicsError=null;
-const partRaycaster=new THREE.Raycaster(); const partPointer=new THREE.Vector2(); let cameraMode=0,camOrbitYaw=0,camOrbitPitch=.18,camDragging=false,camLastX=0,camLastY=0;
+const partRaycaster=new THREE.Raycaster(); const partPointer=new THREE.Vector2(); let cameraMode=1,camOrbitYaw=0,camOrbitPitch=.18,camDragging=false,camLastX=0,camLastY=0;
 const cameraModeNames=["follow","orbit","hood"];
 const PHYSICS_Y = 0.3;
 
@@ -347,22 +347,26 @@ async function buildCity(){ clearJobMarker(); traffic=[]; trafficLights=[]; smok
   try{setupCameraControls();}catch(err){window.MechanicCityBootError=String(err?.message||err);console.error("Camera setup failed",err);} const hemi=new THREE.HemisphereLight(night?0x5d6f8d:0xbdd6e8,0x283029,night?.8:1.35); scene.add(hemi); const sun=new THREE.DirectionalLight(night?0x7d91b8:0xffead0,night?.65:2.6); sun.position.set(-10,20,-5); scene.add(sun); const groundMat=new THREE.MeshStandardMaterial({color:0x50534f,roughness:.96,map:sidewalkTex}); const ground=new THREE.Mesh(new THREE.PlaneGeometry(220,220),groundMat); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground); for(const z of[-70,-35,0,35,70])for(const side of[-1,1]){ for(let k=-3;k<=3;k++){ const stripe=new THREE.Mesh(new THREE.BoxGeometry(7,.025,.34),new THREE.MeshBasicMaterial({color:0xd9d7cc})); stripe.position.set(side*(k*12),0.03,z); scene.add(stripe); } } for(let x=-39;x<=39;x+=13)for(const z of[-48,48]){ const pole=new THREE.Mesh(new THREE.CylinderGeometry(.045,.07,3.8,8),new THREE.MeshStandardMaterial({color:0x22262a,metalness:.4,roughness:.55, map:metalTex})); pole.position.set(x,1.9,z); scene.add(pole); const lightBulb=new THREE.Mesh(new THREE.BoxGeometry(.12,.12,.12), new THREE.MeshStandardMaterial({color:0xfff7d1, emissive:0xffb000, emissiveIntensity:0.7})); lightBulb.position.set(x,3.8,z); scene.add(lightBulb); }
   addBuilding(-32,-24,14,11,10,0x6f7a82); addBuilding(30,-15,18,15,12,0x7b6f63); addBuilding(14,32,16,12,11,0x5e6d7a); addBuilding(-20,34,15,17,12,0x5d6667); addStreetProps(); try{ car=createRetroPlayerCar(); car.position.set(state.posX,0,state.posZ); car.rotation.y=state.heading; scene.add(car); cameraRig=new THREE.Object3D(); cameraRig.name="ThirdPersonCameraRig"; car.add(cameraRig); cameraRig.add(camera); camera.position.set(0,0,0); camera.rotation.set(0,0,0); clock=new THREE.Clock(); animate(traffic); setupVehiclePhysics().catch(err=>{window.MechanicCityDebugLog?.({type:"physics-async",message:String(err?.message||err),stack:String(err?.stack||"")}); console.warn("Async Rapier setup failed; fallback driving remains active.",err);}); for(let i=0;i<9;i++){ const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4],false); npc.scale.setScalar(.86); npc.position.set((i%4)*13-19,0,-12-i*18); npc.userData.speed=1.4+(i%3)*.35; npc.rotation.y=Math.PI; scene.add(npc); traffic.push(npc); } createJobMarker(); }catch(err){window.MechanicCityBuildError=String(err?.message||err); window.MechanicCityDebugLog?.({type:"city-build",message:String(err?.message||err),stack:String(err?.stack||"")}); console.error("City build failed",err); renderEmergencyScene();}}
 function animate(traffic=[]){ requestAnimationFrame(()=>animate(traffic)); if(state.scene!=="city")return; if(!renderer||!scene||!camera)return; const dt=Math.min(clock?.getDelta()||.016,.05); try{ if((state.driving||state.throttle||input.gas)&&state.fuel>0){ physicsDrive(dt); if(state.fuel>0) state.fuel=Math.max(0,state.fuel-dt*(.018+Math.abs(state.speed)*.014)); state.car.oil=Math.max(0,state.car.oil-dt*.004); state.car.coolant=Math.max(0,state.car.coolant-dt*.002); state.heat=Math.min(125,state.heat+dt*(.08+Math.abs(state.speed)*.055)); if(state.car.oil<15||state.car.coolant<15)state.damage=Math.min(100,state.damage+dt*.08); state.car.mileage+=Math.abs(state.speed)*dt*.006; if(state.heat>108)state.damage=Math.min(100,state.damage+dt*.06); for(const npc of traffic){ if(!npc?.position||!car?.position)continue; const d=car.position.distanceTo(npc.position); if(d<2.25&&Math.abs(state.speed)>.35){ state.damage=Math.min(100,state.damage+dt*7); if(chassisBody){ const v=chassisBody.linvel(); chassisBody.setLinvel({x:v.x*.65,y:v.y,z:v.z*.65},true);} msg("⚠️ Столкновение: кузов повреждён."); } } if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();} }
- updateJob(); updateArticulatedCar(dt); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25; const heading=car.rotation.y; let target,look; if(cameraRig&&camera.parent===cameraRig){
+ updateJob(); updateArticulatedCar(dt); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25; let target,look; if(cameraRig&&camera.parent===cameraRig){
+  // The rig is a child of the player car, so the camera follows every vehicle
+  // movement/rotation. Yaw/pitch are local to the car and are controlled by drag.
   if(cameraMode===2){
-    cameraRig.rotation.y=0;
+    cameraRig.rotation.set(0,0,0);
     camera.position.set(0,1.28,-.38);
-    look=new THREE.Vector3(car.position.x-Math.sin(heading)*8,1.22,car.position.z-Math.cos(heading)*8);
+    look=new THREE.Vector3(0,1.12,0);
   } else {
-    const behind=cameraMode===0?1:-1;
     const followDistance=moving?9.4:8.6;
     const followHeight=moving?6.1:5.7;
     const horizontal=followDistance*Math.cos(camOrbitPitch);
-    cameraRig.rotation.y=camOrbitYaw;
-    camera.position.set(0,followHeight+Math.sin(camOrbitPitch)*followDistance,horizontal*behind);
-    look=new THREE.Vector3(car.position.x-Math.sin(heading)*1.9,1.05,car.position.z-Math.cos(heading)*1.9);
+    cameraRig.rotation.set(0,0,0);
+    camera.position.set(
+      Math.sin(camOrbitYaw)*horizontal,
+      followHeight+Math.sin(camOrbitPitch)*followDistance,
+      Math.cos(camOrbitYaw)*horizontal
+    );
+    look=new THREE.Vector3(0,1.0,0);
   }
   cameraRig.updateWorldMatrix(true,true);
-  target=camera.getWorldPosition(new THREE.Vector3());
 } else {
   target=new THREE.Vector3(car.position.x+8,5.8,car.position.z+12);
   look=new THREE.Vector3(car.position.x,1.05,car.position.z);
