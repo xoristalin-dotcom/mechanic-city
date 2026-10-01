@@ -36,6 +36,7 @@ const metalTex=makeNoiseTexture("#3b3f42","#282c2f","#575c60",96); metalTex.repe
 
 const app = document.querySelector("#app");
 const saved = JSON.parse(localStorage.getItem("mechanic-city") || "null");
+const PART_STATE_VERSION = 2;
 const state = saved || {money:18500,fuel:72,heat:82,damage:8,car:{name:"Crown 72",year:1972,mileage:214320,engine:68,condition:61,turbo:false,sportBrakes:false,wheels:"stock",oil:42,coolant:58,brakes:61,battery:70,suspension:61,tires:61,body:60,gearbox:57,parts:{}}, scene:"city"};
 Object.assign(state,{driving:false,speed:0,steer:0,onFoot:false});
 state.posX??=0;state.posZ??=10;state.heading??=0;state.gear??="P";state.time??=14;state.rain??=false;state.job??=null;
