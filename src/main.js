@@ -150,6 +150,26 @@ async function swapToBlenderCrown72(){
  try{
    const model=await loadMechanicCityCoupe();
    model.name="MechanicCity_Coupe_Repaired";
+   // R19/R21 Blender scene had movable meshes authored in WORLD coordinates
+   // while also parented to hinge empties. That doubles the hinge translation
+   // in the GLB and makes doors/hood/trunk/steering/brake rotors float.
+   // Bake their intended assembled local coordinates under the model root.
+   const assembledTransforms={
+     L_Front_Door:[0,-1.02,1.03], R_Front_Door:[0,1.02,1.03],
+     L_Rear_Door:[0,-1.02,1.03], R_Rear_Door:[0,1.02,1.03],
+     Hood:[1.65,0,1.22], Trunk:[-1.72,0,1.25],
+     SteeringWheel:[0.72,-0.35,1.58],
+     Brake_Rotor_FL:[1.62,-0.96,0.06], Brake_Rotor_FR:[1.62,0.96,0.06],
+     Brake_Rotor_RL:[-1.62,-0.96,0.06], Brake_Rotor_RR:[-1.62,0.96,0.06]
+   };
+   for(const [name,pos] of Object.entries(assembledTransforms)){
+     const o=model.getObjectByName(name);
+     if(!o)continue;
+     o.parent=model;
+     o.position.set(pos[0],pos[1],pos[2]);
+     o.updateMatrix();
+   }
+   model.updateMatrixWorld(true);
    model.traverse(o=>{
      if(o.isMesh){
        o.castShadow=true;
