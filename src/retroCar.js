@@ -390,10 +390,15 @@ export class RetroCarBuilder {
         Object.entries(serviceParts).map(([key,part])=>[key,{mesh:part.mesh,condition:part.condition,removable:part.removable}])
       );
 
-      // R2.1's HOOD_ANIM/DOOR_*_ANIM/TRUNK_ANIM nodes are tiny marker boxes,
-      // not the actual body panels. Showing them was the source of the duplicate
-      // panel bug. For the hood, split the real front body surface out of geometry_0
-      // and hinge that exact geometry at the rear edge of the hood.
+      // The *_ANIM nodes are markers, not real panels. Build one opaque runtime
+      // hood from the actual vehicle dimensions, while removing the original hood
+      // surface from geometry_0 so there is never a second hood underneath it.
+      const bodyWSafe = (body) => {
+        const b = new THREE.Box3().setFromObject(body);
+        const s = b.getSize(new THREE.Vector3());
+        return Math.max(0.45,s.x*0.48);
+      };
+
       const createHoodAssembly = () => {
         const body = model.getObjectByName("geometry_0");
         if (!body?.geometry?.attributes?.position) return null;
@@ -402,15 +407,20 @@ export class RetroCarBuilder {
         const idx = src.index;
         const move = [], keep = [];
         const triCount = idx ? idx.count / 3 : pos.count / 3;
+
+        // Remove only the upper/front hood surface from the static body.
+        // Keep the threshold conservative so fenders and windshield remain intact.
         for(let t=0;t<triCount;t++){
           const ia=idx ? idx.getX(t*3) : t*3;
           const ib=idx ? idx.getX(t*3+1) : t*3+1;
           const ic=idx ? idx.getX(t*3+2) : t*3+2;
           const cz=(pos.getZ(ia)+pos.getZ(ib)+pos.getZ(ic))/3;
           const cy=(pos.getY(ia)+pos.getY(ib)+pos.getY(ic))/3;
-          (cz>0.28 && cy>-0.02 ? move : keep).push([ia,ib,ic]);
+          const cx=Math.max(Math.abs(pos.getX(ia)),Math.abs(pos.getX(ib)),Math.abs(pos.getX(ic)));
+          const isHood=cz>0.42 && cy>0.68 && cx<bodyWSafe(body);
+          (isHood?move:keep).push([ia,ib,ic]);
         }
-        if(!move.length)return null;
+
         const build=(tris)=>{
           const out=[];
           for(const [a,b,c] of tris){
@@ -419,19 +429,49 @@ export class RetroCarBuilder {
           const g=new THREE.BufferGeometry();
           g.setAttribute("position",new THREE.Float32BufferAttribute(out,3));
           g.computeVertexNormals();
+          g.computeBoundingSphere();
           return g;
         };
-        body.geometry=build(keep);
-        body.geometry.computeBoundingSphere();
-        const hood=new THREE.Mesh(build(move),body.material);
+
+        if(move.length){
+          body.geometry=build(keep);
+        }
+
+        const hoodW=Math.min(bodyW*0.82,1.72);
+        const hoodL=1.62;
+        const hoodH=0.075;
+        const hoodMat=new THREE.MeshStandardMaterial({
+          color:0xe52a36, metalness:0.34, roughness:0.28,
+          transparent:false, opacity:1
+        });
+        const hood=new THREE.Mesh(
+          new RoundedBoxGeometry(hoodW,hoodH,hoodL,4,0.035),
+          hoodMat
+        );
         hood.name="RuntimeRealHood";
-        hood.castShadow=true; hood.receiveShadow=true;
+        hood.castShadow=true;
+        hood.receiveShadow=true;
+
         const pivot=new THREE.Object3D();
         pivot.name="RuntimeRealHoodHinge";
-        pivot.position.set(0,0,0.28);
+        pivot.position.set(0,1.00,0.34);
         model.add(pivot);
-        pivot.attach(hood);
-        return {pivot,open:0,openSign:-1,axis:"x",maxAngle:0.88};
+
+        // Local Z starts at the rear hinge and runs toward the front.
+        hood.position.set(0,0,hoodL*0.5);
+        pivot.add(hood);
+
+        // Dark engine bay below the hood; this prevents a transparent-looking
+        // hole when the hood opens and gives the garage a real service area.
+        const bay=new THREE.Mesh(
+          new RoundedBoxGeometry(hoodW*0.92,0.16,hoodL*0.88,3,0.03),
+          new THREE.MeshStandardMaterial({color:0x171a1d,metalness:0.25,roughness:0.72})
+        );
+        bay.name="RuntimeEngineBay";
+        bay.position.set(0,0.90,0.98);
+        model.add(bay);
+
+        return {pivot,open:0,openSign:1,axis:"x",maxAngle:0.95};
       };
 
       for(const nodeName of ["HOOD_ANIM","DOOR_LEFT_ANIM","DOOR_RIGHT_ANIM","TRUNK_ANIM"]){
@@ -445,7 +485,6 @@ export class RetroCarBuilder {
         trunk: null,
         steering: null
       };
-
       // main.js created this object synchronously; mutate it in place if present.
       if (this.carGroup.userData.articulation) {
         this.carGroup.userData.articulation.doors = articulation.doors;
