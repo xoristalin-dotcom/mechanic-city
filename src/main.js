@@ -348,40 +348,41 @@ async function buildCity(){ clearJobMarker(); traffic=[]; trafficLights=[]; smok
   addBuilding(-32,-24,14,11,10,0x6f7a82); addBuilding(30,-15,18,15,12,0x7b6f63); addBuilding(14,32,16,12,11,0x5e6d7a); addBuilding(-20,34,15,17,12,0x5d6667); addStreetProps(); try{ car=createRetroPlayerCar(); car.position.set(state.posX,0,state.posZ); car.rotation.y=state.heading; scene.add(car); cameraRig=new THREE.Object3D(); cameraRig.name="ThirdPersonCameraRig"; car.add(cameraRig); cameraRig.position.set(0,0,0); camera.position.set(state.posX,5.7,state.posZ-8.6); camera.lookAt(state.posX,1,state.posZ); setupCameraControls(); clock=new THREE.Clock(); animate(traffic); setupVehiclePhysics().catch(err=>{window.MechanicCityDebugLog?.({type:"physics-async",message:String(err?.message||err),stack:String(err?.stack||"")}); console.warn("Async Rapier setup failed; fallback driving remains active.",err);}); for(let i=0;i<9;i++){ const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4],false); npc.scale.setScalar(.86); npc.position.set((i%4)*13-19,0,-12-i*18); npc.userData.speed=1.4+(i%3)*.35; npc.rotation.y=Math.PI; scene.add(npc); traffic.push(npc); } createJobMarker(); }catch(err){window.MechanicCityBuildError=String(err?.message||err); window.MechanicCityDebugLog?.({type:"city-build",message:String(err?.message||err),stack:String(err?.stack||"")}); console.error("City build failed",err); renderEmergencyScene();}}
 function animate(traffic=[]){ requestAnimationFrame(()=>animate(traffic)); if(state.scene!=="city")return; if(!renderer||!scene||!camera)return; const dt=Math.min(clock?.getDelta()||.016,.05); try{ if((state.driving||state.throttle||input.gas)&&state.fuel>0){ physicsDrive(dt); if(state.fuel>0) state.fuel=Math.max(0,state.fuel-dt*(.018+Math.abs(state.speed)*.014)); state.car.oil=Math.max(0,state.car.oil-dt*.004); state.car.coolant=Math.max(0,state.car.coolant-dt*.002); state.heat=Math.min(125,state.heat+dt*(.08+Math.abs(state.speed)*.055)); if(state.car.oil<15||state.car.coolant<15)state.damage=Math.min(100,state.damage+dt*.08); state.car.mileage+=Math.abs(state.speed)*dt*.006; if(state.heat>108)state.damage=Math.min(100,state.damage+dt*.06); for(const npc of traffic){ if(!npc?.position||!car?.position)continue; const d=car.position.distanceTo(npc.position); if(d<2.25&&Math.abs(state.speed)>.35){ state.damage=Math.min(100,state.damage+dt*7); if(chassisBody){ const v=chassisBody.linvel(); chassisBody.setLinvel({x:v.x*.65,y:v.y,z:v.z*.65},true);} msg("⚠️ Столкновение: кузов повреждён."); } } if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();} }
  updateJob(); updateArticulatedCar(dt); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25;
-  // HARD camera follow: use the car's actual world transform every frame.
-  car.updateWorldMatrix(true,false);
-  const carWorld=new THREE.Vector3();
-  const carQuat=new THREE.Quaternion();
-  car.getWorldPosition(carWorld);
-  car.getWorldQuaternion(carQuat);
-  const forward=new THREE.Vector3(0,0,1).applyQuaternion(carQuat).normalize();
+  // CAMERA FOLLOW: use the same authoritative state that moves the car.
+  // This intentionally avoids GLB/local/world transforms entirely.
+  const px=Number(state.posX)||0;
+  const pz=Number(state.posZ)||0;
+  const heading=Number(state.heading)||0;
 
   if(cameraMode===2){
-    const hoodPos=new THREE.Vector3(0,1.28,.35).applyQuaternion(carQuat).add(carWorld);
-    const hoodTarget=hoodPos.clone().add(forward.clone().multiplyScalar(5));
-    hoodTarget.y+=.15;
-    camera.position.copy(hoodPos);
-    camera.lookAt(hoodTarget);
+    const hx=Math.sin(heading)*0.35;
+    const hz=Math.cos(heading)*0.35;
+    camera.position.set(
+      px+hx,
+      car.position.y+1.28,
+      pz+hz
+    );
+    camera.lookAt(
+      px+Math.sin(heading)*5,
+      car.position.y+1.43,
+      pz+Math.cos(heading)*5
+    );
   }else{
     const d=moving?9.4:8.6;
     const y=(moving?6.1:5.7)+Math.sin(camOrbitPitch)*d*.55;
     const xz=Math.max(1.2,Math.cos(camOrbitPitch)*d);
+    const orbitYaw=heading+camOrbitYaw;
 
-    // Local -Z is the rear of the Challenger. Rotate the orbit around Y,
-    // then transform the whole offset by the car's actual quaternion.
-    const offset=new THREE.Vector3(0,y,-xz);
-    const orbitQ=new THREE.Quaternion().setFromAxisAngle(
-      new THREE.Vector3(0,1,0),camOrbitYaw
+    // Challenger front is +Z, so rear is -Z.
+    const ox=-Math.sin(orbitYaw)*xz;
+    const oz=-Math.cos(orbitYaw)*xz;
+
+    camera.position.set(px+ox,y,pz+oz);
+    camera.lookAt(
+      px+Math.sin(heading)*2.2,
+      1.0,
+      pz+Math.cos(heading)*2.2
     );
-    offset.applyQuaternion(orbitQ);
-    offset.applyQuaternion(carQuat);
-
-    camera.position.copy(carWorld).add(offset);
-
-    const target=new THREE.Vector3(0,1,2.2)
-      .applyQuaternion(carQuat)
-      .add(carWorld);
-    camera.lookAt(target);
   }
   camera.updateMatrixWorld(true); for(const npc of traffic){ if(!npc?.position)continue; const travel=dt*(Number(npc.userData?.trafficSpeed)||0)*8; npc.position.z+=travel; for(const w of(npc.userData?.wheels||[])){ if(w?.rotation)w.rotation.x-=travel/.39; } if(npc.position.z>120)npc.position.z=-120; } const cycle=(performance.now()/1000)%12; const green=cycle<6,yellow=cycle>=6&&cycle<7.5; for(const l of trafficLights){ if(!l?.red?.material?.color||!l?.yellow?.material?.color||!l?.green?.material?.color)continue; l.red.material.color.setHex(green?0x220000:yellow?0x220000:0xff0000); l.yellow.material.color.setHex(yellow?0xffb000:0x332600); l.green.material.color.setHex(green?0x00ff44:0x002200); } updateCarDamage(); stats(); }catch(err){ window.MechanicCityLastFrameError=String(err?.message||err); window.MechanicCityDebugLog?.({type:"frame",message:window.MechanicCityLastFrameError,stack:String(err?.stack||"")}); console.error("Mechanic City frame update failed",err);} finally{ try{renderer.render(scene,camera);}catch(err){ window.MechanicCityRenderError=String(err?.message||err); console.error("Mechanic City render failed",err); } }}
 function teleportToMapCenter(){
