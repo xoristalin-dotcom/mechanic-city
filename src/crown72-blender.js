@@ -27,6 +27,30 @@ export async function loadCrown72Blender(){
   model.position.y-=box.min.y*scale;
   model.position.z-=center.z*scale;
   model.updateMatrixWorld(true);
+  const serviceParts={};
+  const categoryFor=(name)=>{
+    const n=name.toLowerCase();
+    if(/engine|injector|spark|intake|alternator|starter|water|thermostat|radiator|fuel|oil|coolant|battery|fuse|pump/.test(n)) return "engine";
+    if(/brake|rotor|caliper|pad/.test(n)) return "brakes";
+    if(/wheel|tire|rim|hub|lug/.test(n)) return "wheels";
+    if(/suspension|strut|spring|arm|knuckle|tie|balljoint/.test(n)) return "suspension";
+    if(/door|hood|trunk|bumper|fender|rocker|quarter|spoiler|sill|panel/.test(n)) return "body";
+    if(/seat|dash|console|steering|pedal|shifter|interior/.test(n)) return "interior";
+    if(/exhaust|muffler|resonator|catalyst|pipe|tip|header/.test(n)) return "exhaust";
+    if(/head|tail|lamp|drl|marker|light|grille/.test(n)) return "lights";
+    if(/glass|window|mirror/.test(n)) return "glass";
+    return "other";
+  };
+  model.traverse(o=>{
+    if(o.isMesh){
+      const category=categoryFor(o.name);
+      const key=o.name.replace(/[^a-zA-Z0-9_-]/g,"_");
+      o.userData.servicePart={key,name:o.name,category,condition:100,tunable:["engine","brakes","wheels","suspension","exhaust","body"].includes(category)};
+      serviceParts[key]=o.userData.servicePart;
+    }
+  });
+  model.userData.serviceParts=serviceParts;
+  model.userData.servicePartCount=Object.keys(serviceParts).length;
   model.traverse(o=>{
     if(o.isMesh){
       o.castShadow=true;
