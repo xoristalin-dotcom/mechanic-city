@@ -56,8 +56,16 @@ export async function loadMechanicCityCoupe(){
         /wheel|tire|rim|hub|lug/.test(lower)?"wheels":
         /door|hood|trunk|bumper|fender|rocker|quarter|spoiler|sill|panel/.test(lower)?"body":
         /exhaust|muffler|resonator|catalyst|pipe|tip|header/.test(lower)?"exhaust":"other";
-      const removable=!/glass|window|mirror|seat|dash|console|steering|pedal|shifter/.test(lower);
-      o.userData.servicePart={key,name:o.name,category,subsystem,condition:100,installed:true,removable,tunable:["engine","brakes","wheels","suspension","exhaust","body"].includes(category)};
+      // Every mesh is a first-class workshop part. Even interior/glass pieces stay
+      // addressable so the mechanic can inspect, replace and interact with them.
+      const structural=/^(chassis|floor_pan|underbody|body_shell)$/i.test(o.name);
+      const removable=!structural;
+      o.userData.servicePart={
+        key,name:o.name,category,subsystem,condition:100,installed:true,
+        removable,
+        tunable:["engine","brakes","wheels","suspension","exhaust","body","interior","lights","glass"].includes(category),
+        interaction:"service_part"
+      };
       serviceParts[key]=o.userData.servicePart;
     }
   });
