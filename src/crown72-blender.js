@@ -3,8 +3,15 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 
 export async function loadMechanicCityCoupe(){
-  const response=await fetch("/models/MechanicCity_Coupe_Repaired.glb",{cache:"no-store"});
-  if(!response.ok) throw new Error("MechanicCity Coupe model HTTP "+response.status);
+  // Prefer the repaired coupe. Keep the previous model as a temporary fallback so a missing binary never leaves the game without a car.
+  const modelPaths=["/models/MechanicCity_Coupe_Repaired.glb","/models/challenger-r9.glb"];
+  let response=null;
+  let loadedPath="";
+  for(const path of modelPaths){
+    const candidate=await fetch(path,{cache:"no-store"});
+    if(candidate.ok){response=candidate;loadedPath=path;break;}
+  }
+  if(!response) throw new Error("MechanicCity Coupe model is unavailable (tried repaired GLB and fallback GLB)");
   const buffer=await response.arrayBuffer();
   const loader=new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
@@ -13,6 +20,7 @@ export async function loadMechanicCityCoupe(){
     loader.parse(buffer,"/models/",g=>resolve(g.scene),reject);
   });
   model.name="MechanicCity_Coupe_Repaired";
+  model.userData.sourcePath=loadedPath;
   model.updateMatrixWorld(true);
   const box=new THREE.Box3().setFromObject(model);
   if(box.isEmpty()) throw new Error("MechanicCity Coupe GLB contains no visible geometry");
