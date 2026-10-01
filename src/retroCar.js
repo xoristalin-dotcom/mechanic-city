@@ -112,9 +112,9 @@ export class RetroCarBuilder {
       // Treat geometry_0..2 as painted body surfaces instead of giving them
       // unrelated trim colors; this prevents the body from turning cream/white.
       const visualStyles = {
-        geometry_0: { color: 0xb51f26, metalness: 0.32, roughness: 0.34 },
-        geometry_1: { color: 0x8e151c, metalness: 0.30, roughness: 0.40 },
-        geometry_2: { color: 0x6f1016, metalness: 0.26, roughness: 0.44 },
+        geometry_0: { color: 0x25292d, metalness: 0.58, roughness: 0.28 },
+        geometry_1: { color: 0x1b1f23, metalness: 0.54, roughness: 0.34 },
+        geometry_2: { color: 0x101316, metalness: 0.48, roughness: 0.40 },
         geometry_3: { color: 0x15171a, metalness: 0.70, roughness: 0.38 },
         geometry_4: { color: 0x24272b, metalness: 0.58, roughness: 0.46 },
         geometry_5: { color: 0x090b0d, metalness: 0.18, roughness: 0.68 },
@@ -214,7 +214,9 @@ export class RetroCarBuilder {
       const rearZ = -targetLength / 2;
       const trim = new THREE.MeshStandardMaterial({color:0x111417,metalness:0.72,roughness:0.32});
       const chrome = new THREE.MeshStandardMaterial({color:0xc3c7c9,metalness:0.9,roughness:0.2});
-      const lamp = new THREE.MeshStandardMaterial({color:0xf4f0d7,emissive:0xffb34a,emissiveIntensity:0.9,roughness:0.16});
+      const lamp = new THREE.MeshStandardMaterial({color:0xf4fbff,emissive:0xbfeaff,emissiveIntensity:2.2,metalness:0.05,roughness:0.12});
+      const lampInner = new THREE.MeshStandardMaterial({color:0x061016,metalness:0.65,roughness:0.18});
+      const lampGlow = new THREE.MeshBasicMaterial({color:0xdff7ff});
       const tail = new THREE.MeshStandardMaterial({color:0x8f1018,emissive:0x300004,emissiveIntensity:0.55,roughness:0.25});
       const glass = new THREE.MeshStandardMaterial({color:0x15242b,metalness:0.08,roughness:0.18});
 
@@ -225,10 +227,15 @@ export class RetroCarBuilder {
         bar.position.set(i*0.12,0.69,frontZ-0.07); detailKit.add(bar);
       }
       for(const x of [-bodyW*0.28,bodyW*0.28]){
-        const head=new THREE.Mesh(new THREE.CylinderGeometry(0.26,0.26,0.07,16),lamp);
-        head.rotation.x=Math.PI/2; head.position.set(x,0.79,frontZ-0.045); detailKit.add(head);
-        const bezel=new THREE.Mesh(new THREE.TorusGeometry(0.28,0.025,6,16),chrome);
-        bezel.rotation.x=Math.PI/2; bezel.position.set(x,0.79,frontZ-0.085); detailKit.add(bezel);
+        // Halo-style projector headlights.
+        const housing=new THREE.Mesh(new THREE.CylinderGeometry(0.285,0.285,0.075,20),lampInner);
+        housing.rotation.x=Math.PI/2; housing.position.set(x,0.79,frontZ-0.045); detailKit.add(housing);
+        const head=new THREE.Mesh(new THREE.TorusGeometry(0.225,0.045,8,24),lamp);
+        head.rotation.x=Math.PI/2; head.position.set(x,0.79,frontZ-0.09); detailKit.add(head);
+        const inner=new THREE.Mesh(new THREE.CylinderGeometry(0.105,0.105,0.035,16),lampGlow);
+        inner.rotation.x=Math.PI/2; inner.position.set(x,0.79,frontZ-0.105); detailKit.add(inner);
+        const bezel=new THREE.Mesh(new THREE.TorusGeometry(0.29,0.022,6,20),chrome);
+        bezel.rotation.x=Math.PI/2; bezel.position.set(x,0.79,frontZ-0.115); detailKit.add(bezel);
         const rear=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.20,0.07),tail);
         rear.position.set(x,0.77,rearZ+0.04); detailKit.add(rear);
       }
@@ -237,7 +244,7 @@ export class RetroCarBuilder {
       const rearBumper=frontBumper.clone(); rearBumper.position.z=rearZ+0.05; detailKit.add(rearBumper);
 
       // Hood power bulge + intake.
-      const hoodBulge=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.28,0.07,1.05),new THREE.MeshStandardMaterial({color:0x7d1118,metalness:0.28,roughness:0.4}));
+      const hoodBulge=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.28,0.07,1.05),new THREE.MeshStandardMaterial({color:0x202428,metalness:0.52,roughness:0.3}));
       hoodBulge.position.set(0,0.99,-1.48); detailKit.add(hoodBulge);
       const intake=new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.18,0.035,0.38),trim);
       intake.position.set(0,1.045,-1.58); detailKit.add(intake);
