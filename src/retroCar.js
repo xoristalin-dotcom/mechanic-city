@@ -39,8 +39,11 @@ export class RetroCarBuilder {
     };
 
     this.build();
-    // Upgrade the procedural placeholder to the mobile-optimized Challenger
-    // asynchronously. The existing physics/HUD lifecycle remains synchronous.
+    // Keep the procedural build as a fallback, but do not render it while the
+    // real Challenger GLB is loading. This prevents the old car from appearing
+    // for a frame before the player's actual car arrives.
+    this.carGroup.visible = false;
+    this.carGroup.userData.modelLoading = true;
     this.loadMechanicCityModel();
   }
 
@@ -247,6 +250,8 @@ export class RetroCarBuilder {
       detailKit.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=true;}});
       this.carGroup.add(detailKit);
 
+      this.carGroup.visible = true;
+      this.carGroup.userData.modelLoading = false;
       this.carGroup.userData.modelRevision = "MechanicCity-R3-visual";
       this.carGroup.userData.modelSource = sourcePath;
       this.carGroup.userData.mobileOptimized = true;
@@ -349,6 +354,10 @@ export class RetroCarBuilder {
         mobileOptimized: true
       };
     } catch (err) {
+      // If the GLB really fails, reveal the procedural fallback instead of
+      // leaving the player vehicle invisible.
+      this.carGroup.visible = true;
+      this.carGroup.userData.modelLoading = false;
       console.warn("Mechanic City Challenger R2.1 load failed; keeping procedural car.", err);
     }
   }
