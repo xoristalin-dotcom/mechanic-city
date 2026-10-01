@@ -84,3 +84,16 @@ button{cursor:pointer}
 .workshop-hud{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:18px;max-width:min(92vw,760px);padding:14px 16px;border:1px solid rgba(255,255,255,.16);border-radius:14px;background:rgba(12,15,17,.9);backdrop-filter:blur(8px);color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.35)}
 .workshop-hud div{display:flex;flex-direction:column;gap:3px}.workshop-hud span{font-size:13px;opacity:.72}.workshop-hud button{min-height:44px;padding:10px 16px;border:0;border-radius:10px;background:#d8a33b;color:#17120a;font-weight:800;cursor:pointer}
 @media(max-width:640px){.workshop-hud{left:10px;right:10px;bottom:10px;transform:none;flex-wrap:wrap}.workshop-hud button{width:100%}}
+
+/* Mobile driving controls */
+.mobile-drive-controls{position:absolute;inset:0;z-index:25;pointer-events:none}
+.mobile-drive-controls .steering-zone,.mobile-drive-controls .pedals,.mobile-drive-controls .drive-actions{pointer-events:auto}
+.steer{display:flex;align-items:center;justify-content:center;line-height:1;padding:0;font-weight:300}
+.steer.pressed,.pedal.pressed{transform:scale(.93);background:rgba(72,80,88,.9);border-color:rgba(255,255,255,.55)}
+.pedal{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-weight:900}
+.pedal small{font-size:8px;letter-spacing:.08em;opacity:.72}
+.drive-actions button{pointer-events:auto;width:48px;height:40px;border-radius:11px;background:rgba(15,18,21,.82);border:1px solid rgba(255,255,255,.28);font-weight:900}
+.drive-actions button.active{background:rgba(232,234,236,.95);color:#111;border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.18)}
+.floating-bar{position:absolute;top:max(10px,env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));z-index:31;display:flex;gap:7px}
+.floating-bar button{pointer-events:auto;width:42px;height:42px;border-radius:50%;background:rgba(15,18,21,.72);border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(8px);box-shadow:0 3px 12px #0007;font-size:19px}
+@media (orientation:landscape) and (max-height:500px){.steering-zone{bottom:20px}.pedals{bottom:18px}.steer{width:62px;height:62px;font-size:38px}.pedal{width:62px;height:70px}.pedal.gas{height:88px}.drive-actions{bottom:10px}.drive-actions button{width:43px;height:34px}.fuel-box{top:58px}.message{top:58px}}
