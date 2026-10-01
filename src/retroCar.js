@@ -580,7 +580,18 @@ export class RetroCarBuilder {
           for(let i=0;i<hp.count;i++) hp.setXYZ(i,hp.getX(i)-hinge.x,hp.getY(i)-hinge.y,hp.getZ(i)-hinge.z);
           hp.needsUpdate=true; geo.computeBoundingBox(); geo.computeBoundingSphere();
           pivot.add(mesh);
-          return {pivot,open:0,openSign:side<0?-1:1,axis:"y",maxAngle:1.05};
+          // Pick the hinge direction that moves the door's center outward.
+          const center=new THREE.Vector3(
+            (box.min.x+box.max.x)*0.5-hinge.x,
+            (box.min.y+box.max.y)*0.5-hinge.y,
+            (box.min.z+box.max.z)*0.5-hinge.z
+          );
+          const plus=center.clone().applyAxisAngle(new THREE.Vector3(0,1,0),0.75);
+          const minus=center.clone().applyAxisAngle(new THREE.Vector3(0,1,0),-0.75);
+          const plusOut=side<0 ? -plus.x : plus.x;
+          const minusOut=side<0 ? -minus.x : minus.x;
+          const openSign=plusOut>=minusOut ? 1 : -1;
+          return {pivot,open:0,openSign,axis:"y",maxAngle:1.05};
         };
         return [
           makeDoor(leftTris,-1,"Door_Left"),
