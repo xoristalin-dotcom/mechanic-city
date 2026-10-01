@@ -390,6 +390,78 @@ export class RetroCarBuilder {
         Object.entries(serviceParts).map(([key,part])=>[key,{mesh:part.mesh,condition:part.condition,removable:part.removable}])
       );
 
+      // Realistic Challenger engine bay: keep it inside the body and only
+      // reveal it when the hood is open. No transparent overlay.
+      const engineBay = new THREE.Group();
+      engineBay.name="Challenger_EngineBay";
+      const bayMat=new THREE.MeshStandardMaterial({color:0x171a1d,metalness:0.62,roughness:0.48});
+      const metalMat=new THREE.MeshStandardMaterial({color:0x34383c,metalness:0.82,roughness:0.32});
+      const rubberMat=new THREE.MeshStandardMaterial({color:0x080909,metalness:0.05,roughness:0.78});
+      const redMat=new THREE.MeshStandardMaterial({color:0x9b1722,metalness:0.42,roughness:0.34});
+      const wireMats=[
+        new THREE.MeshStandardMaterial({color:0x101010,roughness:0.72}),
+        new THREE.MeshStandardMaterial({color:0x8b171c,roughness:0.62}),
+        new THREE.MeshStandardMaterial({color:0xd2a51a,roughness:0.58})
+      ];
+
+      const bayFloor=new THREE.Mesh(new THREE.BoxGeometry(2.75,0.16,2.35),bayMat);
+      bayFloor.position.set(0,0.72,0.72);
+      engineBay.add(bayFloor);
+
+      const engine=new THREE.Mesh(new THREE.BoxGeometry(1.35,0.72,1.15),metalMat);
+      engine.position.set(0,1.05,0.80);
+      engine.name="Dodge_V8_Engine_Block";
+      engineBay.add(engine);
+
+      const intake=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.20,0.82),rubberMat);
+      intake.position.set(0,1.43,0.84);
+      intake.name="Dodge_V8_Intake";
+      engineBay.add(intake);
+
+      for(const x of [-0.62,0.62]){
+        const valve=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.34,0.94),redMat);
+        valve.position.set(x,1.16,0.80);
+        valve.name="Dodge_V8_ValveCover";
+        engineBay.add(valve);
+      }
+
+      const battery=new THREE.Mesh(new THREE.BoxGeometry(0.48,0.32,0.66),metalMat);
+      battery.position.set(-1.02,1.02,0.25);
+      battery.name="Battery";
+      engineBay.add(battery);
+
+      const radiator=new THREE.Mesh(new THREE.BoxGeometry(2.15,0.48,0.16),metalMat);
+      radiator.position.set(0,0.95,1.84);
+      radiator.name="Radiator";
+      engineBay.add(radiator);
+
+      const fan=new THREE.Mesh(new THREE.CylinderGeometry(0.30,0.30,0.08,16),rubberMat);
+      fan.rotation.x=Math.PI/2;
+      fan.position.set(0,1.03,1.70);
+      fan.name="Cooling_Fan";
+      engineBay.add(fan);
+
+      // Visible wiring harnesses, hoses and connectors.
+      const addWire=(a,b,r,mat,name)=>{
+        const va=new THREE.Vector3(...a), vb=new THREE.Vector3(...b);
+        const d=vb.clone().sub(va);
+        const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length,8),mat);
+        m.position.copy(va).add(vb).multiplyScalar(0.5);
+        m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());
+        m.name=name;
+        engineBay.add(m);
+      };
+      addWire([-0.62,1.34,0.82,-0.92,1.48,0.54],0.035,wireMats[0],"Ignition_Wire_L");
+      addWire([0.62,1.34,0.82,0.92,1.48,0.54],0.035,wireMats[0],"Ignition_Wire_R");
+      addWire([-0.92,1.20,0.55,-1.18,1.08,0.18],0.045,wireMats[1],"Power_Cable");
+      addWire([0.35,1.39,0.90,0.92,1.35,1.18],0.032,wireMats[2],"Sensor_Wire");
+
+      engineBay.traverse(o=>{
+        if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=true;}
+      });
+      engineBay.visible=false;
+      this.carGroup.add(engineBay);
+
       // The *_ANIM nodes are only markers. Use the ACTUAL hood surface
       // from geometry_0: copy its real triangles, remove those triangles from
       // the static body, and put the copy on a hinge. No fake hood, no black bay.
