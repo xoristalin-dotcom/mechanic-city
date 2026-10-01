@@ -69,36 +69,90 @@ function openPartPanel(part){
   document.querySelector("#tuneSelected")?.addEventListener("click",()=>tuneSelectedPart(part.key));
 }
 function installPartInteraction(){viewport.addEventListener("pointerdown",e=>{if(!["city","workshop"].includes(state.scene)||!car||!renderer)return;const r=renderer.domElement.getBoundingClientRect();partPointer.x=((e.clientX-r.left)/r.width)*2-1;partPointer.y=-((e.clientY-r.top)/r.height)*2+1;partRaycaster.setFromCamera(partPointer,camera);const meshes=[];car.traverse(o=>{if(o.isMesh&&o.visible)meshes.push(o);});const hit=partRaycaster.intersectObjects(meshes,false)[0];if(!hit?.object?.userData?.servicePart)return;state.car.selectedPart=hit.object.userData.servicePart.key;openPartPanel(hit.object.userData.servicePart);},{passive:true});}
-function setupImportedWheelSteering(model){
-  // R19 already contains the real assembled wheels, doors, hood and trunk.
-  // Never create procedural duplicates: doing so makes the car look disassembled.
-  model.updateMatrixWorld(true);
+function setupImportedWheelSteering(model,root){
+  // Build a clean runtime articulation rig from the authored assembled meshes.
+  // We deliberately do not trust the old Blender hinge parents: several of
+  // those pivots were authored below the visible panels. Three.js attach()
+  // preserves the panel's world transform while letting our new pivots control
+  // the correct axis.
+  model.updateWorldMatrix(true,true,true);
+  root.updateWorldMatrix(true,true,true);
   const find=(name)=>model.getObjectByName(name)||null;
   const wheelPivots=[
     find("WheelPivot_FL"),find("WheelPivot_FR"),
     find("WheelPivot_RL"),find("WheelPivot_RR")
   ].filter(Boolean);
   const wheels=wheelPivots;
+
+  const worldCorners=(obj)=>{
+    const box=new THREE.Box3().setFromObject(obj,true);
+    const pts=[];
+    for(const x of [box.min.x,box.max.x])
+      for(const y of [box.min.y,box.max.y])
+        for(const z of [box.min.z,box.max.z])
+          pts.push(root.worldToLocal(new THREE.Vector3(x,y,z)));
+    const min=new THREE.Vector3(Infinity,Infinity,Infinity);
+    const max=new THREE.Vector3(-Infinity,-Infinity,-Infinity);
+    for(const p of pts){min.min(p);max.max(p);}
+    return {min,max};
+  };
+  const makePivot=(name,pos)=>{
+    const pivot=new THREE.Object3D();
+    pivot.name=name;
+    pivot.position.copy(pos);
+    root.add(pivot);
+    return pivot;
+  };
+  const attachDoor=(name,side,front)=>{
+    const mesh=find(name);
+    if(!mesh)return null;
+    const b=worldCorners(mesh);
+    const center=b.min.clone().add(b.max).multiplyScalar(.5);
+    const hingeX=front?b.max.x:b.min.x;
+    const hingeY=side<0?b.min.y:b.max.y;
+    const hinge=new THREE.Vector3(hingeX,hingeY,center.z);
+    const pivot=makePivot(name+"_RuntimeHinge",hinge);
+    pivot.attach(mesh);
+    return {pivot,open:0,side,front};
+  };
   const doors=[
-    {pivot:find("L_Front_Door_Hinge"),open:0,side:-1,front:true},
-    {pivot:find("R_Front_Door_Hinge"),open:0,side:1,front:true},
-    {pivot:find("L_Rear_Door_Hinge"),open:0,side:-1,front:false},
-    {pivot:find("R_Rear_Door_Hinge"),open:0,side:1,front:false}
-  ].filter(d=>d.pivot);
-  const hood=find("Hood_Hinge")||find("Pivot_Hood");
-  const trunk=find("Trunk_Hinge")||find("Pivot_Trunk");
+    attachDoor("L_Front_Door",-1,true),
+    attachDoor("R_Front_Door",1,true),
+    attachDoor("L_Rear_Door",-1,false),
+    attachDoor("R_Rear_Door",1,false)
+  ].filter(Boolean);
+
+  const attachLid=(name,front)=>{
+    const mesh=find(name);
+    if(!mesh)return null;
+    const b=worldCorners(mesh);
+    const center=b.min.clone().add(b.max).multiplyScalar(.5);
+    // Hood hinge is at the windshield/rear edge; trunk hinge is at the
+    // rear-window/front edge. Both lids rotate around the car's side-to-side Y axis.
+    const hingeX=front?b.min.x:b.max.x;
+    const hinge=new THREE.Vector3(hingeX,center.y,b.max.z);
+    const pivot=makePivot(name+"_RuntimeHinge",hinge);
+    pivot.attach(mesh);
+    return pivot;
+  };
+  const hood=attachLid("Hood",true);
+  const trunk=attachLid("Trunk",false);
   const steering=find("SteeringWheel")||find("Steering_Wheel");
   return {wheels,doors,hood,trunk,steering};
 }
 function updateArticulatedCar(dt){
-  // R19 body panels stay exactly where Blender authored them.
-  // Articulation is disabled until verified hinge pivots are available.
-  const a=car?.userData?.articulation;if(!a||!state.car.articulationActive)return;
-  const target=state.car.doorsOpen?1:0;
-  for(const d of a.doors){d.open=THREE.MathUtils.damp(d.open,target,7,dt);d.pivot.rotation.y=(d.front?-1:1)*d.side*1.08*d.open;}
-  a.hood.rotation.z=THREE.MathUtils.damp(a.hood.rotation.z,state.car.hoodOpen?-.82:0,7,dt);
-  a.trunk.rotation.z=THREE.MathUtils.damp(a.trunk.rotation.z,state.car.trunkOpen?.72:0,7,dt);
-  a.steering.rotation.x=THREE.MathUtils.damp(a.steering.rotation.x,-state.steer*.62,9,dt);
+  const a=car?.userData?.articulation;
+  if(!a||!state.car.articulationActive)return;
+  const doorTarget=state.car.doorsOpen?1:0;
+  for(const d of a.doors){
+    d.open=THREE.MathUtils.damp(d.open,doorTarget,8,dt);
+    // Doors rotate around a vertical hinge line on the side of the body.
+    d.pivot.rotation.set(0,(d.side<0?1:-1)*1.12*d.open,0);
+  }
+  // Hood and trunk rotate upward around side-to-side hinge axes, never around Z.
+  if(a.hood)a.hood.rotation.y=THREE.MathUtils.damp(a.hood.rotation.y,state.car.hoodOpen?-0.88:0,7,dt);
+  if(a.trunk)a.trunk.rotation.y=THREE.MathUtils.damp(a.trunk.rotation.y,state.car.trunkOpen?0.78:0,7,dt);
+  if(a.steering)a.steering.rotation.x=THREE.MathUtils.damp(a.steering.rotation.x,-state.steer*.62,9,dt);
 }
 function physicsDrive(dt){
  if(!physicsReady||!physicsWorld||!chassisBody){fallbackDrive(dt);return;}
@@ -191,8 +245,6 @@ async function swapToBlenderCrown72(){
    root.rotation.copy(car.rotation);
    root.userData.wheels=[];
    root.userData.visualOffsetY=0.42;
-   root.userData.articulation=setupImportedWheelSteering(model);
-   root.userData.wheels=root.userData.articulation.wheels;
    root.userData.serviceParts=model.userData.serviceParts||{};
 
    // The authored R19 Blender scene is the source of truth for the assembled car.
@@ -236,6 +288,10 @@ async function swapToBlenderCrown72(){
    model.rotation.y=Math.PI/2;
 
    root.add(model);
+   root.updateWorldMatrix(true,true,true);
+   root.userData.articulation=setupImportedWheelSteering(model,root);
+   root.userData.wheels=root.userData.articulation.wheels;
+   root.updateWorldMatrix(true,true,true);
    const old=car;
    car=root;
    scene.add(car);
@@ -577,7 +633,7 @@ function buildWorkshop(){
     requestAnimationFrame(loop);
     const dt=Math.min(clock.getDelta(),.05);
     if(car?.userData?.workshopDisassembled)updateArticulatedCar(dt);
-    camera.position.lerp(new THREE.Vector3(11.8,7.6,12.8),.07);
+    camera.position.lerp(new THREE.Vector3(8.4,5.6,9.0),.09);
     camera.lookAt(new THREE.Vector3(0,1.25,0));
     renderer.render(scene,camera);
   };
@@ -681,8 +737,8 @@ function animate(traffic=[]){
       camera.position.lerp(target,.22);
     }else{
       const behind=cameraMode===0?1:-1;
-      const followDistance=moving?10.2:9.2;
-      const followHeight=moving?6.6:6.0;
+      const followDistance=moving?8.0:7.1;
+      const followHeight=moving?5.5:5.0;
       const horizontal=followDistance*Math.cos(camOrbitPitch);
       const sx=Math.sin(heading+camOrbitYaw)*horizontal*behind;
       const sz=Math.cos(heading+camOrbitYaw)*horizontal*behind;
@@ -881,7 +937,21 @@ function repairPart(key,cost,amount){if(state.money<cost){openPanel("Недос�
 document.querySelector("#menuBtn").onclick=()=>menu.classList.toggle("hidden");document.querySelector(".round-btn").onclick=()=>menu.classList.toggle("hidden");document.querySelector("#mapBtn").onclick=()=>openPanel("Карта","<p>Ты находишься в городе. Рынок и гараж доступны через меню ☰.</p>");document.querySelector("#carInfo").onclick=()=>openPanel("Автомобиль",`<p><b>${state.car.name}</b></p><p>Состояние: ${Math.round(state.car.condition)}%</p><p>Двигатель: ${Math.round(state.car.engine)}%</p><p>Масло: ${Math.round(state.car.oil)}%</p><p>Охлаждение: ${Math.round(state.car.coolant)}%</p><p>Повреждения: ${Math.round(state.damage)}%</p><p>Температура: ${Math.round(state.heat)}°C</p>`);document.querySelector("#exitBtn").onclick=exitCar;document.querySelector("#horn").onclick=()=>msg("🔊 Бип!");document.querySelector("#fuelBtn").onclick=()=>{const d=Math.hypot(state.posX-45,state.posZ-35);if(d<14){const cost=Math.ceil((100-state.fuel)*8);if(state.money>=cost){state.money-=cost;state.fuel=100;msg("⛽ Бак заправлен за "+cost+" ₽");save();}else msg("Не хватает денег на топливо.");}else msg("Подъедь к заправке.");};document.querySelector("#serviceBtn").onclick=()=>{if(state.scene==="workshop"){
     openPanel("Мастерская","<p>Автомобиль остаётся полностью собранным.</p><p>Детали ремонтируются и заменяются непосредственно в своих штатных местах.</p>");
     return;
-  }if(car?.userData?.serviceParts){const parts=Object.values(car.userData.serviceParts);const by={};for(const p of parts)(by[p.category]??=[]).push(p);openPanel("Интерактивные детали","<p>Выбери деталь прямо на машине. Доступно отдельных деталей: <b>"+parts.length+"</b>.</p><div class=\"parts\">"+Object.entries(by).map(([k,v])=>"<button data-part-category=\""+k+"\">"+partCategoryLabel(k)+" — "+v.length+"</button>").join("")+"</div>");panel.querySelectorAll("[data-part-category]").forEach(b=>b.onclick=()=>{const p=by[b.dataset.partCategory]?.[0];if(p)openPartPanel(p);});return;}const d=Math.hypot(state.posX+45,state.posZ-35);if(d<14){const cost=Math.max(250,Math.ceil(state.damage*45));if(state.money>=cost){state.money-=cost;state.damage=0;state.car.condition=100;state.car.engine=100;state.car.body=100;state.car.oil=100;state.car.coolant=100;state.car.brakes=100;state.car.battery=100;state.car.suspension=100;state.car.tires=100;msg("🔧 Машина полностью обслужена.");save();}else msg("Не хватает денег на сервис.");}else msg("Подъедь к сервису.");};document.querySelector("#gearBtn").onclick=cycleGear;document.querySelector("#doorsBtn").onclick=()=>{state.car.articulationActive=true;state.car.doorsOpen=!state.car.doorsOpen;save();msg(state.car.doorsOpen?"🚪 Двери открыты":"🚪 Двери закрыты");};document.querySelector("#hoodBtn").onclick=()=>{state.car.articulationActive=true;if(state.car.hoodOpen){state.car.hoodOpen=false;state.car.trunkOpen=true;msg("🧳 Багажник открыт");}else if(state.car.trunkOpen){state.car.trunkOpen=false;msg("🚗 Крышки закрыты");}else{state.car.hoodOpen=true;msg("🔧 Капот открыт");}save();};document.querySelector("#cameraBtn").onclick=()=>{cameraMode=(cameraMode+1)%3;camOrbitYaw=0;camOrbitPitch=.18;if(camera){camera.fov=cameraMode===2?82:cameraMode===1?68:62;camera.updateProjectionMatrix();}msg("📷 "+cameraModeNames[cameraMode]);};document.querySelectorAll(".menu [data-scene]").forEach(b=>b.onclick=()=>renderScene(b.dataset.scene));function resizeRenderer(){
+  }if(car?.userData?.serviceParts){const parts=Object.values(car.userData.serviceParts);const by={};for(const p of parts)(by[p.category]??=[]).push(p);openPanel("Интерактивные детали","<p>Выбери деталь прямо на машине. Доступно отдельных деталей: <b>"+parts.length+"</b>.</p><div class=\"parts\">"+Object.entries(by).map(([k,v])=>"<button data-part-category=\""+k+"\">"+partCategoryLabel(k)+" — "+v.length+"</button>").join("")+"</div>");panel.querySelectorAll("[data-part-category]").forEach(b=>b.onclick=()=>{const p=by[b.dataset.partCategory]?.[0];if(p)openPartPanel(p);});return;}const d=Math.hypot(state.posX+45,state.posZ-35);if(d<14){const cost=Math.max(250,Math.ceil(state.damage*45));if(state.money>=cost){state.money-=cost;state.damage=0;state.car.condition=100;state.car.engine=100;state.car.body=100;state.car.oil=100;state.car.coolant=100;state.car.brakes=100;state.car.battery=100;state.car.suspension=100;state.car.tires=100;msg("🔧 Машина полностью обслужена.");save();}else msg("Не хватает денег на сервис.");}else msg("Подъедь к сервису.");};document.querySelector("#gearBtn").onclick=cycleGear;document.querySelector("#doorsBtn").onclick=()=>{state.car.articulationActive=true;state.car.doorsOpen=!state.car.doorsOpen;save();msg(state.car.doorsOpen?"🚪 Двери открыты":"🚪 Двери закрыты");};document.querySelector("#hoodBtn").onclick=()=>{
+  state.car.articulationActive=true;
+  if(state.car.hoodOpen){
+    state.car.hoodOpen=false;
+    state.car.trunkOpen=true;
+    msg("🧳 Багажник открыт");
+  }else if(state.car.trunkOpen){
+    state.car.trunkOpen=false;
+    msg("🚗 Капот и багажник закрыты");
+  }else{
+    state.car.hoodOpen=true;
+    msg("🔧 Капот открыт");
+  }
+  save();
+};document.querySelector("#cameraBtn").onclick=()=>{cameraMode=(cameraMode+1)%3;camOrbitYaw=0;camOrbitPitch=.18;if(camera){camera.fov=cameraMode===2?82:cameraMode===1?68:62;camera.updateProjectionMatrix();}msg("📷 "+cameraModeNames[cameraMode]);};document.querySelectorAll(".menu [data-scene]").forEach(b=>b.onclick=()=>renderScene(b.dataset.scene));function resizeRenderer(){
   if(!renderer||!camera)return;
   const w=Math.max(1,viewport.clientWidth),h=Math.max(1,viewport.clientHeight);
   camera.aspect=w/h;camera.updateProjectionMatrix();
