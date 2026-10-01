@@ -124,33 +124,44 @@ export class RetroCarBuilder {
       bodyGroup.add(shoulder);
     }
 
-    // Крыша остаётся почти прямой и квадратной, но стойки и лобовое имеют заметный наклон.
-    const cabin = new THREE.Shape();
-    cabin.moveTo(-1.20,0.98);
-    cabin.lineTo(-1.02,1.58);
-    cabin.lineTo(-0.78,1.84);
-    cabin.lineTo(0.78,1.84);
-    cabin.lineTo(1.02,1.58);
-    cabin.lineTo(1.20,0.98);
-    cabin.closePath();
-
-    const cabinGeo = new THREE.ExtrudeGeometry(cabin,{
-      depth:bodyWidth-0.34,bevelEnabled:true,bevelSegments:3,
-      bevelSize:0.06,bevelThickness:0.06,curveSegments:4
-    });
-    cabinGeo.rotateY(Math.PI/2);
-    cabinGeo.translate(-(bodyWidth-0.34)/2,0,0);
-
+    // Кабина сделана каркасом, а не сплошным ExtrudeGeometry:
+    // сплошная оболочка перекрывала отдельные панели стекла и издали
+    // превращала машину в один тёмный прямоугольник.
     const cabinGroup = new THREE.Group();
     cabinGroup.name = "ClassicCabin";
-    const cabinShell = new THREE.Mesh(cabinGeo,paint);
-    cabinShell.castShadow = true;
-    cabinShell.receiveShadow = true;
-    cabinShell.userData = {partKey:"cabin",partName:"Кабина кузова",category:"body",removable:false,condition:100};
-    cabinGroup.add(cabinShell);
 
-    // Стекла вынесены в отдельную сборку Windows ниже, чтобы их можно было
-    // снимать/ставить и чтобы не было двух наложенных слоев стекла.
+    const roof = new THREE.Mesh(
+      new RoundedBoxGeometry(bodyWidth - 0.38, 0.18, 2.62, 6, 0.08),
+      paint
+    );
+    roof.position.set(0, 1.82, 0.05);
+    roof.castShadow = true;
+    roof.receiveShadow = true;
+    roof.userData = {partKey:"roof",partName:"Крыша",category:"body",removable:false,condition:100};
+    cabinGroup.add(roof);
+
+    // Стойки кузова оставляют проёмы открытыми, чтобы стекла были отдельными
+    // видимыми деталями и могли обслуживаться независимо.
+    const pillarPositions = [
+      [-0.98, 1.50, -0.93, -0.10],
+      [ 0.98, 1.50, -0.93,  0.10],
+      [-0.98, 1.50,  1.04,  0.10],
+      [ 0.98, 1.50,  1.04, -0.10],
+      [-bodyWidth/2 + 0.05, 1.50, 0, 0],
+      [ bodyWidth/2 - 0.05, 1.50, 0, 0]
+    ];
+    for (const [x,y,z,rx] of pillarPositions) {
+      const pillar = new THREE.Mesh(
+        new RoundedBoxGeometry(0.11, 0.70, 0.12, 3, 0.035),
+        paint
+      );
+      pillar.position.set(x,y,z);
+      pillar.rotation.x = rx;
+      pillar.castShadow = true;
+      pillar.receiveShadow = true;
+      cabinGroup.add(pillar);
+    }
+
     this.carGroup.add(bodyGroup);
     this.carGroup.add(cabinGroup);
   }
