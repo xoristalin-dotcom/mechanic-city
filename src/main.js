@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import RAPIER from "@dimforge/rapier3d-compat";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
-import { loadCrown72Blender } from "./crown72-blender.js";
+import { loadMechanicCityCoupe } from "./crown72-blender.js";
 import "./style.css";
 
 // MATERIAL HELPERS — lightweight procedural detail, no external texture files.
@@ -130,11 +130,11 @@ function physicsDrive(dt){
 function fallbackDrive(dt){const throttle=input.gas&&(state.gear==="D"||state.gear==="R"),reverse=state.gear==="R",steer=(input.left?1:0)+(input.right?-1:0);const accel=throttle?(reverse?-10:10):0;state.speed=THREE.MathUtils.damp(state.speed,accel?Math.sign(accel)*Math.min(Math.abs(state.speed)+Math.abs(accel)*dt,12):0,accel?2.8:4.5,dt);if(input.brake)state.speed=THREE.MathUtils.damp(state.speed,0,8,dt);state.heading+=steer*dt*(0.9+Math.min(Math.abs(state.speed),8)*.08);const forward=new THREE.Vector3(-Math.sin(state.heading),0,-Math.cos(state.heading));state.posX+=forward.x*state.speed*dt;state.posZ+=forward.z*state.speed*dt;state.posX=THREE.MathUtils.clamp(state.posX,-106,106);state.posZ=THREE.MathUtils.clamp(state.posZ,-106,106);car.position.set(state.posX,0,state.posZ);car.rotation.y=state.heading;for(const w of(car.userData?.wheels||[]))w.rotation.y=steer*THREE.MathUtils.degToRad(36); }
 async function swapToBlenderCrown72(){
  try{
-   const model=await loadCrown72Blender();
-   model.name="Crown72_BlenderAsset";
+   const model=await loadMechanicCityCoupe();
+   model.name="MechanicCity_Coupe_Repaired";
    model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
    const root=new THREE.Group();
-   root.name="Crown72_Blender";
+   root.name="MechanicCity_Coupe_Repaired_Root";
    root.position.copy(car.position);
    root.position.y+=0.42;
    root.rotation.copy(car.rotation);
@@ -148,7 +148,7 @@ async function swapToBlenderCrown72(){
    root.add(model);
    const old=car; car=root; scene.add(car); scene.remove(old);
    if(physicsReady&&chassisBody){const p=chassisBody.translation();car.position.set(p.x,p.y-PHYSICS_Y,p.z);}
-   msg("🚗 Blender-модель Crown 72 загружена");
+   msg("🚗 MechanicCity Coupe Repaired загружена");
  }catch(err){window.MechanicCityDebugLog?.({type:"blender-model",message:String(err?.message||err),stack:String(err?.stack||"")});console.warn("Blender Crown 72 load failed; procedural fallback remains.",err);}
 }
 function save(){localStorage.setItem("mechanic-city",JSON.stringify(state));}
