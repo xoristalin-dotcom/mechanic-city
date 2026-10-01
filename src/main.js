@@ -634,7 +634,7 @@ function buildWorkshop(){
   setupCameraControls();
   const hemi=new THREE.HemisphereLight(0xb9c9d8,0x16181a,1.35);scene.add(hemi);
   const key=new THREE.DirectionalLight(0xffffff,2.1);key.position.set(5,10,-7);key.castShadow=true;key.shadow.mapSize.set(1024,1024);scene.add(key);
-  const floor=new THREE.Mesh(new THREE.PlaneGeometry(32,24),new THREE.MeshStandardMaterial({color:0x34383b,roughness:.92,map:metalTex}));
+  const floor=new THREE.Mesh(new THREE.PlaneGeometry(80,60),new THREE.MeshStandardMaterial({color:0x4a4a47,roughness:.98,map:sidewalkTex}));
   floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
   // No platform/lift slab: the car sits directly on the workshop floor.
   car=makeCar(0x252b31);
@@ -645,7 +645,7 @@ function buildWorkshop(){
   swapToBlenderCrown72().then(()=>{
     if(!car?.userData?.serviceParts)return;
     car.userData.workshopDisassembled=false;
-    msg("🔧 Машина собрана на подъёмнике. Нажми на деталь, чтобы открыть её обслуживание.");
+    msg("🔧 Машина стоит прямо на полу мастерской. Нажми на деталь, чтобы открыть её обслуживание.");
   }).catch(err=>window.MechanicCityDebugLog?.({type:"workshop-load",message:String(err?.message||err)}));
   const label=document.createElement("div");
   label.className="workshop-hud";
@@ -662,8 +662,8 @@ function buildWorkshop(){
     const center=box?.getCenter(new THREE.Vector3())||new THREE.Vector3(0,1,0);
     const size=box?.getSize(new THREE.Vector3())||new THREE.Vector3(5,1.5,5);
     const radius=Math.max(size.x,size.y,size.z);
-    const inspectionDistance=Math.max(4.4,radius*1.18);
-    const desired=new THREE.Vector3(center.x+inspectionDistance*.78,center.y+inspectionDistance*.52,center.z+inspectionDistance*.78);
+    const inspectionDistance=Math.max(3.45,radius*.86);
+    const desired=new THREE.Vector3(center.x+inspectionDistance*.78,center.y+inspectionDistance*.62,center.z+inspectionDistance*.78);
     camera.position.lerp(desired,.16);
     camera.lookAt(center);
     renderer.render(scene,camera);
