@@ -162,8 +162,8 @@ export class RetroCarBuilder {
       const rimMat = new THREE.MeshStandardMaterial({color:0xb8bcc1,roughness:0.32,metalness:0.82});
 
       for (const cfg of [
-        ["FL",-wheelX,-wheelZ,true],["FR",wheelX,-wheelZ,true],
-        ["RL",-wheelX,wheelZ,false],["RR",wheelX,wheelZ,false]
+        ["FL",-wheelX,wheelZ,true],["FR",wheelX,wheelZ,true],
+        ["RL",-wheelX,-wheelZ,false],["RR",wheelX,-wheelZ,false]
       ]) {
         const [name,x,z,front] = cfg;
         const wheel = new THREE.Group();
