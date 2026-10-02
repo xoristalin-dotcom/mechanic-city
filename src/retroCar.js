@@ -319,9 +319,12 @@ export class RetroCarBuilder {
 
       // Side mirrors and door handles make the silhouette read better at distance.
       for(const x of [-bodyW*0.53,bodyW*0.53]){
+        const side = x < 0 ? "L" : "R";
         const mirror=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.14,0.28),chrome);
+        mirror.name="SideMirror_"+side;
         mirror.position.set(x,1.10,0.02); detailKit.add(mirror);
         const handle=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.045,0.055),chrome);
+        handle.name="DoorHandle_"+side;
         handle.position.set(x*0.995,0.98,0.46); detailKit.add(handle);
       }
 
@@ -826,6 +829,60 @@ export class RetroCarBuilder {
       }
 
       const doorAssemblies=createDoorAssemblies();
+
+      // Door-mounted details: mirrors and handles must travel with the real
+      // animated door instead of remaining on the static body.
+      for (const door of doorAssemblies) {
+        const side = door.pivot.name === "Door_Left_Hinge" ? -1 : 1;
+        const mirror = detailKit.getObjectByName("SideMirror_" + (side < 0 ? "L" : "R"));
+        const handle = detailKit.getObjectByName("DoorHandle_" + (side < 0 ? "L" : "R"));
+        if (mirror) door.pivot.attach(mirror);
+        if (handle) door.pivot.attach(handle);
+      }
+
+      // The R2.1 visual meshes are exterior-only. Restore a lightweight,
+      // opaque cabin so an opened door does not reveal an empty/transparent
+      // shell. Seats, floor, dashboard and steering stay independent of doors.
+      const cabin = new THREE.Group();
+      cabin.name = "Challenger_R2_CabinInterior";
+      const cabinMat = new THREE.MeshStandardMaterial({color:0x17191c,metalness:0.05,roughness:0.78,side:THREE.DoubleSide});
+      const seatMat = new THREE.MeshStandardMaterial({color:0x25282c,metalness:0.02,roughness:0.88});
+      const trimMat = new THREE.MeshStandardMaterial({color:0x090b0d,metalness:0.35,roughness:0.48});
+
+      const floor = new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.72,0.10,targetLength*0.48),cabinMat);
+      floor.position.set(0,0.67,0.02);
+      cabin.add(floor);
+
+      for (const x of [-0.58,0.58]) {
+        const seat = new THREE.Mesh(new THREE.BoxGeometry(0.52,0.62,0.56),seatMat);
+        seat.position.set(x,0.96,-0.18);
+        seat.castShadow=true;
+        cabin.add(seat);
+
+        const back = new THREE.Mesh(new THREE.BoxGeometry(0.52,0.72,0.18),seatMat);
+        back.position.set(x,1.22,-0.48);
+        back.rotation.x=-0.08;
+        back.castShadow=true;
+        cabin.add(back);
+      }
+
+      const dashboard = new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.62,0.20,0.36),trimMat);
+      dashboard.position.set(0,1.31,0.91);
+      dashboard.rotation.x=-0.08;
+      cabin.add(dashboard);
+
+      const steering = new THREE.Mesh(new THREE.TorusGeometry(0.18,0.035,10,24),trimMat);
+      steering.position.set(-0.46,1.38,0.72);
+      steering.rotation.x=Math.PI/2;
+      cabin.add(steering);
+
+      const rearWall = new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.70,0.78,0.08),cabinMat);
+      rearWall.position.set(0,1.03,-0.92);
+      cabin.add(rearWall);
+
+      cabin.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+      this.carGroup.add(cabin);
+
       // Keep the real door assemblies authoritative; the marker/procedural
       // doors must never overwrite them after the GLB finishes loading.
       if (doorAssemblies.length) this.carGroup.userData.realDoorCount=doorAssemblies.length;
