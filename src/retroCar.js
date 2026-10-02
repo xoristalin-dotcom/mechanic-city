@@ -117,11 +117,10 @@ export class RetroCarBuilder {
       const targetLength = 4.95;
       const scale = targetLength / bodyLength;
       model.scale.setScalar(scale);
-      // R18 is authored in the game's vehicle space: Y is up and Z is the
-      // longitudinal axis. Do not rotate it based on the longest AABB axis;
-      // that would make the authoritative car turn onto its side when the
-      // source dimensions change.
-      model.rotation.set(0, 0, 0);
+      // The source R18 GLB uses X as the vehicle length axis
+      // (front/rear authored at +X/-X) and Z as track width. The game
+      // vehicle space uses Z for forward/back, so align X -> +Z once.
+      model.rotation.set(0, -Math.PI / 2, 0);
       model.position.set(
         -bodyCenter.x * scale,
         -bodyBox.min.y * scale,
