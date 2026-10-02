@@ -859,14 +859,22 @@ export class RetroCarBuilder {
           const box = new THREE.Box3().setFromObject(interiorModel);
           if (box.isEmpty()) return;
 
+          // Normalize the original R18 scene exactly like the authoritative
+          // Revision-18 loader. Do NOT center the interior meshes separately:
+          // their original coordinates are what keep seats/dashboard inside
+          // the body.
           const size = box.getSize(new THREE.Vector3());
-          // The driving model is normalized along Z. Do the same for the
-          // original R18 asset; using the scene's longest axis was wrong when
-          // the source scene contained tall exterior/service geometry.
-          const sourceLength = size.z;
-          if (!Number.isFinite(sourceLength) || sourceLength <= 0) return;
-          const interiorScale = targetLength / sourceLength;
+          const center = box.getCenter(new THREE.Vector3());
+          const longest = Math.max(size.x,size.y,size.z);
+          if (!Number.isFinite(longest) || longest <= 0) return;
+          const interiorScale = targetLength / longest;
           interiorModel.scale.setScalar(interiorScale);
+          interiorModel.position.set(
+            -center.x * interiorScale,
+            -box.min.y * interiorScale,
+            -center.z * interiorScale
+          );
+          interiorModel.updateMatrixWorld(true);
 
           const isInteriorName = (name) => {
             const n = String(name || "").toLowerCase();
@@ -890,25 +898,6 @@ export class RetroCarBuilder {
           });
 
           if (!visibleInteriorCount) return;
-
-          // Align only the meshes that are actually used as the cabin.
-          // This prevents hidden exterior/service pieces in preview.glb from
-          // determining the cabin's vertical placement.
-          interiorModel.updateMatrixWorld(true);
-          const interiorBox = new THREE.Box3();
-          interiorModel.traverse(o=>{
-            if (o.isMesh && o.visible) interiorBox.expandByObject(o, true);
-          });
-          if (interiorBox.isEmpty()) return;
-
-          const interiorCenter = interiorBox.getCenter(new THREE.Vector3());
-          const cabinFloorY = 0.54;
-          interiorModel.position.set(
-            -interiorCenter.x,
-            cabinFloorY - interiorBox.min.y,
-            -interiorCenter.z
-          );
-          interiorModel.updateMatrixWorld(true);
           this.carGroup.add(interiorModel);
           this.carGroup.userData.originalInterior = true;
           this.carGroup.userData.originalInteriorSource = "/models/preview.glb";
@@ -1197,18 +1186,3 @@ export class RetroCarBuilder {
     rearGlass.position.set(0, 1.34, 1.48);
     rearGlass.rotation.x = 0.12;
     cabinGroup.add(rearGlass);
-
-    for (const side of [-1, 1]) {
-      const sideGlass = new THREE.Mesh(
-        new RoundedBoxGeometry(0.08, 0.34, 1.72, 4, 0.04),
-        glass
-      );
-      sideGlass.position.set(side * 1.25, 1.34, 0.12);
-      cabinGroup.add(sideGlass);
-    }
-    this.carGroup.add(cabinGroup);
-  }
-
-  buildDoors() {
-    const paint = this.getMaterial('paint', this.config.color);
-    const doorsGroup = new THREE.Group();
