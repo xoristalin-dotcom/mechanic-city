@@ -60,8 +60,9 @@ export class RetroCarBuilder {
     // constructed. On iPhone/Safari, requestIdleCallback can fire almost
     // immediately and the synchronous GLTF parse can monopolize the main
     // thread long enough to make the whole city look frozen.
-    // The city gets a few seconds to become fully interactive first.
-    window.setTimeout(startGLBLoad, 5000);
+    // Load the authoritative R18 almost immediately after the first city task.
+    // Do not show an unrelated procedural/traffic car as the player while it loads.
+    window.setTimeout(startGLBLoad, 120);
   }
 
   async loadMechanicCityModel() {
