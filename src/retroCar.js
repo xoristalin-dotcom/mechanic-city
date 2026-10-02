@@ -727,7 +727,7 @@ export class RetroCarBuilder {
         };
         // R2.1 is normalized from the body floor to y=0. A display/service slab
         // is flat and lives below the wheel center; use a conservative threshold.
-        const lowY = Math.min(0.34, wheelRadius * 0.92);
+        const lowY = 0.34;
         for (let t = 0; t < triangleCount; t++) {
           const a = v(t * 3), b = v(t * 3 + 1), d = v(t * 3 + 2);
           const minY = Math.min(a.y, b.y, d.y);
@@ -754,10 +754,6 @@ export class RetroCarBuilder {
         }
         if (removed < 12 || removed / triangleCount > 0.55) return;
         const next = new THREE.BufferGeometry();
-        for (const name of Object.keys(mesh.geometry.attributes)) {
-          if (name === "position") continue;
-          next.setAttribute(name, mesh.geometry.attributes[name].clone());
-        }
         const pos = new THREE.BufferAttribute(new Float32Array(keep.length * 3), 3);
         for (let i = 0; i < keep.length; i++) {
           const src = keep[i];
