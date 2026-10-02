@@ -698,6 +698,7 @@ function bindControls(){
       else if(v==="left"){input.left=true;state.driving=true;}
       else if(v==="right"){input.right=true;state.driving=true;}
       b.classList.add("pressed");
+      window.MechanicCityControlStream?.();
     };
     const release=()=>{
       if(v==="gas"){input.gas=false;state.throttle=false;}
@@ -706,6 +707,7 @@ function bindControls(){
       if(v==="right")input.right=false;
       active=false;
       b.classList.remove("pressed");
+      window.MechanicCityControlStream?.();
     };
     const pointerDown=e=>{
       e.preventDefault(); e.stopPropagation();
