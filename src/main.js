@@ -469,7 +469,9 @@ async function buildCity(){ forceViewportLayout(); clearJobMarker(); traffic=[];
     animate(traffic);
     setupVehiclePhysics().catch(err=>{window.MechanicCityDebugLog?.({type:"physics-async",message:String(err?.message||err),stack:String(err?.stack||"")}); console.warn("Async Rapier setup failed; fallback driving remains active.",err);});
 
-    // Traffic is optional. A broken NPC car must never replace the authoritative player R18.
+    // Never populate traffic until the authoritative R18 player is actually visible.
+    // This prevents an NPC/procedural car from being mistaken for the player's car
+    // during the GLB loading window.
     try{
       for(let i=0;i<9;i++){
         const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4],false);
