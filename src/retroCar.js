@@ -56,11 +56,12 @@ export class RetroCarBuilder {
       this.carGroup.userData.modelLoadError = String(err?.message || err);
       console.error("Mechanic City R18 GLB load failed", err);
     });
-    if (typeof window.requestIdleCallback === "function") {
-      window.requestIdleCallback(startGLBLoad, {timeout: 800});
-    } else {
-      window.setTimeout(startGLBLoad, 80);
-    }
+    // Do not start the huge R18 parse while the first city frame is being
+    // constructed. On iPhone/Safari, requestIdleCallback can fire almost
+    // immediately and the synchronous GLTF parse can monopolize the main
+    // thread long enough to make the whole city look frozen.
+    // The city gets a few seconds to become fully interactive first.
+    window.setTimeout(startGLBLoad, 5000);
   }
 
   async loadMechanicCityModel() {
