@@ -629,6 +629,43 @@ export class RetroCarBuilder {
         }
       });
 
+      // FINAL vehicle-stand purge. The GLB visibility pass above can re-enable
+      // meshes that were hidden by the earlier name/geometry filters. Run this
+      // after ALL R2.1 visual styling and keep the guard available to main.js
+      // for every-frame cleanup of anything created later.
+      const purgeVehicleStand = () => {
+        this.carGroup.updateMatrixWorld(true);
+        const referenceBody = model.getObjectByName("geometry_0") || model;
+        const refBox = new THREE.Box3().setFromObject(referenceBody, true);
+        const refSize = refBox.getSize(new THREE.Vector3());
+        const wheelPlane = Math.max(0.34, refBox.min.y + 0.34);
+        model.traverse(o => {
+          if (!o.isMesh) return;
+          const n = String(o.name || "").toLowerCase();
+          if (/platform|turntable|display[_ -]?stand|show[_ -]?stand|service[_ -]?stand|vehicle[_ -]?stand|pedestal|support[_ -]?base/.test(n)) {
+            o.visible = false;
+            o.userData.hiddenVehicleStand = true;
+            return;
+          }
+          const b = new THREE.Box3().setFromObject(o, true);
+          if (b.isEmpty()) return;
+          const s = b.getSize(new THREE.Vector3());
+          const broad =
+            s.x >= Math.max(1.8, refSize.x * 0.45) &&
+            s.z >= Math.max(2.0, refSize.z * 0.45);
+          const low = b.max.y <= wheelPlane;
+          const thin = s.y <= Math.max(0.24, Math.min(s.x, s.z) * 0.075);
+          if (broad && low && thin) {
+            o.visible = false;
+            o.userData.hiddenVehicleStand = true;
+            o.userData.hiddenGenericServicePlatform = true;
+          }
+        });
+        model.updateMatrixWorld(true);
+      };
+      this.carGroup.userData.purgeVehicleStand = purgeVehicleStand;
+      purgeVehicleStand();
+
       // Preserve the procedural root object so main.js physics, camera and HUD
       // references remain valid; only replace its visual children.
       const oldChildren = [...this.carGroup.children];
