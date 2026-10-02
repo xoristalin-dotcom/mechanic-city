@@ -336,8 +336,10 @@ function getViewportSize(){
 function forceViewportLayout(){
   if(!viewport)return getViewportSize();
   const vv=window.visualViewport;
-  const w=Math.max(1,Math.round(vv?.width||window.innerWidth||1));
-  const h=Math.max(1,Math.round(vv?.height||window.innerHeight||1));
+  const rawW=viewport.clientWidth||window.innerWidth||vv?.width||1;
+  const rawH=viewport.clientHeight||window.innerHeight||vv?.height||1;
+  const w=Math.max(1,Math.min(4096,Math.round(rawW)));
+  const h=Math.max(1,Math.min(4096,Math.round(rawH)));
   viewport.style.position="absolute";
   viewport.style.left="0"; viewport.style.top="0";
   viewport.style.width=w+"px"; viewport.style.height=h+"px";
