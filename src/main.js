@@ -165,11 +165,17 @@ function physicsDrive(dt){
   state.posX+=forward.x*state.speed*dt;
   state.posZ+=forward.z*state.speed*dt;
   car.position.set(state.posX,car.position.y,state.posZ);
+  // The Rapier body is diagnostic-only. Never hard-set its translation
+  // from the render loop: setTranslation(..., true) is a teleport operation
+  // and could make the visual follow camera appear to jump when a control
+  // button is pressed. The player root is the single authoritative transform.
   if(chassisBody){
     try{
-      const p=chassisBody.translation();
-      chassisBody.setTranslation({x:state.posX,y:p.y,z:state.posZ},true);
-      chassisBody.setLinvel({x:forward.x*state.speed,y:chassisBody.linvel().y,z:forward.z*state.speed},true);
+      chassisBody.setLinvel({
+        x:forward.x*state.speed,
+        y:chassisBody.linvel().y,
+        z:forward.z*state.speed
+      },true);
       chassisBody.setAngvel({x:0,y:0,z:0},true);
     }catch{}
   }
@@ -648,6 +654,8 @@ function setupCameraControls(){
   window.addEventListener("blur",end,{passive:true});
 }
 function bindControls(){
+  if(viewport.dataset.driveControlsBound==="1")return;
+  viewport.dataset.driveControlsBound="1";
   document.querySelectorAll("[data-drive]").forEach(b=>{
     const v=b.dataset.drive;
     b.style.touchAction="none";
