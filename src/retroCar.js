@@ -135,7 +135,7 @@ export class RetroCarBuilder {
       const runtimeCenter = runtimeBox.getCenter(new THREE.Vector3());
       let runtimeMeshes = 0;
       model.traverse(node => { if (node.isMesh) runtimeMeshes++; });
-      carGroup.userData.modelDiagnostics = {
+      this.carGroup.userData.modelDiagnostics = {
         source: "/models/preview.glb",
         meshes: runtimeMeshes,
         size: { x: runtimeSize.x, y: runtimeSize.y, z: runtimeSize.z },
