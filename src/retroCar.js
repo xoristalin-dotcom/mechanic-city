@@ -75,14 +75,14 @@ export class RetroCarBuilder {
         loader.parse(buffer, sourcePath, g=>resolve(g.scene), reject);
       });
 
-      model.name = "MechanicCity_DodgeChallenger_R2_1";
+      model.name = "MechanicCity_R18_Authoritative";
       model.updateMatrixWorld(true);
 
-      // R2.1 is authored as a normalized vehicle along the Z axis.
-      // Do not use the whole scene bounds here: the optional engine/service
-      // geometry intentionally sits above the body and would make the car
-      // several times too tall on mobile.
-      const bodyMesh = model.getObjectByName("geometry_0");
+      // R18 uses the complete scene bounds. Keep the older R2.1 body-only
+      // normalization only for the legacy fallback path below.
+      const isR18Source = sourcePath === "/models/preview.glb" ||
+        sourcePath === (import.meta.env.VITE_MECHANIC_CITY_MODEL_URL || "/models/preview.glb");
+      const bodyMesh = !isR18Source ? model.getObjectByName("geometry_0") : null;
       const bodyBox = bodyMesh
         ? new THREE.Box3().setFromObject(bodyMesh)
         : new THREE.Box3().setFromObject(model);
@@ -90,7 +90,9 @@ export class RetroCarBuilder {
 
       const bodySize = bodyBox.getSize(new THREE.Vector3());
       const bodyCenter = bodyBox.getCenter(new THREE.Vector3());
-      const bodyLength = bodySize.z;
+      const bodyLength = isR18Source
+        ? Math.max(bodySize.x, bodySize.y, bodySize.z)
+        : bodySize.z;
       if (!Number.isFinite(bodyLength) || bodyLength <= 0) return;
 
       const targetLength = 4.95;
