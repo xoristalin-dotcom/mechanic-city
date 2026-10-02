@@ -89,8 +89,7 @@ const PHYSICS_Y = 0.3;
 
 let physicsInitPromise=null;
 async function initPhysics(){
-  if(!physicsInitPromise) physicsInitPromise=RAPIER.installDebugPanel();
-init();
+  if(!physicsInitPromise) physicsInitPromise=RAPIER.init();
   await physicsInitPromise;
 }
 function resetPhysics(){if(vehicleController){try{vehicleController.free();}catch{}}vehicleController=null;chassisBody=null;physicsWorld=null;physicsReady=false;}
@@ -594,38 +593,6 @@ function teleportToMapCenter(){
   msg("🎯 Машина телепортирована в центр карты");
 }
 function driveOn(){if(state.fuel<=0){msg("⛽ Бак пуст — нужна заправка.");return;}if(state.gear==="P"||state.gear==="N")state.gear="D";state.driving=true;msg("За рулём.");}
-function installDebugPanel(){
-  if(document.getElementById("debugPanel"))return;
-  const p=document.createElement("div");p.id="debugPanel";p.className="debug-panel";
-  p.innerHTML='<div class="debug-head"><b>Диагностика</b><button id="debugClose">×</button></div><pre id="debugText">Запуск...</pre>';
-  document.body.appendChild(p);
-  document.getElementById("debugClose").onclick=()=>p.remove();
-  const box=document.getElementById("debugText");
-  const oldErr=window.onerror;
-  window.onerror=(msg,src,line,col,err)=>{window.__mcLastError=String(msg)+" @ "+line+":"+col; if(oldErr)oldErr(msg,src,line,col,err);};
-  window.addEventListener("unhandledrejection",e=>window.__mcLastError="Promise: "+String(e.reason));
-  window.__mcDebugInterval=setInterval(()=>{
-    const c=typeof camera!=="undefined"?camera:null;
-    const car0=typeof car!=="undefined"?car:null;
-    const st=typeof state!=="undefined"?state:null;
-    const inp=typeof input!=="undefined"?input:null;
-    box.textContent=[
-      "LIVE DIAGNOSTICS",
-      "camera: "+(!!c)+" mode="+(typeof cameraMode!=="undefined"?cameraMode:"?"),
-      "camera parent: "+(c?.parent?.name||c?.parent?.type||"none"),
-      "camera pos: "+(c? [c.position.x,c.position.y,c.position.z].map(v=>Number(v).toFixed(2)).join(", "):"none"),
-      "car: "+(!!car0)+" name="+(car0?.name||"none"),
-      "car pos: "+(car0? [car0.position.x,car0.position.y,car0.position.z].map(v=>Number(v).toFixed(2)).join(", "):"none"),
-      "car rotY: "+(car0?Number(car0.rotation.y).toFixed(2):"none"),
-      "speed: "+(st?.speed??"?")+" gear="+(st?.gear??"?"),
-      "input: "+(inp?JSON.stringify(inp):"none"),
-      "camDragging: "+(typeof camDragging!=="undefined"?camDragging:"?"),
-      "physics: "+(typeof physicsDrive==="function"?"READY":"MISSING"),
-      "last error: "+(window.__mcLastError||"none"),
-      "touch: drag on empty screen; buttons should not move camera"
-    ].join("\n");
-  },250);
-}
 function setupCameraControls(){
   if(!renderer||!viewport)return;
   if(viewport.dataset.cameraControlsBound==="1")return;
@@ -731,7 +698,7 @@ function setVehiclePartOpen(part,open){state.car[part]=!!open; save(); const lab
 function toggleVehiclePanel(){const html="<p>Управление кузовом автомобиля</p><div class='buttons'><button id='hoodBtn'>"+(state.car.hoodOpen?"🔽 Закрыть капот":"🔼 Открыть капот")+"</button><button id='trunkBtn'>"+(state.car.trunkOpen?"🔽 Закрыть багажник":"🔼 Открыть багажник")+"</button><button id='doorsBtn'>"+(state.car.doorsOpen?"🚪 Закрыть двери":"🚪 Открыть двери")+"</button>"+(state.scene==="garage"?"<button id='disassemblyBtn'>🔧 Разборка автомобиля</button>":"")+"</div>";openPanel("Кузов",html);document.querySelector("#hoodBtn")?.addEventListener("click",()=>{setVehiclePartOpen("hoodOpen",!state.car.hoodOpen);toggleVehiclePanel();});document.querySelector("#trunkBtn")?.addEventListener("click",()=>{setVehiclePartOpen("trunkOpen",!state.car.trunkOpen);toggleVehiclePanel();});document.querySelector("#doorsBtn")?.addEventListener("click",()=>{setVehiclePartOpen("doorsOpen",!state.car.doorsOpen);toggleVehiclePanel();});document.querySelector("#disassemblyBtn")?.addEventListener("click",openDisassemblyPanel);}
 function openDisassemblyPanel(){const parts=Object.values(car?.userData?.serviceParts||{});const groups={body:[],engine:[],transmission:[],brakes:[],suspension:[],wheels:[],lights:[],glass:[],exhaust:[],other:[]};for(const p of parts)(groups[p.category]||groups.other).push(p);const labels={body:"Кузов",engine:"Двигатель",transmission:"КПП",brakes:"Тормоза",suspension:"Подвеска",wheels:"Колёса",lights:"Свет",glass:"Стёкла",exhaust:"Выхлоп",other:"Прочее"};let html="<p>Выбери узел для снятия или установки.</p>";for(const [cat,list] of Object.entries(groups)){if(!list.length)continue;html+="<h4>"+labels[cat]+"</h4><div class='buttons'>";for(const p of list){html+="<button data-part-key='"+p.key+"'>"+(partInstalled(p.key)?"🔩 Снять ":"🛠️ Установить ")+p.name+"</button>"}html+="</div>"}openPanel("Разборка автомобиля",html);document.querySelectorAll("[data-part-key]").forEach(b=>b.onclick=()=>{const p=car?.userData?.serviceParts?.[b.dataset.partKey];if(p)openPartPanel(p)})}
 function openPanel(title,html){ const existing=document.querySelector("#panel"); if(existing)existing.remove(); const panel=document.createElement("div"); panel.id="panel"; panel.className="panel"; panel.innerHTML="<div class='panel-card'><h3>"+title+"</h3>"+html+"<button id='closePanel'>Закрыть</button></div>"; document.body.appendChild(panel); panel.querySelector("#closePanel")?.addEventListener("click",()=>panel.remove()); }
-function initMenu(){ const html=`<div class="menu-section"><button data-scene="city">Город</button><button data-scene="workshop">Мастерская</button><button data-scene="garage">Гараж</button><button data-scene="market">Рынок</button><button id="helpMenuBtn">❔ Справка</button></div>`; menu.innerHTML=html; menu.querySelectorAll("[data-scene]").forEach(btn=>btn.addEventListener("click",()=>{ renderScene(btn.dataset.scene); menu.classList.add("hidden"); })); menu.querySelector("#helpMenuBtn").onclick=showHelp; installDebugPanel(); }
+function initMenu(){ const html=`<div class="menu-section"><button data-scene="city">Город</button><button data-scene="workshop">Мастерская</button><button data-scene="garage">Гараж</button><button data-scene="market">Рынок</button><button id="helpMenuBtn">❔ Справка</button></div>`; menu.innerHTML=html; menu.querySelectorAll("[data-scene]").forEach(btn=>btn.addEventListener("click",()=>{ renderScene(btn.dataset.scene); menu.classList.add("hidden"); })); menu.querySelector("#helpMenuBtn").onclick=showHelp; }
 function showHelp(){ if(document.querySelector(".help-overlay"))return; const o=document.createElement("div"); o.className="help-overlay"; o.innerHTML=`<div class="help-card"><button class="help-close" aria-label="Закрыть">×</button><h2>Справка</h2><div class="help-row"><b>🚗 Управление</b><span>Газ — ехать, ◀ ▶ — поворот, P/R/N/D — передача.</span></div><div class="help-row"><b>📷 Камера</b><span>Проведи пальцем по свободному месту экрана. Камера следует за машиной при повороте.</span></div><div class="help-row"><b>🔧 Машина</b><span>Кнопка 🚗 открывает управление кузовом. В гараже доступны детали и обслуживание.</span></div><div class="help-row"><b>🗺️ Карта</b><span>🎯 возвращает машину в центр карты.</span></div></div>`; document.body.appendChild(o); o.querySelector(".help-close").onclick=()=>o.remove(); o.addEventListener("pointerdown",e=>{if(e.target===o)o.remove();}); }
 function bindUI(){ document.querySelector("#menuBtn").onclick=()=>menu.classList.toggle("hidden"); document.querySelector("#cameraBtn").onclick=()=>{cameraMode=(cameraMode+1)%3;camOrbitYaw=0;camOrbitPitch=.18;if(camera){camera.fov=cameraMode===2?82:cameraMode===1?68:62;camera.updateProjectionMatrix();}}; document.querySelector("#mapBtn").onclick=()=>alert("Карта запчастей будет здесь"); document.querySelector("#teleportBtn").onclick=teleportToMapCenter; document.querySelector("#vehicleBtn").onclick=toggleVehiclePanel; }
 installRuntimeErrorCapture(); installVisualInspectMode(); installAITestMode(); initMenu(); bindUI(); renderScene("city"); installPartInteraction();
