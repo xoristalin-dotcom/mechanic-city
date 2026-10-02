@@ -840,48 +840,76 @@ export class RetroCarBuilder {
         if (handle) door.pivot.attach(handle);
       }
 
-      // The R2.1 visual meshes are exterior-only. Restore a lightweight,
-      // opaque cabin so an opened door does not reveal an empty/transparent
-      // shell. Seats, floor, dashboard and steering stay independent of doors.
-      const cabin = new THREE.Group();
-      cabin.name = "Challenger_R2_CabinInterior";
-      const cabinMat = new THREE.MeshStandardMaterial({color:0x17191c,metalness:0.05,roughness:0.78,side:THREE.DoubleSide});
-      const seatMat = new THREE.MeshStandardMaterial({color:0x25282c,metalness:0.02,roughness:0.88});
-      const trimMat = new THREE.MeshStandardMaterial({color:0x090b0d,metalness:0.35,roughness:0.48});
+      // The R2.1 exterior GLB does not provide the cabin as one of the seven
+      // mobile meshes. Use the ORIGINAL Revision 18 interior from preview.glb
+      // instead of procedural boxes. The R18 asset is normalized to the same
+      // 4.95 m vehicle length used by the driving model, so its interior stays
+      // in the measured vehicle envelope.
+      const loadOriginalR18Interior = async () => {
+        try {
+          const response = await fetch("/models/preview.glb", {cache:"no-store"});
+          if (!response.ok) return;
+          const buffer = await response.arrayBuffer();
+          const interiorModel = await new Promise((resolve,reject)=>{
+            loader.parse(buffer, "/models/preview.glb", g=>resolve(g.scene), reject);
+          });
 
-      const floor = new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.72,0.10,targetLength*0.48),cabinMat);
-      floor.position.set(0,0.67,0.02);
-      cabin.add(floor);
+          interiorModel.name = "Challenger_R18_OriginalInterior";
+          interiorModel.updateMatrixWorld(true);
+          const box = new THREE.Box3().setFromObject(interiorModel);
+          if (box.isEmpty()) return;
 
-      for (const x of [-0.58,0.58]) {
-        const seat = new THREE.Mesh(new THREE.BoxGeometry(0.52,0.62,0.56),seatMat);
-        seat.position.set(x,0.96,-0.18);
-        seat.castShadow=true;
-        cabin.add(seat);
+          const size = box.getSize(new THREE.Vector3());
+          const center = box.getCenter(new THREE.Vector3());
+          const longest = Math.max(size.x,size.y,size.z);
+          if (!Number.isFinite(longest) || longest <= 0) return;
 
-        const back = new THREE.Mesh(new THREE.BoxGeometry(0.52,0.72,0.18),seatMat);
-        back.position.set(x,1.22,-0.48);
-        back.rotation.x=-0.08;
-        back.castShadow=true;
-        cabin.add(back);
-      }
+          const interiorScale = targetLength / longest;
+          interiorModel.scale.setScalar(interiorScale);
+          interiorModel.position.set(
+            -center.x * interiorScale,
+            -box.min.y * interiorScale,
+            -center.z * interiorScale
+          );
+          interiorModel.updateMatrixWorld(true);
 
-      const dashboard = new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.62,0.20,0.36),trimMat);
-      dashboard.position.set(0,1.31,0.91);
-      dashboard.rotation.x=-0.08;
-      cabin.add(dashboard);
+          const isInteriorName = (name) => {
+            const n = String(name || "").toLowerCase();
+            return /seat|dash|console|steering|pedal|shifter|interior|cockpit|carpet|trim|doorpanel|door_panel/.test(n);
+          };
 
-      const steering = new THREE.Mesh(new THREE.TorusGeometry(0.18,0.035,10,24),trimMat);
-      steering.position.set(-0.46,1.38,0.72);
-      steering.rotation.x=Math.PI/2;
-      cabin.add(steering);
+          let visibleInteriorCount = 0;
+          interiorModel.traverse(o=>{
+            if (!o.isMesh) return;
+            let hit = isInteriorName(o.name);
+            let parent = o.parent;
+            while (!hit && parent) {
+              hit = isInteriorName(parent.name);
+              parent = parent.parent;
+            }
+            o.castShadow = true;
+            o.receiveShadow = true;
+            o.frustumCulled = false;
+            o.visible = hit;
+            if (hit) visibleInteriorCount++;
+          });
 
-      const rearWall = new THREE.Mesh(new THREE.BoxGeometry(bodyW*0.70,0.78,0.08),cabinMat);
-      rearWall.position.set(0,1.03,-0.92);
-      cabin.add(rearWall);
+          if (!visibleInteriorCount) return;
+          this.carGroup.add(interiorModel);
+          this.carGroup.userData.originalInterior = true;
+          this.carGroup.userData.originalInteriorSource = "/models/preview.glb";
+          this.carGroup.userData.originalInteriorMeshCount = visibleInteriorCount;
+          this.carGroup.userData.vehicleSpec = {
+            ...(this.carGroup.userData.vehicleSpec || {}),
+            lengthMeters: 4.95,
+            interiorSource: "Higgsfield-R18-preview.glb"
+          };
+        } catch (err) {
+          console.warn("Original R18 interior unavailable; no procedural cabin will be created.", err);
+        }
+      };
 
-      cabin.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
-      this.carGroup.add(cabin);
+      await loadOriginalR18Interior();
 
       // Keep the real door assemblies authoritative; the marker/procedural
       // doors must never overwrite them after the GLB finishes loading.
@@ -1998,179 +2026,3 @@ export class RetroCarBuilder {
 
   getBodyWidth() {
     return this.config.type === 'van' ? 3.2 : 3.04;
-  }
-
-  getBodyLength() {
-    return this.config.type === 'van' ? 5.2 : this.config.type === 'truck' ? 4.8 : 4.98;
-  }
-
-  createRemovablePart(partKey, partName, category, geometry, material, position, parent) {
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.copy(position);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.userData = {
-      partKey,
-      partName,
-      category,
-      removable: true,
-      condition: 100
-    };
-
-    parent.add(mesh);
-    this.parts[partKey] = { mesh, condition: 100, removable: true };
-
-    return mesh;
-  }
-
-  // ====== ВЗАИМОДЕЙСТВИЕ ======
-
-  openDoor(doorName, targetAngle = null) {
-    const door = this.articulation.doors[doorName];
-    if (!door) return;
-
-    door.targetAngle = targetAngle !== null ? targetAngle : door.maxAngle;
-  }
-
-  closeDoor(doorName) {
-    const door = this.articulation.doors[doorName];
-    if (!door) return;
-
-    door.targetAngle = 0;
-  }
-
-  openHood(targetAngle = null) {
-    if (!this.articulation.hood) return;
-    this.articulation.hood.targetAngle = targetAngle !== null ? targetAngle : this.articulation.hood.maxAngle;
-  }
-
-  closeHood() {
-    if (!this.articulation.hood) return;
-    this.articulation.hood.targetAngle = 0;
-  }
-
-  openTrunk(targetAngle = null) {
-    if (!this.articulation.trunk) return;
-    this.articulation.trunk.targetAngle = targetAngle !== null ? targetAngle : this.articulation.trunk.maxAngle;
-  }
-
-  closeTrunk() {
-    if (!this.articulation.trunk) return;
-    this.articulation.trunk.targetAngle = 0;
-  }
-
-  removePart(partKey) {
-    const part = this.parts[partKey];
-    if (!part || !part.removable) return false;
-
-    // Если часть не видна, не снимаем
-    if (part.mesh && !part.mesh.visible) return false;
-
-    part.mesh.visible = false;
-    part.installed = false;
-    return true;
-  }
-
-  installPart(partKey) {
-    const part = this.parts[partKey];
-    if (!part || !part.removable) return false;
-
-    part.mesh.visible = true;
-    part.installed = true;
-    return true;
-  }
-
-  repairPart(partKey, amount = 100) {
-    const part = this.parts[partKey];
-    if (!part) return;
-
-    part.condition = Math.min(100, (part.condition || 0) + amount);
-    this.updatePartVisualCondition(partKey);
-  }
-
-  damagePart(partKey, amount = 10) {
-    const part = this.parts[partKey];
-    if (!part) return;
-
-    part.condition = Math.max(0, (part.condition || 100) - amount);
-    this.updatePartVisualCondition(partKey);
-  }
-
-  updatePartVisualCondition(partKey) {
-    const part = this.parts[partKey];
-    if (!part || !part.mesh) return;
-
-    const condition = part.condition || 100;
-
-    if (condition < 30) {
-      // Сильное повреждение - ржавчина
-      if (part.mesh.material) {
-        if (Array.isArray(part.mesh.material)) {
-          part.mesh.material.forEach(m => {
-            m.color.setHex(0x8b4513);
-            m.roughness = 1;
-          });
-        } else {
-          part.mesh.material.color.setHex(0x8b4513);
-          part.mesh.material.roughness = 1;
-        }
-      }
-    } else if (condition < 60) {
-      // Среднее повреждение
-      if (part.mesh.material) {
-        if (Array.isArray(part.mesh.material)) {
-          part.mesh.material.forEach(m => m.roughness = 0.7);
-        } else {
-          part.mesh.material.roughness = 0.7;
-        }
-      }
-    }
-  }
-
-  getPart(partKey) {
-    return this.parts[partKey] || null;
-  }
-
-  getAllParts() {
-    return this.parts;
-  }
-
-  updateArticulation(dt) {
-    // Двери
-    for (const door of Object.values(this.articulation.doors)) {
-      if (door.targetAngle !== undefined) {
-        door.openAngle = THREE.MathUtils.damp(
-          door.openAngle,
-          door.targetAngle,
-          8,
-          dt
-        );
-        door.pivot.rotation.y = door.openAngle;
-      }
-    }
-
-    // Капот
-    if (this.articulation.hood) {
-      const hood = this.articulation.hood;
-      if (hood.targetAngle !== undefined) {
-        hood.openAngle = THREE.MathUtils.damp(hood.openAngle, hood.targetAngle, 8, dt);
-        hood.pivot.rotation.x = hood.openAngle;
-      }
-    }
-
-    // Багажник
-    if (this.articulation.trunk) {
-      const trunk = this.articulation.trunk;
-      if (trunk.targetAngle !== undefined) {
-        trunk.openAngle = THREE.MathUtils.damp(trunk.openAngle, trunk.targetAngle, 8, dt);
-        trunk.pivot.rotation.x = trunk.openAngle;
-      }
-    }
-  }
-
-  getGroup() {
-    return this.carGroup;
-  }
-}
-
-export default RetroCarBuilder;
