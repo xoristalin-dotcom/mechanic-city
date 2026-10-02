@@ -522,12 +522,9 @@ export class RetroCarBuilder {
         const body = model.getObjectByName("geometry_0");
         if(!body?.geometry?.attributes?.position) return [];
 
-        // Keep the original body intact. The previous extraction removed only
-        // some side triangles, which created the large holes seen on mobile.
-        // We use the detected door region only to measure the real Challenger
-        // door, then build a solid opaque panel with a proper front hinge.
-        // Mask the original GLB door skin so it cannot remain visible
-        // underneath the animated replacement.
+        // Use the ACTUAL Challenger door triangles. Do not approximate the
+        // door with a rectangle/extrusion: the real surface already contains
+        // the correct lower edge, window frame and body contour.
         const src=body.geometry, pos=src.attributes.position, idx=src.index;
         const triCount=idx ? idx.count/3 : pos.count/3;
         const regions=[[],[]];
@@ -536,10 +533,8 @@ export class RetroCarBuilder {
           const x=pos.getX(i), y=pos.getY(i), z=pos.getZ(i);
           return (side<0 ? x<=-0.125 : x>=0.125) &&
             Math.abs(x)<=0.205 &&
-            // Full side door height: include the lower skin under the window.
-            // Keep the Z range tight so fenders/roof are never cut away.
             y>=-0.055 && y<=0.112 &&
-            z>=-0.18 && z<=0.22;
+            z>=-0.24 && z<=0.24;
         };
 
         const keep=[];
@@ -547,15 +542,15 @@ export class RetroCarBuilder {
           const ia=idx?idx.getX(t*3):t*3;
           const ib=idx?idx.getX(t*3+1):t*3+1;
           const ic=idx?idx.getX(t*3+2):t*3+2;
+
           const left=inRegion(ia,-1)&&inRegion(ib,-1)&&inRegion(ic,-1);
           const right=inRegion(ia,1)&&inRegion(ib,1)&&inRegion(ic,1);
           if(!left && !right) keep.push([ia,ib,ic]);
-          for(const [n,side] of [[0,-1],[1,1]]){
-            if(inRegion(ia,side)&&inRegion(ib,side)&&inRegion(ic,side)){
-              regions[n].push([ia,ib,ic]);
-            }
-          }
+
+          if(left) regions[0].push([ia,ib,ic]);
+          if(right) regions[1].push([ia,ib,ic]);
         }
+
         if(keep.length){
           const kept=[];
           for(const tri of keep){
@@ -571,15 +566,19 @@ export class RetroCarBuilder {
         const makeDoor=(tris,side,name)=>{
           if(!tris.length)return null;
 
+          // Copy the exact source triangles, so the door silhouette follows
+          // the Challenger body instead of becoming a square panel.
           const raw=[];
           for(const [a,b,c] of tris){
-            for(const i of [a,b,c]) raw.push(pos.getX(i),pos.getY(i),pos.getZ(i));
+            for(const i of [a,b,c]){
+              raw.push(pos.getX(i),pos.getY(i),pos.getZ(i));
+            }
           }
+
           const geo=new THREE.BufferGeometry();
           geo.setAttribute("position",new THREE.Float32BufferAttribute(raw,3));
-          geo.computeBoundingBox();
+          geo.computeVertexNormals();
 
-          // Transform the measured region into carGroup coordinates.
           const bp=geo.attributes.position;
           for(let i=0;i<bp.count;i++){
             const v=new THREE.Vector3(bp.getX(i),bp.getY(i),bp.getZ(i)).applyMatrix4(model.matrix);
@@ -587,87 +586,45 @@ export class RetroCarBuilder {
           }
           bp.needsUpdate=true;
           geo.computeBoundingBox();
+          geo.computeBoundingSphere();
+
           const b=geo.boundingBox;
           if(!b)return null;
-
-          const zFront=b.max.z;
-          const zRear=b.min.z;
-          const yBottom=b.min.y;
-          const yTop=b.max.y;
-          const xBody=side<0 ? b.min.x : b.max.x;
-
-          // Solid door profile: full skin, rounded corners, and thickness.
-          // Coordinates are (Z,Y); extrusion is converted to X below.
-          const shape=new THREE.Shape();
-          const rZ=Math.max(0.018,(zFront-zRear)*0.06);
-          const rY=Math.max(0.008,(yTop-yBottom)*0.10);
-          shape.moveTo(zRear+rZ,yBottom);
-          shape.lineTo(zFront-rZ,yBottom);
-          shape.quadraticCurveTo(zFront,yBottom,zFront,yBottom+rY);
-          shape.lineTo(zFront,yTop-rY);
-          shape.quadraticCurveTo(zFront,yTop,zFront-rZ,yTop);
-          shape.lineTo(zRear+rZ,yTop);
-          shape.quadraticCurveTo(zRear,yTop,zRear,yTop-rY);
-          shape.lineTo(zRear,yBottom+rY);
-          shape.quadraticCurveTo(zRear,yBottom,zRear+rZ,yBottom);
-
-          const ex=new THREE.ExtrudeGeometry(shape,{
-            depth:0.035,
-            bevelEnabled:true,
-            bevelSegments:2,
-            steps:1,
-            bevelSize:0.006,
-            bevelThickness:0.006
-          });
-          ex.computeVertexNormals();
-
-          // ExtrudeGeometry: local X=Z of car, local Y=Y of car,
-          // local Z=door thickness. Map it into carGroup coordinates.
-          const ep=ex.attributes.position;
-          for(let i=0;i<ep.count;i++){
-            const z=ep.getX(i);
-            const y=ep.getY(i);
-            const d=ep.getZ(i);
-            const x=side<0 ? xBody-d : xBody+d;
-            ep.setXYZ(i,x,y,z);
-          }
-          ep.needsUpdate=true;
-          ex.computeVertexNormals();
-          ex.computeBoundingBox();
-          ex.computeBoundingSphere();
 
           const doorMat=new THREE.MeshStandardMaterial({
             color:0xe52a36, metalness:0.34, roughness:0.28,
             transparent:false, opacity:1, depthWrite:true,
             side:THREE.DoubleSide
           });
-          const mesh=new THREE.Mesh(ex,doorMat);
-          mesh.name=name+"_SolidDoor";
+
+          const mesh=new THREE.Mesh(geo,doorMat);
+          mesh.name=name+"_RealDoor";
           mesh.castShadow=true;
           mesh.receiveShadow=true;
 
-          // Real Challenger door hinge is vertical near the front edge (+Z).
+          // Hinge at the front edge of the actual extracted door.
           const hinge=new THREE.Vector3(
-            xBody,
-            yBottom+(yTop-yBottom)*0.08,
-            zFront-0.018
+            side<0 ? b.min.x : b.max.x,
+            b.min.y+(b.max.y-b.min.y)*0.08,
+            b.max.z-0.015
           );
+
           const pivot=new THREE.Object3D();
           pivot.name=name+"_Hinge";
           pivot.userData.isVehicleDoor=true;
           pivot.position.copy(hinge);
           this.carGroup.add(pivot);
 
-          const hp=ex.attributes.position;
+          const hp=geo.attributes.position;
           for(let i=0;i<hp.count;i++){
             hp.setXYZ(i,hp.getX(i)-hinge.x,hp.getY(i)-hinge.y,hp.getZ(i)-hinge.z);
           }
           hp.needsUpdate=true;
-          ex.computeBoundingBox();
-          ex.computeBoundingSphere();
+          geo.computeBoundingBox();
+          geo.computeBoundingSphere();
           pivot.add(mesh);
 
-          // Choose the sign that moves the door center outward from the body.
+          // Find the opening direction from the actual door center.
           const center=new THREE.Vector3(
             (b.min.x+b.max.x)*0.5-hinge.x,
             (b.min.y+b.max.y)*0.5-hinge.y,
@@ -679,74 +636,27 @@ export class RetroCarBuilder {
           const minusOut=side<0 ? -minus.x : minus.x;
           const openSign=plusOut>=minusOut ? 1 : -1;
 
-          // Inner door card: opaque, recessed and attached to the same hinge.
-          const inner=new THREE.Mesh(
-            new THREE.BoxGeometry(Math.max(0.025,Math.abs(b.max.x-b.min.x)*0.35),
-              Math.max(0.025,(yTop-yBottom)*0.46),
-              Math.max(0.05,(zFront-zRear)*0.52)),
-            new THREE.MeshStandardMaterial({
-              color:0x17191c, metalness:0.18, roughness:0.72,
-              transparent:false, opacity:1, depthWrite:true,
-              side:THREE.DoubleSide
-            })
-          );
-          inner.name=name+"_InnerTrim";
-          inner.position.set(
-            side<0 ? -0.022 : 0.022,
-            (yBottom+yTop)*0.5-hinge.y,
-            (zRear+zFront)*0.5-hinge.z
-          );
-          pivot.add(inner);
-
-          // Complete animated door glass. The source GLB keeps the window in
-          // a separate visual mesh, so it cannot travel with the door by
-          // itself. Add an opaque, recessed Challenger-style side window to
-          // the same hinge. It is deliberately non-transparent to avoid the
-          // empty/see-through door seen on mobile.
-          const windowMat=new THREE.MeshStandardMaterial({
-            color:0x101a20, metalness:0.22, roughness:0.22,
+          // Opaque inner door backing, kept thin so it follows the real skin.
+          const innerMat=new THREE.MeshStandardMaterial({
+            color:0x17191c, metalness:0.18, roughness:0.72,
             transparent:false, opacity:1, depthWrite:true,
             side:THREE.DoubleSide
           });
-          const windowH=Math.max(0.045,(yTop-yBottom)*0.42);
-          const windowZ=Math.max(0.12,(zFront-zRear)*0.72);
-          const window=new THREE.Mesh(
+          const inner=new THREE.Mesh(
             new THREE.BoxGeometry(
-              Math.max(0.018,Math.abs(b.max.x-b.min.x)*0.22),
-              windowH,
-              windowZ
+              Math.max(0.018,Math.abs(b.max.x-b.min.x)*0.035),
+              Math.max(0.035,(b.max.y-b.min.y)*0.78),
+              Math.max(0.10,(b.max.z-b.min.z)*0.82)
             ),
-            windowMat
+            innerMat
           );
-          window.name=name+"_Glass";
-          window.position.set(
-            side<0 ? -0.020 : 0.020,
-            (yBottom+yTop)*0.5 + (yTop-yBottom)*0.19 - hinge.y,
-            (zRear+zFront)*0.5 - hinge.z
+          inner.name=name+"_InnerDoor";
+          inner.position.set(
+            side<0 ? -0.018 : 0.018,
+            (b.min.y+b.max.y)*0.5-hinge.y,
+            (b.min.z+b.max.z)*0.5-hinge.z
           );
-          window.castShadow=true;
-          window.receiveShadow=true;
-          pivot.add(window);
-
-          // Lower door skin / trim makes the bottom half read as a real
-          // heavy Challenger door rather than a thin rectangle.
-          const lowerPanel=new THREE.Mesh(
-            new THREE.BoxGeometry(
-              Math.max(0.020,Math.abs(b.max.x-b.min.x)*0.30),
-              Math.max(0.028,(yTop-yBottom)*0.22),
-              Math.max(0.10,(zFront-zRear)*0.78)
-            ),
-            doorMat
-          );
-          lowerPanel.name=name+"_LowerSkin";
-          lowerPanel.position.set(
-            side<0 ? -0.026 : 0.026,
-            yBottom+(yTop-yBottom)*0.13-hinge.y,
-            (zRear+zFront)*0.5-hinge.z
-          );
-          lowerPanel.castShadow=true;
-          lowerPanel.receiveShadow=true;
-          pivot.add(lowerPanel);
+          pivot.add(inner);
 
           return {pivot,open:0,openSign,axis:"y",maxAngle:1.08};
         };
@@ -756,7 +666,6 @@ export class RetroCarBuilder {
           makeDoor(regions[1],1,"Door_Right")
         ].filter(Boolean);
       };
-
       // The *_ANIM nodes are only markers. Use the ACTUAL hood surface
       // from geometry_0: copy its real triangles, remove those triangles from
       // the static body, and put the copy on a hinge. No fake hood, no black bay.
