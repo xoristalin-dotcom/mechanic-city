@@ -491,7 +491,8 @@ export function installPart(state, car, key) {
   part.installed = true;
 
   if (part.mesh) {
-    part.mesh.visible = car.userData.workshopMode === true;
+    // Installation restores the real GLB node in every scene, not only in workshop.
+    part.mesh.visible = true;
   }
 
   return true;
