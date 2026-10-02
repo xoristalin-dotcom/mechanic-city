@@ -567,6 +567,26 @@ export class RetroCarBuilder {
           return;
         }
 
+        // Some exports contain the service platform with a generic mesh name.
+        // Detect a large, very thin slab below the wheel line and remove it
+        // regardless of its authoring name.
+        if (o.geometry) {
+          if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+          const bb = o.geometry.boundingBox;
+          if (bb) {
+            const sx = bb.max.x - bb.min.x;
+            const sy = bb.max.y - bb.min.y;
+            const sz = bb.max.z - bb.min.z;
+            const cy = (bb.min.y + bb.max.y) * 0.5;
+            if (sx > 2.8 && sz > 2.8 && sy < 0.22 && cy < 0.35) {
+              o.visible = false;
+              o.userData.hiddenVehicleStand = true;
+              o.userData.hiddenGenericServicePlatform = true;
+              return;
+            }
+          }
+        }
+
         o.castShadow = true;
         o.receiveShadow = true;
         o.frustumCulled = true;
