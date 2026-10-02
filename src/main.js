@@ -310,7 +310,44 @@ function installVisualInspectMode(){
   const requestedScene=params.get("scene");
   if(requestedScene&&requestedScene!=="city") window.MechanicCityInspect.setScene(requestedScene);
 }
-function installAITestMode(){ if(new URLSearchParams(location.search).get("test")!=="1")return; window.MechanicCityTest={version:1,getState:()=>({scene:state.scene,position:{x:state.posX,z:state.posZ},speed:state.speed,heading:state.heading,gear:state.gear,fuel:state.fuel,heat:state.heat,damage:state.damage,gas:input.gas,throttle:state.throttle,driving:state.driving,physicsReady,cameraMode,cameraAttached:!!(cameraRig&&camera.parent===cameraRig),car:{...state.car},cameraMode,cameraAttached:!!(camera&&scene&&camera.parent===scene&&!!car),cameraPosition:camera?(()=>{const p=camera.getWorldPosition(new THREE.Vector3());return{x:p.x,y:p.y,z:p.z};})():null}),action:(name,value)=>{ if(name==="gas"){input.gas=!!value;state.throttle=!!value;if(value&&state.fuel>0){ if(state.gear==="P"||state.gear==="N")state.gear="D"; state.driving=true;}} else if(name==="brake"){input.brake=!!value;} else if(name==="left"){input.left=!!value;if(value)state.driving=true;} else if(name==="right"){input.right=!!value;if(value)state.driving=true;} else if(name==="teleportCenter"){teleportToMapCenter();} else if(name==="gear"){ if(["P","R","N","D"].includes(value)){state.gear=value;if(value==="D"||value==="R")state.driving=true;if(value==="P")state.driving=false;}} else if(name==="camera"){const n=Math.max(0,Math.min(2,Number(value)));cameraMode=n;camOrbitYaw=0;camOrbitPitch=.18;if(camera){camera.fov=n===2?82:n===1?68:62;camera.updateProjectionMatrix();}} else if(name==="scene"&&["city","workshop","garage","market","junkyard","dealer","jobs","settings"].includes(value))renderScene(value); else if(name==="refuel"){state.fuel=100;save();} else if(name==="repair"){state.damage=0;state.car.condition=100;save();} return window.MechanicCityTest.getState();}}; const box=document.createElement("div"); box.id="ai-test-panel"; box.style.cssText="position:fixed;top:8px;left:8px;z-index:99999;background:rgba(0,0,0,.82);color:#fff;padding:8px;font:12px monospace;"; box.innerHTML="<b>AI TEST MODE</b><pre id='ai-test-state'></pre><div style='display:grid;grid-template-columns:repeat(3,1fr);gap:4px'><button data-a='left'>←</button><button data-a='gas'>GAS</button><button data-a='brake'>BRAKE</button></div><div style='display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px'><button data-c='0'>F</button><button data-c='1'>O</button><button data-c='2'>H</button></div>"; document.body.appendChild(box); box.querySelectorAll("[data-a]").forEach(b=>{const a=b.dataset.a;b.onpointerdown=e=>{e.preventDefault();window.MechanicCityTest.action(a,true)};b.onpointerup=e=>{e.preventDefault();window.MechanicCityTest.action(a,false)};}); box.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>window.MechanicCityTest.action("camera",b.dataset.c)); setInterval(()=>{const s=window.MechanicCityTest.getState(); const el=document.querySelector("#ai-test-state"); if(el)el.textContent=JSON.stringify(s,null,2).slice(0,2400)},250); }
+function installAITestMode(){ if(new URLSearchParams(location.search).get("test")!=="1")return;
+  window.MechanicCityTest={version:2,getState:()=>{
+    const cp=camera?camera.getWorldPosition(new THREE.Vector3()):null;
+    const rp=renderer?.domElement;
+    return {
+      scene:state.scene,
+      position:{x:state.posX,z:state.posZ},
+      speed:state.speed,heading:state.heading,gear:state.gear,fuel:state.fuel,heat:state.heat,damage:state.damage,
+      gas:input.gas,throttle:state.throttle,driving:state.driving,
+      physics:{ready:physicsReady,error:physicsError||window.MechanicCityPhysicsError||null,world:!!physicsWorld,chassis:!!chassisBody,rapierInit:!!RAPIER?.init},
+      errors:{
+        build:window.MechanicCityBuildError||null,
+        glb:window.MechanicCityGLBError||null,
+        model:car?.userData?.modelLoadError||null,
+        frame:window.MechanicCityLastFrameError||null,
+        render:window.MechanicCityRenderError||null,
+        emergency:window.MechanicCityEmergencyError||null
+      },
+      camera:{
+        mode:cameraMode,name:cameraModeNames[cameraMode]||null,attached:!!(camera&&scene&&camera.parent===scene&&!!car),
+        parent:camera?.parent?{type:camera.parent.type,name:camera.parent.name||null}:null,
+        position:cp?{x:cp.x,y:cp.y,z:cp.z}:null
+      },
+      renderer:rp?{width:rp.width,height:rp.height,cssWidth:rp.clientWidth,cssHeight:rp.clientHeight,calls:renderer.info?.render?.calls||0,triangles:renderer.info?.render?.triangles||0}:null,
+      sceneObjects:scene?.children?.length||0,
+      car:{
+        ...state.car,
+        exists:!!car,
+        name:car?.name||null,
+        children:car?.children?.length||0,
+        visible:car?.visible??false,
+        modelLoading:!!car?.userData?.modelLoading,
+        modelDiagnostics:car?.userData?.modelDiagnostics||null,
+        position:car?{x:car.position.x,y:car.position.y,z:car.position.z}:null
+      },
+      runtimeLog:(window.MechanicCityRuntimeErrors||[]).slice(-12)
+    };
+  },action:(name,value)=>{ if(name==="gas"){input.gas=!!value;state.throttle=!!value;if(value&&state.fuel>0){ if(state.gear==="P"||state.gear==="N")state.gear="D"; state.driving=true;}} else if(name==="brake"){input.brake=!!value;} else if(name==="left"){input.left=!!value;if(value)state.driving=true;} else if(name==="right"){input.right=!!value;if(value)state.driving=true;} else if(name==="teleportCenter"){teleportToMapCenter();} else if(name==="gear"){ if(["P","R","N","D"].includes(value)){state.gear=value;if(value==="D"||value==="R")state.driving=true;if(value==="P")state.driving=false;}} else if(name==="camera"){const n=Math.max(0,Math.min(2,Number(value)));cameraMode=n;camOrbitYaw=0;camOrbitPitch=.18;if(camera){camera.fov=n===2?82:n===1?68:62;camera.updateProjectionMatrix();}} else if(name==="scene"&&["city","workshop","garage","market","junkyard","dealer","jobs","settings"].includes(value))renderScene(value); else if(name==="refuel"){state.fuel=100;save();} else if(name==="repair"){state.damage=0;state.car.condition=100;save();} return window.MechanicCityTest.getState();}}; const box=document.createElement("div"); box.id="ai-test-panel"; box.style.cssText="position:fixed;top:8px;left:8px;z-index:99999;background:rgba(0,0,0,.82);color:#fff;padding:8px;font:12px monospace;"; box.innerHTML="<b>AI TEST MODE</b><pre id='ai-test-state'></pre><div style='display:grid;grid-template-columns:repeat(3,1fr);gap:4px'><button data-a='left'>←</button><button data-a='gas'>GAS</button><button data-a='brake'>BRAKE</button></div><div style='display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px'><button data-c='0'>F</button><button data-c='1'>O</button><button data-c='2'>H</button></div>"; document.body.appendChild(box); box.querySelectorAll("[data-a]").forEach(b=>{const a=b.dataset.a;b.onpointerdown=e=>{e.preventDefault();window.MechanicCityTest.action(a,true)};b.onpointerup=e=>{e.preventDefault();window.MechanicCityTest.action(a,false)};}); box.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>window.MechanicCityTest.action("camera",b.dataset.c)); setInterval(()=>{const s=window.MechanicCityTest.getState(); const el=document.querySelector("#ai-test-state"); if(el)el.textContent=JSON.stringify(s,null,2).slice(0,2400)},250); }
 function msg(t){messageEl.textContent=t;}
 function stats(){speedEl.textContent=Math.round(state.speed*62);gearEl.textContent=state.gear||"P";fuelEl.textContent=Math.round(state.fuel);heatEl.textContent=Math.round(state.heat);clockEl.textContent=(function(){const h=Math.floor(state.time%24);const m=Math.floor((state.time%1)*60);return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");})();}
 function makeCar(color=0x7a3f2e,detailedLights=true){ const g=new THREE.Group(); const paint=new THREE.MeshStandardMaterial({color,metalness:.48,roughness:.30}); const paintDark=new THREE.MeshStandardMaterial({color:new THREE.Color(color).multiplyScalar(.72),metalness:.42,roughness:.34}); const chrome=new THREE.MeshStandardMaterial({color:0xc7cbc8,metalness:.92,roughness:.18}); const darkChrome=new THREE.MeshStandardMaterial({color:0x24282a,metalness:.72,roughness:.24}); const glass=new THREE.MeshStandardMaterial({color:0x263b43,metalness:.10,roughness:.16}); const rubber=new THREE.MeshStandardMaterial({color:0x08090a,roughness:.96}); const light=new THREE.MeshStandardMaterial({color:0xfff2c9,emissive:0xff9d24,emissiveIntensity:1.05,roughness:.18}); const tail=new THREE.MeshStandardMaterial({color:0xa3161c,emissive:0x3b0004,emissiveIntensity:.55,roughness:.25});
