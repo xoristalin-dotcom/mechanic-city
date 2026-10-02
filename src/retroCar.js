@@ -144,7 +144,7 @@ export class RetroCarBuilder {
         visible: model.visible,
         loading: false
       };
-      window.MechanicCityModelDiagnostics = carGroup.userData.modelDiagnostics;
+      window.MechanicCityModelDiagnostics = this.carGroup.userData.modelDiagnostics;
 
       // Revision 18 is now the authoritative player vehicle. Keep the complete
       // GLB scene intact: body, glass, cabin, doors, hood, trunk and workshop
