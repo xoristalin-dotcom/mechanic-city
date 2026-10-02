@@ -636,27 +636,9 @@ export class RetroCarBuilder {
           const minusOut=side<0 ? -minus.x : minus.x;
           const openSign=plusOut>=minusOut ? 1 : -1;
 
-          // Opaque inner door backing, kept thin so it follows the real skin.
-          const innerMat=new THREE.MeshStandardMaterial({
-            color:0x17191c, metalness:0.18, roughness:0.72,
-            transparent:false, opacity:1, depthWrite:true,
-            side:THREE.DoubleSide
-          });
-          const inner=new THREE.Mesh(
-            new THREE.BoxGeometry(
-              Math.max(0.018,Math.abs(b.max.x-b.min.x)*0.035),
-              Math.max(0.035,(b.max.y-b.min.y)*0.78),
-              Math.max(0.10,(b.max.z-b.min.z)*0.82)
-            ),
-            innerMat
-          );
-          inner.name=name+"_InnerDoor";
-          inner.position.set(
-            side<0 ? -0.018 : 0.018,
-            (b.min.y+b.max.y)*0.5-hinge.y,
-            (b.min.z+b.max.z)*0.5-hinge.z
-          );
-          pivot.add(inner);
+          // Do not add a rectangular inner panel here. The real door skin and
+          // the real window geometry must remain visible; a BoxGeometry backing
+          // creates the square object behind the door when it opens.
 
           // Move the REAL side-window glass with the door. geometry_6 contains
           // all Challenger glass; only the side-window triangles in the door
