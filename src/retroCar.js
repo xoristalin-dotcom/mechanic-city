@@ -62,7 +62,7 @@ export class RetroCarBuilder {
     // thread long enough to make the whole city look frozen.
     // Load the authoritative R18 almost immediately after the first city task.
     // Do not show an unrelated procedural/traffic car as the player while it loads.
-    window.setTimeout(startGLBLoad, 120);
+    startGLBLoad();
   }
 
   async loadMechanicCityModel() {
