@@ -580,12 +580,12 @@ export class RetroCarBuilder {
           return g;
         };
 
-        const worldPoint=(mesh,i)=>{
+        const worldPoint=(part,i)=>{
           return new THREE.Vector3(
-            mesh.geometry.attributes.position.getX(i),
-            mesh.geometry.attributes.position.getY(i),
-            mesh.geometry.attributes.position.getZ(i)
-          ).applyMatrix4(mesh.matrix);
+            part.pos.getX(i),
+            part.pos.getY(i),
+            part.pos.getZ(i)
+          ).applyMatrix4(part.mesh.matrix);
         };
 
         const result=[];
