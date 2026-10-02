@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import RAPIER from "@dimforge/rapier3d-compat";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
-import { RetroCarBuilder } from "./retroCar.js?vehicle=Higgsfield-R18-20261002";
+import { RetroCarBuilder } from "./retroCar.js?vehicle=Higgsfield-R18-20261002-v2";
 import {
   PART_CATALOG,
   initializeCarParts,
