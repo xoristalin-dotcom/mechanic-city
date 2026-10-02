@@ -243,7 +243,9 @@ function createRetroPlayerCar(){
     const savedPart=state.car.partState?.[key];
     part.condition=typeof savedPart?.condition==="number"?savedPart.condition:100;
     part.installed=savedPart?.installed!==false;
-    part.mesh.visible=part.installed && root.userData.workshopMode === true;
+    // Installed parts are part of the authoritative GLB and stay visible
+    // in city, garage and workshop. Removal alone hides the actual node.
+    part.mesh.visible=part.installed;
   }
   root.updateWorldMatrix(true,true,true);
   return root;
