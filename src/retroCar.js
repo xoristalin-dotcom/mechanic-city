@@ -643,6 +643,50 @@ export class RetroCarBuilder {
         geometry_6: { color: 0x17262d, metalness: 0.10, roughness: 0.20 }
       };
 
+      // Remove an embedded horizontal authoring/display panel from the R2.1 GLB
+      // at triangle level. The panel is merged into geometry_0..geometry_6, so
+      // hiding an object cannot remove it without also hiding the car body.
+      const stripEmbeddedLowPanel = (mesh) => {
+        if (!mesh?.isMesh || !mesh.geometry || !/^geometry_[0-6]$/i.test(String(mesh.name || ""))) return;
+        const g = mesh.geometry;
+        const pos = g.getAttribute("position");
+        if (!pos || pos.count < 3) return;
+        const index = g.getIndex();
+        const indices = index ? Array.from(index.array) : Array.from({length: pos.count}, (_,i)=>i);
+        const minY = bodyBox.min.y;
+        const band = Math.max(0.14, bodySize.y * 0.035);
+        const maxPanelY = minY + band;
+        const keep = [];
+        let removed = 0;
+        const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+        const ab = new THREE.Vector3(), ac = new THREE.Vector3(), n = new THREE.Vector3();
+        for (let i=0; i+2<indices.length; i+=3) {
+          const ia=indices[i], ib=indices[i+1], ic=indices[i+2];
+          a.fromBufferAttribute(pos,ia); b.fromBufferAttribute(pos,ib); c.fromBufferAttribute(pos,ic);
+          const maxTriY=Math.max(a.y,b.y,c.y), minTriY=Math.min(a.y,b.y,c.y);
+          const cx=(a.x+b.x+c.x)/3, cz=(a.z+b.z+c.z)/3;
+          ab.subVectors(b,a); ac.subVectors(c,a); n.crossVectors(ab,ac);
+          const area2=n.length();
+          if(area2>1e-7) n.normalize();
+          const horizontal=Math.abs(n.y)>0.88;
+          const low=maxTriY<=maxPanelY;
+          const broad=Math.hypot(cx,cz)>=Math.min(bodySize.x,bodySize.z)*0.12;
+          const large=area2>=0.025;
+          if(low && horizontal && broad && large){ removed++; continue; }
+          keep.push(ia,ib,ic);
+        }
+        if(removed>0){
+          const ng=g.clone();
+          ng.setIndex(keep);
+          ng.computeBoundingBox();
+          ng.computeBoundingSphere();
+          mesh.geometry=ng;
+          mesh.userData.embeddedLowPanelTrianglesRemoved=removed;
+        }
+      };
+
+      model.traverse(stripEmbeddedLowPanel);
+
       model.traverse(o=>{
         if (!o.isMesh) return;
 
