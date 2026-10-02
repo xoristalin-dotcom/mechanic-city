@@ -197,8 +197,8 @@ export class RetroCarBuilder {
           );
           const pivot = new THREE.Object3D();
           pivot.name = "R18_Hinge_" + obj.name;
-          root.add(pivot);
-          pivot.position.copy(root.worldToLocal(hinge));
+          this.carGroup.add(pivot);
+          pivot.position.copy(this.carGroup.worldToLocal(hinge));
           pivot.attach(obj);
           const openSign = side < 0 ? 1 : -1;
           return {pivot, open: 0, openSign, maxAngle: 1.05, axis: "y", source: obj.name};
@@ -214,8 +214,8 @@ export class RetroCarBuilder {
           );
           const pivot = new THREE.Object3D();
           pivot.name = "R18_Hinge_" + obj.name;
-          root.add(pivot);
-          pivot.position.copy(root.worldToLocal(hinge));
+          this.carGroup.add(pivot);
+          pivot.position.copy(this.carGroup.worldToLocal(hinge));
           pivot.attach(obj);
           return {pivot, open: 0, openSign: front ? -1 : 1, maxAngle: 0.95, axis: "x", source: obj.name};
         };
@@ -259,10 +259,11 @@ export class RetroCarBuilder {
           const part = root.userData.serviceParts?.[key];
           if (!part || !replacement) return false;
           const old = part.mesh;
+          const parent = old?.parent || model;
           if (old?.parent) old.parent.remove(old);
           const node = replacement.clone(true);
           node.name = old?.name || key;
-          if (old?.parent) old.parent.add(node);
+          parent.add(node);
           part.mesh = node;
           part.installed = true;
           node.userData.servicePart = part;
