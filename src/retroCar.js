@@ -567,23 +567,20 @@ export class RetroCarBuilder {
           return;
         }
 
-        // Some exports contain the service platform with a generic mesh name.
-        // Detect a large, very thin slab below the wheel line and remove it
-        // regardless of its authoring name.
+        // Remove service/display slabs even when the GLB uses an arbitrary
+        // mesh name. Compare the mesh against the measured vehicle bounds:
+        // a platform is broad in X/Z but extremely thin in Y.
         if (o.geometry) {
-          if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
-          const bb = o.geometry.boundingBox;
-          if (bb) {
-            const sx = bb.max.x - bb.min.x;
-            const sy = bb.max.y - bb.min.y;
-            const sz = bb.max.z - bb.min.z;
-            const cy = (bb.min.y + bb.max.y) * 0.5;
-            if (sx > 2.8 && sz > 2.8 && sy < 0.22 && cy < 0.35) {
-              o.visible = false;
-              o.userData.hiddenVehicleStand = true;
-              o.userData.hiddenGenericServicePlatform = true;
-              return;
-            }
+          const bb = new THREE.Box3().setFromObject(o, true);
+          const s = bb.getSize(new THREE.Vector3());
+          const broadX = s.x >= bodySize.x * 0.55;
+          const broadZ = s.z >= bodySize.z * 0.55;
+          const thin = s.y <= Math.max(0.16, Math.min(s.x, s.z) * 0.045);
+          if (broadX && broadZ && thin) {
+            o.visible = false;
+            o.userData.hiddenVehicleStand = true;
+            o.userData.hiddenGenericServicePlatform = true;
+            return;
           }
         }
 
