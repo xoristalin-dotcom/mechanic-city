@@ -181,9 +181,6 @@ export class RetroCarBuilder {
       // vehicle space uses Z for forward/back, so align X -> +Z once.
       model.rotation.set(0, -Math.PI / 2, 0);
       // Center the source bounds after the X->Z vehicle-axis rotation.
-      // The previous code translated the unrotated center, which can move an
-      // authored R18 scene away from the player/camera when its source origin
-      // is not centered.
       const normalizedCenter = bodyCenter.clone()
         .applyEuler(model.rotation)
         .multiplyScalar(scale);
@@ -193,6 +190,30 @@ export class RetroCarBuilder {
         -normalizedCenter.z
       );
       model.updateMatrixWorld(true);
+
+      // GLB sanity correction: if normalization produced a non-finite or
+      // implausibly large local transform, keep the asset at a safe local pose.
+      const p = model.position;
+      const s = model.scale;
+      const finiteTransform =
+        [p.x,p.y,p.z,s.x,s.y,s.z].every(Number.isFinite);
+      const saneTransform =
+        finiteTransform &&
+        Math.abs(p.x) < 100 && Math.abs(p.y) < 100 && Math.abs(p.z) < 100 &&
+        s.x > 0 && s.x < 100;
+      if(!saneTransform){
+        console.warn("Mechanic City R18: unsafe normalized transform; using safe local pose", {
+          position: p.toArray(), scale: s.toArray()
+        });
+        model.position.set(0, 0, 0);
+        model.scale.setScalar(Math.min(Math.max(scale, 0.01), 10));
+        model.rotation.set(0, -Math.PI / 2, 0);
+        model.updateMatrixWorld(true);
+        window.MechanicCityGLBDiagnostics = {
+          ...(window.MechanicCityGLBDiagnostics || {}),
+          transformWarning: "unsafe-normalized-transform"
+        };
+      }
       // Keep the persistent player root as the only world-position owner.
       // The GLB stays in local space; city/camera coordinates remain untouched.
       this.carGroup.position.set(0, 0, 0);
