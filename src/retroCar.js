@@ -536,7 +536,9 @@ export class RetroCarBuilder {
           const x=pos.getX(i), y=pos.getY(i), z=pos.getZ(i);
           return (side<0 ? x<=-0.125 : x>=0.125) &&
             Math.abs(x)<=0.205 &&
-            y>=0.000 && y<=0.078 &&
+            // Full side door height: include the lower skin under the window.
+            // Keep the Z range tight so fenders/roof are never cut away.
+            y>=-0.055 && y<=0.112 &&
             z>=-0.18 && z<=0.22;
         };
 
@@ -695,6 +697,56 @@ export class RetroCarBuilder {
             (zRear+zFront)*0.5-hinge.z
           );
           pivot.add(inner);
+
+          // Complete animated door glass. The source GLB keeps the window in
+          // a separate visual mesh, so it cannot travel with the door by
+          // itself. Add an opaque, recessed Challenger-style side window to
+          // the same hinge. It is deliberately non-transparent to avoid the
+          // empty/see-through door seen on mobile.
+          const windowMat=new THREE.MeshStandardMaterial({
+            color:0x101a20, metalness:0.22, roughness:0.22,
+            transparent:false, opacity:1, depthWrite:true,
+            side:THREE.DoubleSide
+          });
+          const windowH=Math.max(0.045,(yTop-yBottom)*0.42);
+          const windowZ=Math.max(0.12,(zFront-zRear)*0.72);
+          const window=new THREE.Mesh(
+            new THREE.BoxGeometry(
+              Math.max(0.018,Math.abs(b.max.x-b.min.x)*0.22),
+              windowH,
+              windowZ
+            ),
+            windowMat
+          );
+          window.name=name+"_Glass";
+          window.position.set(
+            side<0 ? -0.020 : 0.020,
+            (yBottom+yTop)*0.5 + (yTop-yBottom)*0.19 - hinge.y,
+            (zRear+zFront)*0.5 - hinge.z
+          );
+          window.castShadow=true;
+          window.receiveShadow=true;
+          pivot.add(window);
+
+          // Lower door skin / trim makes the bottom half read as a real
+          // heavy Challenger door rather than a thin rectangle.
+          const lowerPanel=new THREE.Mesh(
+            new THREE.BoxGeometry(
+              Math.max(0.020,Math.abs(b.max.x-b.min.x)*0.30),
+              Math.max(0.028,(yTop-yBottom)*0.22),
+              Math.max(0.10,(zFront-zRear)*0.78)
+            ),
+            doorMat
+          );
+          lowerPanel.name=name+"_LowerSkin";
+          lowerPanel.position.set(
+            side<0 ? -0.026 : 0.026,
+            yBottom+(yTop-yBottom)*0.13-hinge.y,
+            (zRear+zFront)*0.5-hinge.z
+          );
+          lowerPanel.castShadow=true;
+          lowerPanel.receiveShadow=true;
+          pivot.add(lowerPanel);
 
           return {pivot,open:0,openSign,axis:"y",maxAngle:1.08};
         };
