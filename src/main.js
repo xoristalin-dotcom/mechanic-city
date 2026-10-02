@@ -544,40 +544,24 @@ function updateMechanicCityDebug(){
 
 function animate(traffic=[]){ if(renderer?.setAnimationLoop && window.MechanicCityAnimationRenderer!==renderer){ window.MechanicCityAnimationRenderer=renderer; renderer.setAnimationLoop(()=>animate(traffic)); return; } if(state.scene!=="city")return; if(!renderer||!scene||!camera)return; const dt=Math.min(clock?.getDelta()||.016,.05); try{ if((state.driving||state.throttle||input.gas)&&state.fuel>0){ physicsDrive(dt); if(state.fuel>0) state.fuel=Math.max(0,state.fuel-dt*(.018+Math.abs(state.speed)*.014)); state.car.oil=Math.max(0,state.car.oil-dt*.004); state.car.coolant=Math.max(0,state.car.coolant-dt*.002); state.heat=Math.min(125,state.heat+dt*(.08+Math.abs(state.speed)*.055)); if(state.car.oil<15||state.car.coolant<15)state.damage=Math.min(100,state.damage+dt*.08); state.car.mileage+=Math.abs(state.speed)*dt*.006; if(state.heat>108)state.damage=Math.min(100,state.damage+dt*.06); for(const npc of traffic){ if(!npc?.position||!car?.position)continue; const d=car.position.distanceTo(npc.position); if(d<2.25&&Math.abs(state.speed)>.35){ state.damage=Math.min(100,state.damage+dt*7); if(chassisBody){ const v=chassisBody.linvel(); chassisBody.setLinvel({x:v.x*.65,y:v.y,z:v.z*.65},true);} msg("⚠️ Столкновение: кузов повреждён."); } } if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();} }
  updateJob(); updateArticulatedCar(dt); updateMechanicCityDebug(); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25;
-  // STABLE THIRD-PERSON FOLLOW CAMERA.
-  // Follow the actual player root quaternion so the camera can never drift to
-  // the side or remain at an old world position after acceleration/turning.
+  // AUTHORITATIVE THIRD-PERSON FOLLOW CAMERA: derive every frame from the player root.
   if(camera){
-    if(camera.parent!==scene)scene.add(camera);
-    const carForward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();
-    const carBack=carForward.clone().multiplyScalar(-1);
+    const up=new THREE.Vector3(0,1,0);
+    const forward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();
     const distance=moving?9.2:8.6;
     const target=car.position.clone();
     target.y+=1.15;
-
     if(cameraMode===2){
-      const hoodOffset=carForward.clone().multiplyScalar(0.55);
-      hoodOffset.y=1.35;
-      const desired=car.position.clone().add(hoodOffset);
-      camera.position.lerp(desired,Math.min(1,dt*14));
-      camera.lookAt(target);
-    }else if(cameraMode===1){
-      // Orbit mode is explicit: only here is the finger orbit allowed to move
-      // the camera around the car.
-      const orbitBack=carBack.clone().applyAxisAngle(new THREE.Vector3(0,1,0),camOrbitYaw);
-      const desired=car.position.clone().addScaledVector(
-        orbitBack,
-        Math.max(3.5,Math.cos(camOrbitPitch)*distance)
-      );
-      desired.y=car.position.y+5.8+Math.sin(camOrbitPitch)*distance*.55;
-      camera.position.lerp(desired,Math.min(1,dt*10));
+      const desired=car.position.clone().addScaledVector(forward,0.55);
+      desired.y=car.position.y+1.35;
+      camera.position.copy(desired);
       camera.lookAt(target);
     }else{
-      // Normal driving camera: rigidly behind the car. Steering changes the
-      // car heading, so this camera follows every turn automatically.
-      const desired=car.position.clone().addScaledVector(carBack,distance);
-      desired.y=car.position.y+(moving?5.9:5.6);
-      camera.position.lerp(desired,Math.min(1,dt*12));
+      let back=forward.clone().multiplyScalar(-1);
+      if(cameraMode===1) back.applyAxisAngle(up,camOrbitYaw);
+      const desired=car.position.clone().addScaledVector(back,distance);
+      desired.y=car.position.y+(moving?5.9:5.6)+(cameraMode===1?Math.sin(camOrbitPitch)*distance*.55:0);
+      camera.position.copy(desired);
       camera.lookAt(target);
     }
     camera.updateMatrixWorld(true);
