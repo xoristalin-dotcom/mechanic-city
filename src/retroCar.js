@@ -66,7 +66,7 @@ export class RetroCarBuilder {
   }
 
   async loadMechanicCityModel() {
-    const paths = ["/models/preview.glb"];
+    const paths = ["/models/challenger-r9.glb"];
 
     try {
       const loader = new GLTFLoader();
