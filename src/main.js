@@ -461,7 +461,7 @@ function updateMechanicCityDebug(){
 }
 
 function animate(traffic=[]){ requestAnimationFrame(()=>animate(traffic)); if(state.scene!=="city")return; if(!renderer||!scene||!camera)return; const dt=Math.min(clock?.getDelta()||.016,.05); try{ if((state.driving||state.throttle||input.gas)&&state.fuel>0){ physicsDrive(dt); if(state.fuel>0) state.fuel=Math.max(0,state.fuel-dt*(.018+Math.abs(state.speed)*.014)); state.car.oil=Math.max(0,state.car.oil-dt*.004); state.car.coolant=Math.max(0,state.car.coolant-dt*.002); state.heat=Math.min(125,state.heat+dt*(.08+Math.abs(state.speed)*.055)); if(state.car.oil<15||state.car.coolant<15)state.damage=Math.min(100,state.damage+dt*.08); state.car.mileage+=Math.abs(state.speed)*dt*.006; if(state.heat>108)state.damage=Math.min(100,state.damage+dt*.06); for(const npc of traffic){ if(!npc?.position||!car?.position)continue; const d=car.position.distanceTo(npc.position); if(d<2.25&&Math.abs(state.speed)>.35){ state.damage=Math.min(100,state.damage+dt*7); if(chassisBody){ const v=chassisBody.linvel(); chassisBody.setLinvel({x:v.x*.65,y:v.y,z:v.z*.65},true);} msg("⚠️ Столкновение: кузов повреждён."); } } if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();} }
- updateJob(); updateArticulatedCar(dt); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25;
+ updateJob(); updateArticulatedCar(dt); updateMechanicCityDebug(); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25;
   // HARD CAMERA FOLLOW: keep the camera independent from the loading GLB root.
   // This prevents an invisible/loading vehicle from affecting the render camera.
   if(camera){
