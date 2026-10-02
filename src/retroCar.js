@@ -49,8 +49,8 @@ export class RetroCarBuilder {
 
   async loadMechanicCityModel() {
     const paths = [
-      import.meta.env.VITE_MECHANIC_CITY_MODEL_URL || "/models/dodge_challenger_mechanic_city_r2_1.glb",
-      "/models/challenger-r9.glb"
+      import.meta.env.VITE_MECHANIC_CITY_MODEL_URL || "/models/preview.glb",
+      "/models/preview.glb"
     ].filter((v,i,a)=>v && a.indexOf(v)===i);
 
     try {
@@ -102,6 +102,197 @@ export class RetroCarBuilder {
         -bodyCenter.z * scale
       );
       model.updateMatrixWorld(true);
+
+      // Revision 18 is now the authoritative player vehicle. Keep the complete
+      // GLB scene intact: body, glass, cabin, doors, hood, trunk and workshop
+      // geometry all come from the original asset. Three.js keeps these nodes
+      // addressable through the scene graph, so the workshop can operate on
+      // individual parts instead of cutting the car into geometry_* fragments.
+      if (sourcePath === "/models/preview.glb" || sourcePath === (import.meta.env.VITE_MECHANIC_CITY_MODEL_URL || "/models/preview.glb")) {
+        const categoryFor = (name) => {
+          const n = String(name || "").toLowerCase();
+          if (/gearbox|transmission|clutch|differential/.test(n)) return "transmission";
+          if (/engine|injector|spark|intake|alternator|starter|radiator|fuel|oil|coolant|battery|fuse|pump/.test(n)) return "engine";
+          if (/brake|rotor|caliper|pad/.test(n)) return "brakes";
+          if (/wheel|tire|rim|hub|lug/.test(n)) return "wheels";
+          if (/suspension|strut|spring|arm|knuckle|tie|balljoint/.test(n)) return "suspension";
+          if (/door|hood|trunk|bumper|fender|rocker|quarter|spoiler|sill|panel/.test(n)) return "body";
+          if (/seat|dash|console|steering|pedal|shifter|interior|cockpit|carpet|trim/.test(n)) return "interior";
+          if (/exhaust|muffler|resonator|catalyst|pipe|tip|header/.test(n)) return "exhaust";
+          if (/head|tail|lamp|drl|marker|light|grille/.test(n)) return "lights";
+          if (/glass|window|mirror/.test(n)) return "glass";
+          return "other";
+        };
+        const subsystemFor = (name, category) => {
+          const n = String(name || "").toLowerCase();
+          if (/radiator|coolant|water/.test(n)) return "cooling";
+          if (/battery|alternator|starter|fuse/.test(n)) return "electrical";
+          if (/gearbox|transmission|clutch|differential/.test(n)) return "transmission";
+          return category;
+        };
+        const serviceParts = {};
+        const counts = {};
+        const named = [];
+        model.traverse(o => {
+          if (!o.isMesh) return;
+          o.castShadow = true;
+          o.receiveShadow = true;
+          o.frustumCulled = true;
+          const base = String(o.name || "mesh").replace(/[^a-zA-Z0-9_-]/g, "_") || "mesh";
+          const index = counts[base] || 0;
+          counts[base] = index + 1;
+          const key = index ? base + "_" + index : base;
+          const category = categoryFor(o.name);
+          const lower = String(o.name || "").toLowerCase();
+          const structural =
+            /^(chassis|floor_pan|underbody|body_shell|body|root|scene)$/i.test(o.name) ||
+            /^(glass|window|mirror|seat|dash|console|steering|pedal)$/i.test(category);
+          const removable = !structural && category !== "other";
+          const part = {
+            key,
+            name: o.name || key,
+            category,
+            subsystem: subsystemFor(o.name, category),
+            condition: 100,
+            installed: true,
+            removable,
+            tunable: ["engine","transmission","brakes","wheels","suspension","exhaust","body"].includes(category),
+            baseCost: 50,
+            mesh: o,
+            servicePartVisual: true
+          };
+          o.userData.servicePart = part;
+          serviceParts[key] = part;
+          if (/door|hood|trunk|bonnet|boot/i.test(o.name || "")) named.push(o);
+        });
+
+        // Build hinges from the actual R18 nodes. If the asset contains
+        // authored door/hood/trunk nodes, we rotate those nodes directly;
+        // nothing is copied out of geometry_0.
+        const findTopLevel = (regex) => {
+          const result = [];
+          model.traverse(o => {
+            if (!o.name || !regex.test(o.name)) return;
+            let p = o.parent;
+            while (p && p !== model) {
+              if (regex.test(p.name || "")) return;
+              p = p.parent;
+            }
+            if (o.isMesh || o.children.length) result.push(o);
+          });
+          return result;
+        };
+        const worldBox = (obj) => {
+          obj.updateWorldMatrix(true, true);
+          return new THREE.Box3().setFromObject(obj, true);
+        };
+        const makeDoor = (obj, side, front) => {
+          const box = worldBox(obj);
+          if (box.isEmpty()) return null;
+          const center = box.getCenter(new THREE.Vector3());
+          const hinge = new THREE.Vector3(
+            side < 0 ? box.min.x : box.max.x,
+            center.y,
+            front ? box.max.z : box.min.z
+          );
+          const pivot = new THREE.Object3D();
+          pivot.name = "R18_Hinge_" + obj.name;
+          root.add(pivot);
+          pivot.position.copy(root.worldToLocal(hinge));
+          pivot.attach(obj);
+          const openSign = side < 0 ? 1 : -1;
+          return {pivot, open: 0, openSign, maxAngle: 1.05, axis: "y", source: obj.name};
+        };
+        const makeLid = (obj, front) => {
+          const box = worldBox(obj);
+          if (box.isEmpty()) return null;
+          const center = box.getCenter(new THREE.Vector3());
+          const hinge = new THREE.Vector3(
+            center.x,
+            center.y,
+            front ? box.min.z : box.max.z
+          );
+          const pivot = new THREE.Object3D();
+          pivot.name = "R18_Hinge_" + obj.name;
+          root.add(pivot);
+          pivot.position.copy(root.worldToLocal(hinge));
+          pivot.attach(obj);
+          return {pivot, open: 0, openSign: front ? -1 : 1, maxAngle: 0.95, axis: "x", source: obj.name};
+        };
+
+        const doorNodes = findTopLevel(/door/i);
+        const doors = doorNodes.slice(0, 4).map((o, i) => {
+          const n = String(o.name).toLowerCase();
+          const side = /(^|[_-])(l|left)([_-]|$)/.test(n) || /left/.test(n) ? -1 : 1;
+          const front = /front|fl|driver|passenger/.test(n) || !/rear|rl|rr|back/.test(n);
+          return makeDoor(o, side, front);
+        }).filter(Boolean);
+        const hoodNode = findTopLevel(/hood|bonnet/i)[0] || null;
+        const trunkNode = findTopLevel(/trunk|boot/i)[0] || null;
+        const hood = hoodNode ? makeLid(hoodNode, true) : null;
+        const trunk = trunkNode ? makeLid(trunkNode, false) : null;
+
+        // Use authored wheel pivots if present; do not add replacement wheels
+        // on top of the original R18 wheels.
+        const wheels = [];
+        model.traverse(o => {
+          if (/^wheelpivot_(fl|fr|rl|rr)$/i.test(o.name || "")) wheels.push(o);
+        });
+
+        root.name = "MechanicCity_R18_Authoritative";
+        root.userData.serviceParts = serviceParts;
+        root.userData.servicePartCount = Object.keys(serviceParts).length;
+        root.userData.modelRevision = "Higgsfield-R18";
+        root.userData.modelSource = "/models/preview.glb";
+        root.userData.originalGLB = true;
+        root.userData.wheels = wheels;
+        root.userData.articulation = {doors, hood, trunk, steering: null};
+        root.userData.vehicleSpec = {
+          lengthMeters: 4.881,
+          widthMeters: 1.921,
+          heightMeters: 1.326,
+          revision: "Higgsfield-R18",
+          editable: true,
+          swapMode: "scene-node"
+        };
+        root.userData.swapPart = (key, replacement) => {
+          const part = root.userData.serviceParts?.[key];
+          if (!part || !replacement) return false;
+          const old = part.mesh;
+          if (old?.parent) old.parent.remove(old);
+          const node = replacement.clone(true);
+          node.name = old?.name || key;
+          if (old?.parent) old.parent.add(node);
+          part.mesh = node;
+          part.installed = true;
+          node.userData.servicePart = part;
+          return true;
+        };
+
+        // Preserve all original materials/textures and all visible nodes.
+        model.traverse(o => {
+          if (o.isMesh) {
+            o.visible = true;
+            o.castShadow = true;
+            o.receiveShadow = true;
+            o.frustumCulled = true;
+          }
+        });
+        this.carGroup.remove(...[...this.carGroup.children]);
+        this.carGroup.add(model);
+        this.carGroup.visible = true;
+        this.carGroup.userData.modelLoading = false;
+        this.carGroup.userData.modelRevision = "Higgsfield-R18";
+        this.carGroup.userData.modelSource = "/models/preview.glb";
+        this.carGroup.userData.originalGLB = true;
+        this.carGroup.userData.wheels = wheels;
+        this.carGroup.userData.serviceParts = serviceParts;
+        this.carGroup.userData.servicePartCount = Object.keys(serviceParts).length;
+        this.carGroup.userData.articulation = root.userData.articulation;
+        this.carGroup.userData.vehicleSpec = root.userData.vehicleSpec;
+        this.carGroup.userData.r18NodeAudit = named.map(o => o.name);
+        return;
+      }
 
       // The seven meshes geometry_0..geometry_6 are the actual mobile visual
       // car. The extra service geometry is useful in the workshop but was
