@@ -1388,3 +1388,10 @@ export class RetroCarBuilder {
     rearGlass.position.set(0, 1.34, 1.48);
     rearGlass.rotation.x = 0.12;
     cabinGroup.add(rearGlass);
+
+  }
+
+  getGroup() {
+    return this.carGroup;
+  }
+}
