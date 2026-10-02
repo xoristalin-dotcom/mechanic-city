@@ -92,9 +92,42 @@ export class RetroCarBuilder {
       // normalization only for the legacy fallback path below.
       const isR18Source = sourcePath === "/models/preview.glb";
       const bodyMesh = !isR18Source ? model.getObjectByName("geometry_0") : null;
-      const bodyBox = bodyMesh
-        ? new THREE.Box3().setFromObject(bodyMesh)
-        : new THREE.Box3().setFromObject(model);
+
+      // Do not let an accidental giant floor/sky/backdrop mesh inside the GLB
+      // define the car's scale or fill the whole game view. R18 contains many
+      // authored service meshes, so use their individual world bounds and
+      // reject only obvious environment-sized outliers.
+      let bodyBox;
+      if (bodyMesh) {
+        bodyBox = new THREE.Box3().setFromObject(bodyMesh, true);
+      } else {
+        const candidates = [];
+        model.traverse(o => {
+          if (!o.isMesh || !o.geometry) return;
+          const b = new THREE.Box3().setFromObject(o, true);
+          if (b.isEmpty()) return;
+          const size = b.getSize(new THREE.Vector3());
+          const maxDim = Math.max(size.x, size.y, size.z);
+          candidates.push({o, b, maxDim});
+        });
+        const dims = candidates.map(x => x.maxDim).sort((a,b)=>a-b);
+        const medianDim = dims.length ? dims[Math.floor(dims.length / 2)] : 0;
+        const allowedDim = Math.max(12, medianDim * 12);
+        const filtered = candidates.filter(({o,maxDim}) => {
+          const n = String(o.name || "").toLowerCase();
+          const namedEnvironment = /^(ground|floor|plane|sky|skydome|environment|world|backdrop|background)/.test(n);
+          return !namedEnvironment && maxDim <= allowedDim;
+        });
+        bodyBox = new THREE.Box3();
+        for (const item of filtered.length ? filtered : candidates) bodyBox.union(item.b);
+        window.MechanicCityModelDiagnostics = {
+          ...(window.MechanicCityModelDiagnostics || {}),
+          meshCandidates: candidates.length,
+          meshUsedForBounds: filtered.length || candidates.length,
+          medianMeshSize: medianDim,
+          maxAllowedMeshSize: allowedDim
+        };
+      }
       if (bodyBox.isEmpty()) {
         this.carGroup.userData.modelLoading = false;
         this.carGroup.userData.modelLoadError = "Loaded GLB has empty bounds";
