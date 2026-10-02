@@ -556,6 +556,17 @@ export class RetroCarBuilder {
 
       model.traverse(o=>{
         if (!o.isMesh) return;
+
+        // R2.1 must stand on its wheels. Hide any authoring/service stand
+        // accidentally exported with the vehicle asset; it must never appear
+        // as a platform underneath the player car.
+        const nodeName = String(o.name || "").toLowerCase();
+        if (/service[_ -]?platform|vehicle[_ -]?platform|car[_ -]?platform|platform|turntable|display[_ -]?stand|show[_ -]?stand/.test(nodeName)) {
+          o.visible = false;
+          o.userData.hiddenVehicleStand = true;
+          return;
+        }
+
         o.castShadow = true;
         o.receiveShadow = true;
         o.frustumCulled = true;
