@@ -602,24 +602,17 @@ function setupCameraControls(){
   el.style.touchAction="none";
   let activeId=null;
   const isUiTarget=e=>!!e.target?.closest?.(".mobile-drive-controls,.floating-bar,.menu,.panel,.help-overlay");
-  let gestureMode="pending",gestureStartX=0,gestureStartY=0;
   const publishControl=()=>{
     const payload={type:"drive-control",time:Date.now(),gas:!!input.gas,brake:!!input.brake,left:!!input.left,right:!!input.right,speed:Number(state.speed)||0,heading:Number(state.heading)||0};
     window.dispatchEvent(new CustomEvent("mechanic-city-control",{detail:payload}));
     try{window.MechanicCityControlChannel?.postMessage(payload);}catch{}
   };
   window.MechanicCityControlStream=publishControl;
-  const releaseSteer=()=>{
-    input.left=false;input.right=false;
-    publishControl();
-  };
   const end=e=>{
     if(activeId!==null&&e?.pointerId!=null&&el.hasPointerCapture?.(e.pointerId)){
       try{el.releasePointerCapture(e.pointerId);}catch{}
     }
     camDragging=false;activeId=null;camLastX=0;camLastY=0;
-    releaseSteer();
-    gestureMode="pending";
   };
   const begin=e=>{
     if(isUiTarget(e))return;
@@ -627,8 +620,6 @@ function setupCameraControls(){
     activeId=e.pointerId??"touch";
     camDragging=true;
     camLastX=e.clientX;camLastY=e.clientY;
-    gestureStartX=e.clientX;gestureStartY=e.clientY;
-    gestureMode="pending";
     if(e.pointerId!=null&&el.setPointerCapture){
       try{el.setPointerCapture(e.pointerId);}catch{}
     }
@@ -638,16 +629,13 @@ function setupCameraControls(){
     if(!camDragging)return;
     if(activeId!==null&&e.pointerId!=null&&e.pointerId!==activeId)return;
     if(e.cancelable)e.preventDefault();
-    const dx=e.clientX-gestureStartX,dy=e.clientY-gestureStartY;
-    if(gestureMode==="pending"&&Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.15)gestureMode="steer";
-    if(gestureMode==="steer"){
-      input.left=dx<-12; input.right=dx>12;
-      publishControl();
-      camLastX=e.clientX;camLastY=e.clientY;
-      return;
-    }
-    const stepX=e.clientX-camLastX,stepY=e.clientY-camLastY;
-    camLastX=e.clientX;camLastY=e.clientY;
+    const stepX=e.clientX-camLastX;
+    const stepY=e.clientY-camLastY;
+    camLastX=e.clientX;
+    camLastY=e.clientY;
+    // Free-screen swipe is ALWAYS camera orbit. Steering is handled only by
+    // the dedicated left/right drive buttons, so horizontal camera swipes
+    // can no longer get hijacked as steering gestures.
     camOrbitYaw-=stepX*.012;
     camOrbitPitch=THREE.MathUtils.clamp(camOrbitPitch+stepY*.008,-.45,.9);
   };
@@ -658,9 +646,6 @@ function setupCameraControls(){
   window.addEventListener("pointerup",end,{passive:true});
   window.addEventListener("pointercancel",end,{passive:true});
   window.addEventListener("blur",end,{passive:true});
-  if("BroadcastChannel" in window){
-    try{window.MechanicCityControlChannel=new BroadcastChannel("mechanic-city-controls");}catch{}
-  }
 }
 function bindControls(){
   document.querySelectorAll("[data-drive]").forEach(b=>{
