@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import RAPIER from "@dimforge/rapier3d-compat";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
-import { RetroCarBuilder } from "./retroCar.js?vehicle=Higgsfield-R18-20261002-v2";
+import { RetroCarBuilder } from "./retroCar.js?vehicle=Challenger-R9-20261002-v1";
 import {
   PART_CATALOG,
   initializeCarParts,
@@ -187,7 +187,7 @@ function fallbackDrive(dt){const throttle=(input.gas||state.throttle)&&(state.ge
 function createRetroPlayerCar(){
   const builder=new RetroCarBuilder({color:0x252b31,type:"sedan",year:1975,damageLevel:state.damage});
   const root=builder.getGroup();
-  root.name="RetroCar_Player";
+  root.name="Challenger_R9_Player";
   root.userData.retroBuilder=builder;
   root.userData.workshopMode=false;
   root.userData.visualOffsetY=0;
