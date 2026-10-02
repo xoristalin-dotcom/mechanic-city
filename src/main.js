@@ -224,7 +224,7 @@ function createRetroPlayerCar(){
     part.installed=savedPart?.installed!==false;
     // Installed parts are part of the authoritative GLB and stay visible
     // in city, garage and workshop. Removal alone hides the actual node.
-    part.mesh.visible=part.installed;
+    if(part.mesh) part.mesh.visible=part.installed;
   }
   root.updateWorldMatrix(true,true,true);
   return root;
