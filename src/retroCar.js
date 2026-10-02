@@ -322,7 +322,16 @@ export class RetroCarBuilder {
             o.visible = true;
             o.castShadow = true;
             o.receiveShadow = true;
-            o.frustumCulled = true;
+            // Keep the authoritative R18 meshes rendered even when authored
+            // local bounds are invalid after normalization/articulation.
+            o.frustumCulled = false;
+            if (o.material) {
+              const materials = Array.isArray(o.material) ? o.material : [o.material];
+              for (const material of materials) {
+                if (material && "side" in material) material.side = THREE.FrontSide;
+                if (material) material.needsUpdate = true;
+              }
+            }
           }
         });
         // The authoritative model is already installed in carGroup.
