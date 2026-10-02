@@ -95,6 +95,65 @@ export class RetroCarBuilder {
         loader.parse(buffer, sourcePath, g=>resolve(g.scene), err=>{ window.MechanicCityGLBError=String(err?.message||err); reject(err); });
       });
 
+      // Audit the raw GLB BEFORE any visibility filtering. This is intentionally
+      // done on the imported asset so an exported service platform cannot hide
+      // behind the later render filters. The audit is exposed for one-time
+      // inspection through window.MechanicCityGLBAudit.
+      model.updateMatrixWorld(true);
+      const glbMeshAudit = [];
+      model.traverse(node => {
+        if (!node.isMesh || !node.geometry) return;
+        const box = new THREE.Box3().setFromObject(node, true);
+        if (box.isEmpty()) return;
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const posAttr = node.geometry.getAttribute?.("position");
+        const parentChain = [];
+        let parent = node;
+        while (parent) {
+          parentChain.unshift(parent.name || "(unnamed)");
+          parent = parent.parent;
+        }
+        const materialNames = (Array.isArray(node.material) ? node.material : [node.material])
+          .filter(Boolean).map(m => m.name || "(unnamed)");
+        glbMeshAudit.push({
+          name: node.name || "(unnamed)",
+          uuid: node.uuid,
+          parentChain,
+          visible: node.visible,
+          vertices: posAttr?.count || 0,
+          materialNames,
+          min: {x: box.min.x, y: box.min.y, z: box.min.z},
+          max: {x: box.max.x, y: box.max.y, z: box.max.z},
+          size: {x: size.x, y: size.y, z: size.z},
+          center: {x: center.x, y: center.y, z: center.z}
+        });
+      });
+      const lowBroadCandidates = glbMeshAudit.filter(item => {
+        const s = item.size;
+        return s.x >= 2.0 && s.z >= 2.0 && s.y <= 0.30 && item.max.y <= 0.60;
+      });
+      window.MechanicCityGLBAudit = {
+        sourcePath,
+        meshCount: glbMeshAudit.length,
+        meshes: glbMeshAudit,
+        lowBroadCandidates
+      };
+      window.MechanicCityGLBStandCandidates = lowBroadCandidates;
+      console.groupCollapsed("[Mechanic City] Raw GLB mesh audit");
+      console.table(glbMeshAudit.map(item => ({
+        name: item.name,
+        vertices: item.vertices,
+        sizeX: Number(item.size.x.toFixed(3)),
+        sizeY: Number(item.size.y.toFixed(3)),
+        sizeZ: Number(item.size.z.toFixed(3)),
+        minY: Number(item.min.y.toFixed(3)),
+        maxY: Number(item.max.y.toFixed(3)),
+        parent: item.parentChain.join(" > ")
+      })));
+      console.table(lowBroadCandidates);
+      console.groupEnd();
+
       // Capture raw GLB structure before normalization so we can distinguish a bad asset from a scene/camera problem.      const glbDiagnostics = {        sourcePath,        sceneName: model?.name || "",        childCount: model?.children?.length || 0,        meshCount: 0,        visibleMeshes: 0,        bounds: null      };      const preBox = new THREE.Box3().setFromObject(model, true);      const preSize = preBox.getSize(new THREE.Vector3());      const preCenter = preBox.getCenter(new THREE.Vector3());      model.traverse(node => {        if (!node.isMesh) return;        glbDiagnostics.meshCount++;        if (node.visible) glbDiagnostics.visibleMeshes++;      });      glbDiagnostics.bounds = {        min: {x: preBox.min.x, y: preBox.min.y, z: preBox.min.z},        max: {x: preBox.max.x, y: preBox.max.y, z: preBox.max.z},        size: {x: preSize.x, y: preSize.y, z: preSize.z},        center: {x: preCenter.x, y: preCenter.y, z: preCenter.z}      };      window.MechanicCityGLBDiagnostics = glbDiagnostics;
 
       // Diagnostic isolation: ?glbdebug=1 disables lighting-dependent materials.
