@@ -1,8 +1,7 @@
 import * as THREE from "three";
 import RAPIER from "@dimforge/rapier3d-compat";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
-import { RetroCarBuilder } from "./retroCar.js";
-import { makeRetroCar, makeRetroParkedCar, RETRO_COLORS } from "./retroStyle.js";
+import { RetroCarBuilder } from "./retroCar.js?vehicle=Higgsfield-R18-20261002";
 import {
   PART_CATALOG,
   initializeCarParts,
@@ -207,8 +206,8 @@ function createRetroPlayerCar(){
   state.car.hoodOpen=false;
   state.car.trunkOpen=false;
   state.car.articulationActive=true;
-  state.car.name="Retro Car";
-  state.car.year=1975;
+  state.car.name="Higgsfield-R18";
+  state.car.year=2026;
 
   if(state.car.partStateVersion!==PART_STATE_VERSION){
     state.car.partState={};
