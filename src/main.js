@@ -599,22 +599,48 @@ function setupCameraControls(){
   el.style.touchAction="none";
   let activeId=null;
   const isUiTarget=e=>!!e.target?.closest?.(".mobile-drive-controls,.floating-bar,.menu,.panel,.help-overlay");
-  const end=()=>{camDragging=false;activeId=null;camLastX=0;camLastY=0;};
+  let gestureMode="pending",gestureStartX=0,gestureStartY=0;
+  const publishControl=()=>{
+    const payload={type:"drive-control",time:Date.now(),gas:!!input.gas,brake:!!input.brake,left:!!input.left,right:!!input.right,speed:Number(state.speed)||0,heading:Number(state.heading)||0};
+    window.dispatchEvent(new CustomEvent("mechanic-city-control",{detail:payload}));
+    try{window.MechanicCityControlChannel?.postMessage(payload);}catch{}
+  };
+  window.MechanicCityControlStream=publishControl;
+  const releaseSteer=()=>{
+    input.left=false;input.right=false;
+    publishControl();
+  };
+  const end=()=>{
+    camDragging=false;activeId=null;camLastX=0;camLastY=0;
+    releaseSteer();
+    gestureMode="pending";
+  };
   const begin=e=>{
     if(isUiTarget(e))return;
     if(e.pointerType==="mouse"&&e.button!==0)return;
     activeId=e.pointerId??"touch";
-    camDragging=true;camLastX=e.clientX;camLastY=e.clientY;
+    camDragging=true;
+    camLastX=e.clientX;camLastY=e.clientY;
+    gestureStartX=e.clientX;gestureStartY=e.clientY;
+    gestureMode="pending";
     if(e.cancelable)e.preventDefault();
   };
   const move=e=>{
     if(!camDragging)return;
     if(activeId!==null&&e.pointerId!=null&&e.pointerId!==activeId)return;
     if(e.cancelable)e.preventDefault();
-    const dx=e.clientX-camLastX,dy=e.clientY-camLastY;
+    const dx=e.clientX-gestureStartX,dy=e.clientY-gestureStartY;
+    if(gestureMode==="pending"&&Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.15)gestureMode="steer";
+    if(gestureMode==="steer"){
+      input.left=dx<-12; input.right=dx>12;
+      publishControl();
+      camLastX=e.clientX;camLastY=e.clientY;
+      return;
+    }
+    const stepX=e.clientX-camLastX,stepY=e.clientY-camLastY;
     camLastX=e.clientX;camLastY=e.clientY;
-    camOrbitYaw-=dx*.012;
-    camOrbitPitch=THREE.MathUtils.clamp(camOrbitPitch+dy*.008,-.45,.9);
+    camOrbitYaw-=stepX*.012;
+    camOrbitPitch=THREE.MathUtils.clamp(camOrbitPitch+stepY*.008,-.45,.9);
   };
   el.addEventListener("pointerdown",begin,{passive:false,capture:true});
   el.addEventListener("pointermove",move,{passive:false,capture:true});
@@ -623,23 +649,37 @@ function setupCameraControls(){
   el.addEventListener("touchstart",e=>{
     if(isUiTarget(e))return;
     const t=e.touches[0]; if(!t)return;
-    camDragging=true;camLastX=t.clientX;camLastY=t.clientY;
+    activeId="touch";
+    camDragging=true;
+    camLastX=t.clientX;camLastY=t.clientY;
+    gestureStartX=t.clientX;gestureStartY=t.clientY;
+    gestureMode="pending";
     if(e.cancelable)e.preventDefault();
   },{passive:false,capture:true});
   el.addEventListener("touchmove",e=>{
     if(!camDragging)return;
     const t=e.touches[0]; if(!t)return;
     if(e.cancelable)e.preventDefault();
-    const dx=t.clientX-camLastX,dy=t.clientY-camLastY;
+    const dx=t.clientX-gestureStartX,dy=t.clientY-gestureStartY;
+    if(gestureMode==="pending"&&Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.15)gestureMode="steer";
+    if(gestureMode==="steer"){
+      input.left=dx<-12; input.right=dx>12;
+      publishControl();
+      return;
+    }
+    const stepX=t.clientX-camLastX,stepY=t.clientY-camLastY;
     camLastX=t.clientX;camLastY=t.clientY;
-    camOrbitYaw-=dx*.012;
-    camOrbitPitch=THREE.MathUtils.clamp(camOrbitPitch+dy*.008,-.45,.9);
+    camOrbitYaw-=stepX*.012;
+    camOrbitPitch=THREE.MathUtils.clamp(camOrbitPitch+stepY*.008,-.45,.9);
   },{passive:false,capture:true});
   el.addEventListener("touchend",end,{passive:false,capture:true});
   el.addEventListener("touchcancel",end,{passive:false,capture:true});
   window.addEventListener("pointerup",end,{passive:true});
   window.addEventListener("pointercancel",end,{passive:true});
   window.addEventListener("blur",end,{passive:true});
+  if("BroadcastChannel" in window){
+    try{window.MechanicCityControlChannel=new BroadcastChannel("mechanic-city-controls");}catch{}
+  }
 }
 function bindControls(){
   document.querySelectorAll("[data-drive]").forEach(b=>{
