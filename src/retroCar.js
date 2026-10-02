@@ -283,11 +283,24 @@ export class RetroCarBuilder {
           return {pivot, open: 0, openSign: front ? -1 : 1, maxAngle: 0.95, axis: "x", source: obj.name};
         };
 
-        const doorNodes = findTopLevel(/door/i);
-        const doors = doorNodes.slice(0, 4).map((o, i) => {
+        // Articulate only the top-level authored door assemblies. A glass/window
+        // child must stay inside its door, otherwise it becomes a floating
+        // square when the door opens.
+        const doorCandidates = [];
+        model.traverse(o => {
+          if (!o.name || !/door/i.test(o.name)) return;
+          let p = o.parent;
+          let nested = false;
+          while (p && p !== model) {
+            if (/door/i.test(p.name || "")) { nested = true; break; }
+            p = p.parent;
+          }
+          if (!nested && (o.children.length || o.isMesh)) doorCandidates.push(o);
+        });
+        const doors = doorCandidates.slice(0, 4).map(o => {
           const n = String(o.name).toLowerCase();
-          const side = /(^|[_-])(l|left)([_-]|$)/.test(n) || /left/.test(n) ? -1 : 1;
-          const front = /front|fl|driver|passenger/.test(n) || !/rear|rl|rr|back/.test(n);
+          const side = /left|(^|[_-])(l|fl|rl)([_-]|$)/.test(n) ? -1 : 1;
+          const front = !/rear|rl|rr|back/.test(n);
           return makeDoor(o, side, front);
         }).filter(Boolean);
         const hoodNode = findTopLevel(/hood|bonnet/i)[0] || null;
