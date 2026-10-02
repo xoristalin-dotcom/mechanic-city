@@ -103,7 +103,12 @@ async function setupVehiclePhysics(){
     const ground=RAPIER.ColliderDesc.cuboid(120,0.5,120);
     physicsWorld.createCollider(ground,{x:0,y:-0.5,z:0});
     const hull=RAPIER.ColliderDesc.cuboid(1.4,0.44,2.8);
-    const body=physicsWorld.createRigidBody({translation:{x:car.position.x,y:1.2,z:car.position.z},rotation:0});
+    // Rapier compat expects a RigidBodyDesc here, not a plain object.
+    // Passing a plain object makes some builds try to read rotation.x from
+    // an undefined internal quaternion and abort physics initialization.
+    const bodyDesc=RAPIER.RigidBodyDesc.dynamic()
+      .setTranslation(Number(car.position.x)||0,1.2,Number(car.position.z)||0);
+    const body=physicsWorld.createRigidBody(bodyDesc);
     physicsWorld.createCollider(hull,body);
     vehicleController=body;
     chassisBody=body;
