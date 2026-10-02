@@ -549,20 +549,18 @@ function animate(traffic=[]){ if(renderer?.setAnimationLoop && window.MechanicCi
   if(camera){
     if(camera.parent!==scene)scene.add(camera);
     const distance=moving?9.4:8.6;
-    const height=(moving?6.1:5.7)+Math.sin(camOrbitPitch)*distance*.55;
-    // Always follow the actual car rotation. This stays correct after a
-    // left/right turn, reverse, or a full turn-around.
-    const yaw=car.rotation.y+camOrbitYaw;
+    const yaw=state.heading+camOrbitYaw;
     if(cameraMode===2){
-      const hoodOffset=new THREE.Vector3(0,1.35,.55);
-      hoodOffset.applyAxisAngle(new THREE.Vector3(0,1,0),state.heading);
+      const hoodOffset=new THREE.Vector3(0,1.35,.55).applyAxisAngle(new THREE.Vector3(0,1,0),state.heading);
       camera.position.copy(car.position).add(hoodOffset);
       camera.lookAt(car.position.x,1.05,car.position.z);
     }else{
-      const back=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
-      camera.position.copy(car.position).addScaledVector(back,Math.max(1.2,Math.cos(camOrbitPitch)*distance));
-      camera.position.y+=height;
-      camera.lookAt(car.position.x,1.0,car.position.z);
+      const back=new THREE.Vector3(0,0,-1).applyAxisAngle(new THREE.Vector3(0,1,0),yaw);
+      const target=car.position.clone(); target.y+=1.0;
+      const desired=car.position.clone().addScaledVector(back,Math.max(1.2,Math.cos(camOrbitPitch)*distance));
+      desired.y=car.position.y+(moving?6.1:5.7)+Math.sin(camOrbitPitch)*distance*.55;
+      camera.position.lerp(desired,moving?.28:.35);
+      camera.lookAt(target);
     }
     camera.updateMatrixWorld(true);
   }
@@ -597,7 +595,7 @@ function setupCameraControls(){
   if(!renderer||!viewport)return;
   if(viewport.dataset.cameraControlsBound==="1")return;
   viewport.dataset.cameraControlsBound="1";
-  const el=viewport;
+  const el=renderer.domElement||viewport;
   el.style.touchAction="none";
   const isUiTarget=e=>!!e.target?.closest?.(".mobile-drive-controls,.floating-bar,.menu,.panel,.help-overlay");
   const endDrag=()=>{camDragging=false;camLastX=0;camLastY=0;};
@@ -605,7 +603,6 @@ function setupCameraControls(){
     if(isUiTarget(e))return;
     if(e.pointerType==="mouse"&&e.button!==0)return;
     camDragging=true;camLastX=e.clientX;camLastY=e.clientY;
-    try{el.setPointerCapture?.(e.pointerId);}catch{}
     if(e.cancelable)e.preventDefault();
   };
   const move=e=>{
@@ -613,14 +610,16 @@ function setupCameraControls(){
     if(e.cancelable)e.preventDefault();
     const dx=e.clientX-camLastX,dy=e.clientY-camLastY;
     camLastX=e.clientX;camLastY=e.clientY;
-    camOrbitYaw-=dx*.012;
-    camOrbitPitch=Math.min(.9,Math.max(-.45,camOrbitPitch+dy*.008));
+    camOrbitYaw=THREE.MathUtils.euclideanModulo(camOrbitYaw-dx*.012+Math.PI,Math.PI*2)-Math.PI;
+    camOrbitPitch=THREE.MathUtils.clamp(camOrbitPitch+dy*.008,-.45,.9);
   };
+  const end=e=>{if(camDragging)endDrag();};
   el.addEventListener("pointerdown",begin,{passive:false});
   el.addEventListener("pointermove",move,{passive:false});
-  el.addEventListener("pointerup",endDrag,{passive:false});
-  el.addEventListener("pointercancel",endDrag,{passive:false});
-  el.addEventListener("lostpointercapture",endDrag,{passive:false});
+  el.addEventListener("pointerup",end,{passive:false});
+  el.addEventListener("pointercancel",end,{passive:false});
+  window.addEventListener("pointerup",end,{passive:true});
+  window.addEventListener("pointercancel",end,{passive:true});
   window.addEventListener("blur",endDrag,{passive:true});
 }
 function bindControls(){
