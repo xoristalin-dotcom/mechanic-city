@@ -85,7 +85,33 @@ export class RetroCarBuilder {
         loader.parse(buffer, sourcePath, g=>resolve(g.scene), err=>{ window.MechanicCityGLBError=String(err?.message||err); reject(err); });
       });
 
-      // Capture raw GLB structure before normalization so we can distinguish a bad asset from a scene/camera problem.      const glbDiagnostics = {        sourcePath,        sceneName: model?.name || "",        childCount: model?.children?.length || 0,        meshCount: 0,        visibleMeshes: 0,        bounds: null      };      const preBox = new THREE.Box3().setFromObject(model, true);      const preSize = preBox.getSize(new THREE.Vector3());      const preCenter = preBox.getCenter(new THREE.Vector3());      model.traverse(node => {        if (!node.isMesh) return;        glbDiagnostics.meshCount++;        if (node.visible) glbDiagnostics.visibleMeshes++;      });      glbDiagnostics.bounds = {        min: {x: preBox.min.x, y: preBox.min.y, z: preBox.min.z},        max: {x: preBox.max.x, y: preBox.max.y, z: preBox.max.z},        size: {x: preSize.x, y: preSize.y, z: preSize.z},        center: {x: preCenter.x, y: preCenter.y, z: preCenter.z}      };      window.MechanicCityGLBDiagnostics = glbDiagnostics;      model.name = "MechanicCity_R18_Authoritative";
+      // Capture raw GLB structure before normalization so we can distinguish a bad asset from a scene/camera problem.      const glbDiagnostics = {        sourcePath,        sceneName: model?.name || "",        childCount: model?.children?.length || 0,        meshCount: 0,        visibleMeshes: 0,        bounds: null      };      const preBox = new THREE.Box3().setFromObject(model, true);      const preSize = preBox.getSize(new THREE.Vector3());      const preCenter = preBox.getCenter(new THREE.Vector3());      model.traverse(node => {        if (!node.isMesh) return;        glbDiagnostics.meshCount++;        if (node.visible) glbDiagnostics.visibleMeshes++;      });      glbDiagnostics.bounds = {        min: {x: preBox.min.x, y: preBox.min.y, z: preBox.min.z},        max: {x: preBox.max.x, y: preBox.max.y, z: preBox.max.z},        size: {x: preSize.x, y: preSize.y, z: preSize.z},        center: {x: preCenter.x, y: preCenter.y, z: preCenter.z}      };      window.MechanicCityGLBDiagnostics = glbDiagnostics;
+
+      // Diagnostic isolation: ?glbdebug=1 disables lighting-dependent materials.
+      // This lets us distinguish geometry/camera problems from GLB material/texture problems.
+      if(window.location.search.includes("glbdebug=1")){
+        let basicMaterialMeshes = 0;
+        model.traverse(node => {
+          if(!node.isMesh) return;
+          basicMaterialMeshes++;
+          const toBasic = material => {
+            if(!material) return material;
+            return new THREE.MeshBasicMaterial({
+              color: material.color ? material.color.clone() : new THREE.Color(0xaaaaaa),
+              map: material.map || null,
+              transparent: !!material.transparent,
+              opacity: Number.isFinite(material.opacity) ? material.opacity : 1,
+              alphaTest: Number.isFinite(material.alphaTest) ? material.alphaTest : 0,
+              side: material.side ?? THREE.FrontSide
+            });
+          };
+          node.material = Array.isArray(node.material)
+            ? node.material.map(toBasic)
+            : toBasic(node.material);
+        });
+        glbDiagnostics.basicMaterialMeshes = basicMaterialMeshes;
+        window.MechanicCityGLBDiagnostics = glbDiagnostics;
+      }      model.name = "MechanicCity_R18_Authoritative";
       model.updateMatrixWorld(true);
 
       // R18 uses the complete scene bounds. Keep the older R2.1 body-only
