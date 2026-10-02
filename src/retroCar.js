@@ -22,7 +22,7 @@ export class RetroCarBuilder {
     };
 
     this.carGroup = new THREE.Group();
-    this.carGroup.name = "RetroCarAssembly";
+    this.carGroup.name = "DodgeChallengerMechanicCity_R2_1_Assembly";
 
     // Track all removable parts
     this.parts = {};
@@ -66,7 +66,7 @@ export class RetroCarBuilder {
   }
 
   async loadMechanicCityModel() {
-    const paths = ["/models/challenger-r9.glb"];
+    const paths = ["/models/dodge_challenger_mechanic_city_r2_1.glb"];
 
     try {
       const loader = new GLTFLoader();
@@ -121,7 +121,7 @@ export class RetroCarBuilder {
         });
         glbDiagnostics.basicMaterialMeshes = basicMaterialMeshes;
         window.MechanicCityGLBDiagnostics = glbDiagnostics;
-      }      model.name = "MechanicCity_R18_Authoritative";
+      }      model.name = "Dodge_Challenger_MechanicCity_R2_1_Authoritative";
       model.updateMatrixWorld(true);
 
       // R18 uses the complete scene bounds. Keep the older R2.1 body-only
