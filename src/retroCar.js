@@ -186,11 +186,15 @@ export class RetroCarBuilder {
       const targetLength = 4.95;
       const scale = targetLength / bodyLength;
       model.scale.setScalar(scale);
-      // The source R18 GLB uses X as the vehicle length axis
-      // (front/rear authored at +X/-X) and Z as track width. The game
-      // vehicle space uses Z for forward/back, so align X -> +Z once.
-      model.rotation.set(0, -Math.PI / 2, 0);
-      // Center the source bounds after the X->Z vehicle-axis rotation.
+      // The R18 preview asset is authored with X as the vehicle length
+      // axis, so it needs X -> Z rotation. The authoritative R2.1 Challenger
+      // asset is already authored in the game's Z-forward vehicle space and
+      // MUST NOT be rotated 90 degrees. Rotating R2.1 here makes the upper
+      // body/cabin sit across the chassis ("car crosswise").
+      const vehicleRotationY = isR18Source ? -Math.PI / 2 : 0;
+      model.rotation.set(0, vehicleRotationY, 0);
+      // Center the source bounds after applying only the rotation required
+      // by the source asset.
       const normalizedCenter = bodyCenter.clone()
         .applyEuler(model.rotation)
         .multiplyScalar(scale);
@@ -217,7 +221,7 @@ export class RetroCarBuilder {
         });
         model.position.set(0, 0, 0);
         model.scale.setScalar(Math.min(Math.max(scale, 0.01), 10));
-        model.rotation.set(0, -Math.PI / 2, 0);
+        model.rotation.set(0, vehicleRotationY, 0);
         model.updateMatrixWorld(true);
         window.MechanicCityGLBDiagnostics = {
           ...(window.MechanicCityGLBDiagnostics || {}),
