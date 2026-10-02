@@ -128,6 +128,24 @@ export class RetroCarBuilder {
       );
       model.updateMatrixWorld(true);
 
+      // Runtime diagnostics for the authoritative GLB. Three.js requires
+      // up-to-date world matrices before computing a reliable world AABB.
+      const runtimeBox = new THREE.Box3().setFromObject(model, true);
+      const runtimeSize = runtimeBox.getSize(new THREE.Vector3());
+      const runtimeCenter = runtimeBox.getCenter(new THREE.Vector3());
+      let runtimeMeshes = 0;
+      model.traverse(node => { if (node.isMesh) runtimeMeshes++; });
+      carGroup.userData.modelDiagnostics = {
+        source: "/models/preview.glb",
+        meshes: runtimeMeshes,
+        size: { x: runtimeSize.x, y: runtimeSize.y, z: runtimeSize.z },
+        center: { x: runtimeCenter.x, y: runtimeCenter.y, z: runtimeCenter.z },
+        scale,
+        visible: model.visible,
+        loading: false
+      };
+      window.MechanicCityModelDiagnostics = carGroup.userData.modelDiagnostics;
+
       // Revision 18 is now the authoritative player vehicle. Keep the complete
       // GLB scene intact: body, glass, cabin, doors, hood, trunk and workshop
       // geometry all come from the original asset. Three.js keeps these nodes
