@@ -239,15 +239,15 @@ export class RetroCarBuilder {
           if (/^wheelpivot_(fl|fr|rl|rr)$/i.test(o.name || "")) wheels.push(o);
         });
 
-        root.name = "MechanicCity_R18_Authoritative";
-        root.userData.serviceParts = serviceParts;
-        root.userData.servicePartCount = Object.keys(serviceParts).length;
-        root.userData.modelRevision = "Higgsfield-R18";
-        root.userData.modelSource = "/models/preview.glb";
-        root.userData.originalGLB = true;
-        root.userData.wheels = wheels;
-        root.userData.articulation = {doors, hood, trunk, steering: null};
-        root.userData.vehicleSpec = {
+        this.carGroup.name = "MechanicCity_R18_Authoritative";
+        this.carGroup.userData.serviceParts = serviceParts;
+        this.carGroup.userData.servicePartCount = Object.keys(serviceParts).length;
+        this.carGroup.userData.modelRevision = "Higgsfield-R18";
+        this.carGroup.userData.modelSource = "/models/preview.glb";
+        this.carGroup.userData.originalGLB = true;
+        this.carGroup.userData.wheels = wheels;
+        this.carGroup.userData.articulation = {doors, hood, trunk, steering: null};
+        this.carGroup.userData.vehicleSpec = {
           lengthMeters: 4.881,
           widthMeters: 1.921,
           heightMeters: 1.326,
@@ -255,8 +255,8 @@ export class RetroCarBuilder {
           editable: true,
           swapMode: "scene-node"
         };
-        root.userData.swapPart = (key, replacement) => {
-          const part = root.userData.serviceParts?.[key];
+        this.carGroup.userData.swapPart = (key, replacement) => {
+          const part = this.carGroup.userData.serviceParts?.[key];
           if (!part || !replacement) return false;
           const old = part.mesh;
           const parent = old?.parent || model;
@@ -289,8 +289,8 @@ export class RetroCarBuilder {
         this.carGroup.userData.wheels = wheels;
         this.carGroup.userData.serviceParts = serviceParts;
         this.carGroup.userData.servicePartCount = Object.keys(serviceParts).length;
-        this.carGroup.userData.articulation = root.userData.articulation;
-        this.carGroup.userData.vehicleSpec = root.userData.vehicleSpec;
+        this.carGroup.userData.articulation = this.carGroup.userData.articulation;
+        this.carGroup.userData.vehicleSpec = this.carGroup.userData.vehicleSpec;
         this.carGroup.userData.r18NodeAudit = named.map(o => o.name);
         return;
       }
