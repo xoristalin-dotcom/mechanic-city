@@ -407,7 +407,9 @@ export function syncCarPartsFromCatalog(car, state) {
 
     // Visibility based on installation state
     if (part.mesh) {
-      part.mesh.visible = part.installed && car.userData.workshopMode === true;
+      // The authoritative R18 GLB is the actual vehicle. Installed nodes stay
+      // visible in driving and workshop; removal hides the real node.
+      part.mesh.visible = part.installed;
     }
   }
 }
