@@ -47,7 +47,7 @@ export class RetroCarBuilder {
     this.carGroup.userData.modelLoading = true;
     this.carGroup.userData.modelSource = "/models/preview.glb";
     this.carGroup.userData.originalGLB = true;
-    this.loadMechanicCityModel();
+    this.loadMechanicCityModel().catch((err) => {\n      this.carGroup.visible = false;\n      this.carGroup.userData.modelLoading = false;\n      this.carGroup.userData.modelLoadError = String(err?.message || err);\n      console.error("Mechanic City R18 GLB load failed", err);\n    });
   }
 
   async loadMechanicCityModel() {
@@ -69,7 +69,7 @@ export class RetroCarBuilder {
           break;
         } catch {}
       }
-      if (!buffer) return;
+      if (!buffer) {\n        this.carGroup.userData.modelLoading = false;\n        this.carGroup.userData.modelLoadError = "Unable to fetch /models/preview.glb";\n        console.error("Mechanic City R18 GLB not found: /models/preview.glb");\n        return;\n      }
 
       const model = await new Promise((resolve,reject)=>{
         loader.parse(buffer, sourcePath, g=>resolve(g.scene), reject);
@@ -85,14 +85,14 @@ export class RetroCarBuilder {
       const bodyBox = bodyMesh
         ? new THREE.Box3().setFromObject(bodyMesh)
         : new THREE.Box3().setFromObject(model);
-      if (bodyBox.isEmpty()) return;
+      if (bodyBox.isEmpty()) {\n        this.carGroup.userData.modelLoading = false;\n        this.carGroup.userData.modelLoadError = "Loaded GLB has empty bounds";\n        console.error("Mechanic City R18 GLB has empty bounds");\n        return;\n      }
 
       const bodySize = bodyBox.getSize(new THREE.Vector3());
       const bodyCenter = bodyBox.getCenter(new THREE.Vector3());
       const bodyLength = isR18Source
         ? Math.max(bodySize.x, bodySize.y, bodySize.z)
         : bodySize.z;
-      if (!Number.isFinite(bodyLength) || bodyLength <= 0) return;
+      if (!Number.isFinite(bodyLength) || bodyLength <= 0) {\n        this.carGroup.userData.modelLoading = false;\n        this.carGroup.userData.modelLoadError = "Loaded GLB has invalid bounds";\n        console.error("Mechanic City R18 GLB has invalid bounds");\n        return;\n      }
 
       const targetLength = 4.95;
       const scale = targetLength / bodyLength;
