@@ -653,26 +653,27 @@ export class RetroCarBuilder {
         if (!pos || pos.count < 3) return;
         const index = g.getIndex();
         const indices = index ? Array.from(index.array) : Array.from({length: pos.count}, (_,i)=>i);
-        const minY = bodyBox.min.y;
-        const band = Math.max(0.14, bodySize.y * 0.035);
-        const maxPanelY = minY + band;
+        model.updateWorldMatrix(true,true);
+        const wheelPlane = bodyBox.min.y + 0.42;
         const keep = [];
         let removed = 0;
         const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+        const wa = new THREE.Vector3(), wb = new THREE.Vector3(), wc = new THREE.Vector3();
         const ab = new THREE.Vector3(), ac = new THREE.Vector3(), n = new THREE.Vector3();
+        const worldMatrix = mesh.matrixWorld;
         for (let i=0; i+2<indices.length; i+=3) {
           const ia=indices[i], ib=indices[i+1], ic=indices[i+2];
           a.fromBufferAttribute(pos,ia); b.fromBufferAttribute(pos,ib); c.fromBufferAttribute(pos,ic);
-          const maxTriY=Math.max(a.y,b.y,c.y), minTriY=Math.min(a.y,b.y,c.y);
-          const cx=(a.x+b.x+c.x)/3, cz=(a.z+b.z+c.z)/3;
-          ab.subVectors(b,a); ac.subVectors(c,a); n.crossVectors(ab,ac);
+          wa.copy(a).applyMatrix4(worldMatrix); wb.copy(b).applyMatrix4(worldMatrix); wc.copy(c).applyMatrix4(worldMatrix);
+          ab.subVectors(wb,wa); ac.subVectors(wc,wa); n.crossVectors(ab,ac);
           const area2=n.length();
           if(area2>1e-7) n.normalize();
-          const horizontal=Math.abs(n.y)>0.88;
-          const low=maxTriY<=maxPanelY;
-          const broad=Math.hypot(cx,cz)>=Math.min(bodySize.x,bodySize.z)*0.12;
-          const large=area2>=0.025;
-          if(low && horizontal && broad && large){ removed++; continue; }
+          const horizontal=Math.abs(n.y)>0.90;
+          const low=Math.max(wa.y,wb.y,wc.y)<=wheelPlane;
+          const spanX=Math.max(wa.x,wb.x,wc.x)-Math.min(wa.x,wb.x,wc.x);
+          const spanZ=Math.max(wa.z,wb.z,wc.z)-Math.min(wa.z,wb.z,wc.z);
+          const broadEnough=(spanX>0.12 || spanZ>0.12) && area2>=0.02;
+          if(low && horizontal && broadEnough){ removed++; continue; }
           keep.push(ia,ib,ic);
         }
         if(removed>0){
