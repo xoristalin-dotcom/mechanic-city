@@ -453,10 +453,21 @@ function updateMechanicCityDebug(){
     document.body.appendChild(panel);
   }
   const d=car?.userData?.modelDiagnostics;
+  const g=window.MechanicCityGLBDiagnostics;
   const r=renderer;
   panel.textContent=d
-    ? "R18 GLB\n"+JSON.stringify({meshes:d.meshes,size:d.size,center:d.center,scale:d.scale,visible:d.visible,loading:d.loading},null,2)
-    : "R18 GLB\n"+JSON.stringify({loading:!!car?.userData?.modelLoading,error:car?.userData?.modelLoadError||null,children:car?.children?.length||0},null,2);
+    ? "R18 GLB\\n"+JSON.stringify({
+        rawGLB:g||null,
+        runtime:{meshes:d.meshes,size:d.size,center:d.center,scale:d.scale,visible:d.visible,loading:d.loading,position:d.position,rotationY:d.rotationY},
+        loadError:window.MechanicCityGLBError||null,
+        modelError:car?.userData?.modelLoadError||null
+      },null,2)
+    : "R18 GLB\\n"+JSON.stringify({
+        rawGLB:g||null,
+        loading:!!car?.userData?.modelLoading,
+        error:window.MechanicCityGLBError||car?.userData?.modelLoadError||null,
+        children:car?.children?.length||0
+      },null,2);
   if(r) panel.textContent+="\nRenderer\n"+JSON.stringify({width:r.domElement.width,height:r.domElement.height,calls:r.info.render.calls,triangles:r.info.render.triangles},null,2);
 }
 
