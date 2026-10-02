@@ -528,28 +528,6 @@ export class RetroCarBuilder {
         // door, then build a solid opaque panel with a proper front hinge.
         // Mask the original GLB door skin so it cannot remain visible
         // underneath the animated replacement.
-        const maskStaticDoor=(mat)=>{
-          const m=mat.clone();
-          m.transparent=false;
-          m.depthWrite=true;
-          const oldCompile=m.onBeforeCompile;
-          m.onBeforeCompile=(shader)=>{
-            if(oldCompile)oldCompile(shader);
-            shader.vertexShader=shader.vertexShader
-              .replace("#include <common>","#include <common>\\nvarying vec3 vDoorLocal;")
-              .replace("#include <begin_vertex>","#include <begin_vertex>\\nvDoorLocal=transformed;");
-            shader.fragmentShader=shader.fragmentShader
-              .replace("#include <common>","#include <common>\\nvarying vec3 vDoorLocal;")
-              .replace("#include <color_fragment>",
-                "bool inDoor = ((vDoorLocal.x <= -0.125) || (vDoorLocal.x >= 0.125)) && abs(vDoorLocal.x) <= 0.215 && vDoorLocal.y >= -0.035 && vDoorLocal.y <= 0.105 && vDoorLocal.z >= -0.34 && vDoorLocal.z <= 0.34;\\nif(inDoor) discard;\\n#include <color_fragment>");
-          };
-          m.needsUpdate=true;
-          return m;
-        };
-        const originalBodyMaterials=Array.isArray(body.material)?body.material:[body.material];
-        body.material=originalBodyMaterials.map(maskStaticDoor);
-        body.userData.staticDoorMasked=true;
-
         const src=body.geometry, pos=src.attributes.position, idx=src.index;
         const triCount=idx ? idx.count/3 : pos.count/3;
         const regions=[[],[]];
@@ -557,20 +535,35 @@ export class RetroCarBuilder {
         const inRegion=(i,side)=>{
           const x=pos.getX(i), y=pos.getY(i), z=pos.getZ(i);
           return (side<0 ? x<=-0.125 : x>=0.125) &&
-            Math.abs(x)<=0.215 &&
-            y>=-0.035 && y<=0.105 &&
-            z>=-0.34 && z<=0.34;
+            Math.abs(x)<=0.205 &&
+            y>=0.000 && y<=0.078 &&
+            z>=-0.18 && z<=0.22;
         };
 
+        const keep=[];
         for(let t=0;t<triCount;t++){
           const ia=idx?idx.getX(t*3):t*3;
           const ib=idx?idx.getX(t*3+1):t*3+1;
           const ic=idx?idx.getX(t*3+2):t*3+2;
+          const left=inRegion(ia,-1)&&inRegion(ib,-1)&&inRegion(ic,-1);
+          const right=inRegion(ia,1)&&inRegion(ib,1)&&inRegion(ic,1);
+          if(!left && !right) keep.push([ia,ib,ic]);
           for(const [n,side] of [[0,-1],[1,1]]){
             if(inRegion(ia,side)&&inRegion(ib,side)&&inRegion(ic,side)){
               regions[n].push([ia,ib,ic]);
             }
           }
+        }
+        if(keep.length){
+          const kept=[];
+          for(const tri of keep){
+            for(const i of tri) kept.push(pos.getX(i),pos.getY(i),pos.getZ(i));
+          }
+          const ng=new THREE.BufferGeometry();
+          ng.setAttribute("position",new THREE.Float32BufferAttribute(kept,3));
+          ng.computeVertexNormals();
+          body.geometry.dispose();
+          body.geometry=ng;
         }
 
         const makeDoor=(tris,side,name)=>{
