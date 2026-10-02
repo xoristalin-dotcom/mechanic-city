@@ -467,15 +467,20 @@ function updateMechanicCityDebug(){
   const d=car?.userData?.modelDiagnostics;
   const g=window.MechanicCityGLBDiagnostics;
   const r=renderer;
+  const webgl=window.MechanicCityWebGL2||null;
   panel.textContent=d
     ? "R18 GLB\\n"+JSON.stringify({
         rawGLB:g||null,
         runtime:{meshes:d.meshes,size:d.size,center:d.center,scale:d.scale,visible:d.visible,loading:d.loading,position:d.position,rotationY:d.rotationY},
+        webgl2:webgl,
+        rendererCreated:!!window.MechanicCityWebGLRendererCreated,
         loadError:window.MechanicCityGLBError||null,
         modelError:car?.userData?.modelLoadError||null
       },null,2)
     : "R18 GLB\\n"+JSON.stringify({
         rawGLB:g||null,
+        webgl2:webgl,
+        rendererCreated:!!window.MechanicCityWebGLRendererCreated,
         loading:!!car?.userData?.modelLoading,
         error:window.MechanicCityGLBError||car?.userData?.modelLoadError||null,
         children:car?.children?.length||0
