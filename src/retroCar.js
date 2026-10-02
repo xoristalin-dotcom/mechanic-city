@@ -567,16 +567,19 @@ export class RetroCarBuilder {
           return;
         }
 
-        // Remove service/display slabs even when the GLB uses an arbitrary
-        // mesh name. Compare the mesh against the measured vehicle bounds:
-        // a platform is broad in X/Z but extremely thin in Y.
+        // Final platform kill-switch: anything that spans most of the car
+        // footprint while sitting very low is not a vehicle body panel.
         if (o.geometry) {
           const bb = new THREE.Box3().setFromObject(o, true);
           const s = bb.getSize(new THREE.Vector3());
-          const broadX = s.x >= bodySize.x * 0.55;
-          const broadZ = s.z >= bodySize.z * 0.55;
-          const thin = s.y <= Math.max(0.16, Math.min(s.x, s.z) * 0.045);
-          if (broadX && broadZ && thin) {
+          const c = bb.getCenter(new THREE.Vector3());
+          const broadFootprint =
+            s.x >= bodySize.x * 0.50 &&
+            s.z >= bodySize.z * 0.50;
+          const lowSlab =
+            c.y < bodyBox.min.y + Math.max(0.28, bodySize.y * 0.12) &&
+            s.y < Math.max(0.45, bodySize.y * 0.10);
+          if (broadFootprint && lowSlab) {
             o.visible = false;
             o.userData.hiddenVehicleStand = true;
             o.userData.hiddenGenericServicePlatform = true;
