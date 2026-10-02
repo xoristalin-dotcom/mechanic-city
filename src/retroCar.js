@@ -163,7 +163,18 @@ export class RetroCarBuilder {
           if (!o.isMesh) return;
           o.castShadow = true;
           o.receiveShadow = true;
-          o.frustumCulled = true;
+          // The authored R18 GLB can contain bounds that are not reliable
+          // after normalization/scene-node articulation. Keep its meshes
+          // in the render list so the authoritative body cannot disappear
+          // because of a stale local bounding sphere.
+          o.frustumCulled = false;
+          if (o.material) {
+            const materials = Array.isArray(o.material) ? o.material : [o.material];
+            for (const material of materials) {
+              if (material && "side" in material) material.side = THREE.FrontSide;
+              if (material) material.needsUpdate = true;
+            }
+          }
           const base = String(o.name || "mesh").replace(/[^a-zA-Z0-9_-]/g, "_") || "mesh";
           const index = counts[base] || 0;
           counts[base] = index + 1;
