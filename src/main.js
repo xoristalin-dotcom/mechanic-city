@@ -460,11 +460,15 @@ async function buildCity(){ forceViewportLayout(); clearJobMarker(); traffic=[];
 
     const attachPlayerCamera=()=>{
       if(!car||!camera)return;
-      // Camera remains a scene child while the authoritative R18 GLB loads.
-      if(camera.parent!==scene)scene.add(camera);
-      camera.position.set(state.posX,5.7,state.posZ-8.6);
-      camera.lookAt(state.posX,1,state.posZ);
+      // The camera is a child of the authoritative player root. This makes
+      // follow mathematically rigid: position and heading can never drift
+      // apart from the car during driving, physics updates, or UI touches.
+      if(camera.parent!==car)car.add(camera);
+      camera.position.set(0,5.7,-8.6);
+      camera.rotation.set(0,0,0);
+      camera.lookAt(0,1.15,0);
       camera.updateMatrixWorld(true);
+      window.MechanicCityCameraAttachedToPlayer=true;
     };
 
     setupCameraControls();
@@ -545,25 +549,22 @@ function updateMechanicCityDebug(){
 function animate(traffic=[]){ if(renderer?.setAnimationLoop && window.MechanicCityAnimationRenderer!==renderer){ window.MechanicCityAnimationRenderer=renderer; renderer.setAnimationLoop(()=>animate(traffic)); return; } if(state.scene!=="city")return; if(!renderer||!scene||!camera)return; const dt=Math.min(clock?.getDelta()||.016,.05); try{ if((state.driving||state.throttle||input.gas)&&state.fuel>0){ physicsDrive(dt); if(state.fuel>0) state.fuel=Math.max(0,state.fuel-dt*(.018+Math.abs(state.speed)*.014)); state.car.oil=Math.max(0,state.car.oil-dt*.004); state.car.coolant=Math.max(0,state.car.coolant-dt*.002); state.heat=Math.min(125,state.heat+dt*(.08+Math.abs(state.speed)*.055)); if(state.car.oil<15||state.car.coolant<15)state.damage=Math.min(100,state.damage+dt*.08); state.car.mileage+=Math.abs(state.speed)*dt*.006; if(state.heat>108)state.damage=Math.min(100,state.damage+dt*.06); for(const npc of traffic){ if(!npc?.position||!car?.position)continue; const d=car.position.distanceTo(npc.position); if(d<2.25&&Math.abs(state.speed)>.35){ state.damage=Math.min(100,state.damage+dt*7); if(chassisBody){ const v=chassisBody.linvel(); chassisBody.setLinvel({x:v.x*.65,y:v.y,z:v.z*.65},true);} msg("⚠️ Столкновение: кузов повреждён."); } } if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();} }
  updateJob(); updateArticulatedCar(dt); updateMechanicCityDebug(); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25;
   // AUTHORITATIVE THIRD-PERSON FOLLOW CAMERA: derive every frame from the player root.
-  if(camera){
-    const up=new THREE.Vector3(0,1,0);
-    const forward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();
+  if(camera&&car){
+    // Camera follows through the player hierarchy. Only the local orbit offset
+    // is changed here; the car's world position/rotation are inherited directly.
+    if(camera.parent!==car)car.add(camera);
     const distance=moving?9.2:8.6;
-    const target=car.position.clone();
-    target.y+=1.15;
     if(cameraMode===2){
-      const desired=car.position.clone().addScaledVector(forward,0.55);
-      desired.y=car.position.y+1.35;
-      camera.position.copy(desired);
-      camera.lookAt(target);
+      camera.position.set(0,1.35,0.55);
     }else{
-      let back=forward.clone().multiplyScalar(-1);
-      back.applyAxisAngle(up,camOrbitYaw);
-      const desired=car.position.clone().addScaledVector(back,distance);
-      desired.y=car.position.y+(moving?5.9:5.6)+Math.sin(camOrbitPitch)*distance*.55;
-      camera.position.copy(desired);
-      camera.lookAt(target);
+      const orbitDistance=Math.max(3,distance);
+      camera.position.set(
+        Math.sin(camOrbitYaw)*orbitDistance,
+        (moving?5.9:5.6)+Math.sin(camOrbitPitch)*orbitDistance*.55,
+        -Math.cos(camOrbitYaw)*orbitDistance
+      );
     }
+    camera.lookAt(0,1.15,0);
     camera.updateMatrixWorld(true);
   }
  for(const npc of traffic){ if(!npc?.position)continue; const travel=dt*(Number(npc.userData?.trafficSpeed)||0)*8; npc.position.z+=travel; for(const w of(npc.userData?.wheels||[])){ if(w?.rotation)w.rotation.x-=travel/.39; } if(npc.position.z>120)npc.position.z=-120; } const cycle=(performance.now()/1000)%12; const green=cycle<6,yellow=cycle>=6&&cycle<7.5; for(const l of trafficLights){ if(!l?.red?.material?.color||!l?.yellow?.material?.color||!l?.green?.material?.color)continue; l.red.material.color.setHex(green?0x220000:yellow?0x220000:0xff0000); l.yellow.material.color.setHex(yellow?0xffb000:0x332600); l.green.material.color.setHex(green?0x00ff44:0x002200); } updateCarDamage(); stats(); }catch(err){ window.MechanicCityLastFrameError=String(err?.message||err); window.MechanicCityDebugLog?.({type:"frame",message:window.MechanicCityLastFrameError,stack:String(err?.stack||"")}); console.error("Mechanic City frame update failed",err);} finally{ try{renderer.render(scene,camera);}catch(err){ window.MechanicCityRenderError=String(err?.message||err); console.error("Mechanic City render failed",err); } }}
