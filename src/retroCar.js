@@ -47,12 +47,20 @@ export class RetroCarBuilder {
     this.carGroup.userData.modelLoading = true;
     this.carGroup.userData.modelSource = "/models/preview.glb";
     this.carGroup.userData.originalGLB = true;
-    this.loadMechanicCityModel().catch((err) => {
+    // Do not parse a multi-megabyte GLB during the same task that creates the
+    // player root. The city must become interactive first; the model is an
+    // enhancement loaded on the next browser task.
+    const startGLBLoad = () => this.loadMechanicCityModel().catch((err) => {
       this.carGroup.visible = false;
       this.carGroup.userData.modelLoading = false;
       this.carGroup.userData.modelLoadError = String(err?.message || err);
       console.error("Mechanic City R18 GLB load failed", err);
     });
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(startGLBLoad, {timeout: 800});
+    } else {
+      window.setTimeout(startGLBLoad, 80);
+    }
   }
 
   async loadMechanicCityModel() {
