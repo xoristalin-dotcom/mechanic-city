@@ -515,138 +515,134 @@ export class RetroCarBuilder {
       // передняя/задняя подвеска, рулевое, тормоза, топливная система и выхлоп.
       this.addFullChallengerMechanicalLayer();
 
-      // Build real animated doors from the original Challenger body meshes.
-      // The R2.1 car splits the painted body across geometry_0..geometry_4.
-      // Extract the same physical door zone from ALL of those meshes so the
-      // moving door keeps its layered panel/detail geometry instead of only
-      // the small center skin from geometry_0.
+      // Build real animated doors from the original Challenger body mesh.
+      // DOOR_*_ANIM are only markers, so use the actual side-panel triangles
+      // just like the real hood above.
       const createDoorAssemblies = () => {
-        const sourceNames = ["geometry_0","geometry_1","geometry_2","geometry_3","geometry_4"];
-        const sources = sourceNames
-          .map(name=>model.getObjectByName(name))
-          .filter(m=>m?.geometry?.attributes?.position);
+        const body = model.getObjectByName("geometry_0");
+        if(!body?.geometry?.attributes?.position) return [];
 
-        if(!sources.length) return [];
+        // Use the ACTUAL Challenger door triangles. Do not approximate the
+        // door with a rectangle/extrusion: the real surface already contains
+        // the correct lower edge, window frame and body contour.
+        const src=body.geometry, pos=src.attributes.position, idx=src.index;
+        const triCount=idx ? idx.count/3 : pos.count/3;
+        const regions=[[],[]];
 
-        const regions = [[],[]];
-        const materials = sourceNames.map(name=>{
-          const s=visualStyles[name] || {color:0xe52a36,metalness:0.34,roughness:0.28};
-          return new THREE.MeshStandardMaterial({
-            color:s.color, metalness:s.metalness, roughness:s.roughness,
-            transparent:false, opacity:1, depthWrite:true, side:THREE.DoubleSide
-          });
-        });
+        const inRegion=(i,side)=>{
+          const x=pos.getX(i), y=pos.getY(i), z=pos.getZ(i);
+          return (side<0 ? x<=-0.125 : x>=0.125) &&
+            Math.abs(x)<=0.205 &&
+            y>=-0.055 && y<=0.112 &&
+            z>=-0.24 && z<=0.24;
+        };
 
-        const sourceParts = sources.map((mesh)=>{
-          const src=mesh.geometry, pos=src.attributes.position, idx=src.index;
-          const triCount=idx ? idx.count/3 : pos.count/3;
-          const keep=[];
-          const doorTris=[[],[]];
+        const keep=[];
+        for(let t=0;t<triCount;t++){
+          const ia=idx?idx.getX(t*3):t*3;
+          const ib=idx?idx.getX(t*3+1):t*3+1;
+          const ic=idx?idx.getX(t*3+2):t*3+2;
 
-          const inRegion=(i,side)=>{
-            const x=pos.getX(i), y=pos.getY(i), z=pos.getZ(i);
-            return (side<0 ? x<=-0.115 : x>=0.115) &&
-              Math.abs(x)<=0.215 &&
-              y>=-0.060 && y<=0.130 &&
-              z>=-0.30 && z<=0.30;
-          };
+          const left=inRegion(ia,-1)&&inRegion(ib,-1)&&inRegion(ic,-1);
+          const right=inRegion(ia,1)&&inRegion(ib,1)&&inRegion(ic,1);
+          if(!left && !right) keep.push([ia,ib,ic]);
 
-          for(let t=0;t<triCount;t++){
-            const ia=idx?idx.getX(t*3):t*3;
-            const ib=idx?idx.getX(t*3+1):t*3+1;
-            const ic=idx?idx.getX(t*3+2):t*3+2;
-            const left=inRegion(ia,-1)&&inRegion(ib,-1)&&inRegion(ic,-1);
-            const right=inRegion(ia,1)&&inRegion(ib,1)&&inRegion(ic,1);
-            if(!left && !right) keep.push([ia,ib,ic]);
-            if(left) doorTris[0].push([ia,ib,ic]);
-            if(right) doorTris[1].push([ia,ib,ic]);
+          if(left) regions[0].push([ia,ib,ic]);
+          if(right) regions[1].push([ia,ib,ic]);
+        }
+
+        if(keep.length){
+          const kept=[];
+          for(const tri of keep){
+            for(const i of tri) kept.push(pos.getX(i),pos.getY(i),pos.getZ(i));
           }
+          const ng=new THREE.BufferGeometry();
+          ng.setAttribute("position",new THREE.Float32BufferAttribute(kept,3));
+          ng.computeVertexNormals();
+          body.geometry.dispose();
+          body.geometry=ng;
+        }
 
-          return {mesh,src,pos,keep,doorTris};
-        });
+        const makeDoor=(tris,side,name)=>{
+          if(!tris.length)return null;
 
-        const buildGeometry=(part,tris)=>{
-          const out=[];
+          // Copy the exact source triangles, so the door silhouette follows
+          // the Challenger body instead of becoming a square panel.
+          const raw=[];
           for(const [a,b,c] of tris){
-            for(const i of [a,b,c]) out.push(
-              part.pos.getX(i),part.pos.getY(i),part.pos.getZ(i)
-            );
-          }
-          const g=new THREE.BufferGeometry();
-          g.setAttribute("position",new THREE.Float32BufferAttribute(out,3));
-          g.computeVertexNormals();
-          g.computeBoundingBox();
-          g.computeBoundingSphere();
-          return g;
-        };
-
-        const worldPoint=(part,i)=>{
-          return new THREE.Vector3(
-            part.pos.getX(i),
-            part.pos.getY(i),
-            part.pos.getZ(i)
-          ).applyMatrix4(part.mesh.matrix);
-        };
-
-        const result=[];
-        for(let sideIndex=0;sideIndex<2;sideIndex++){
-          const side=sideIndex===0?-1:1;
-          const parts=sourceParts.filter(p=>p.doorTris[sideIndex].length);
-          if(!parts.length) continue;
-
-          // Remove the extracted triangles from every painted source mesh so
-          // the static body does not duplicate the moving door.
-          for(const part of parts){
-            const kept=buildGeometry(part,part.keep);
-            part.mesh.geometry.dispose();
-            part.mesh.geometry=kept;
-          }
-
-          // Calculate the hinge from the combined real door bounds.
-          const box=new THREE.Box3();
-          for(const part of parts){
-            for(const tri of part.doorTris[sideIndex]){
-              for(const i of tri) box.expandByPoint(worldPoint(part.mesh,i));
+            for(const i of [a,b,c]){
+              raw.push(pos.getX(i),pos.getY(i),pos.getZ(i));
             }
           }
-          if(box.isEmpty()) continue;
 
+          const geo=new THREE.BufferGeometry();
+          geo.setAttribute("position",new THREE.Float32BufferAttribute(raw,3));
+          geo.computeVertexNormals();
+
+          const bp=geo.attributes.position;
+          for(let i=0;i<bp.count;i++){
+            const v=new THREE.Vector3(bp.getX(i),bp.getY(i),bp.getZ(i)).applyMatrix4(model.matrix);
+            bp.setXYZ(i,v.x,v.y,v.z);
+          }
+          bp.needsUpdate=true;
+          geo.computeBoundingBox();
+          geo.computeBoundingSphere();
+
+          const b=geo.boundingBox;
+          if(!b)return null;
+
+          const doorMat=new THREE.MeshStandardMaterial({
+            color:0xe52a36, metalness:0.34, roughness:0.28,
+            transparent:false, opacity:1, depthWrite:true,
+            side:THREE.DoubleSide
+          });
+
+          const mesh=new THREE.Mesh(geo,doorMat);
+          mesh.name=name+"_RealDoor";
+          mesh.castShadow=true;
+          mesh.receiveShadow=true;
+
+          // Hinge at the front edge of the actual extracted door.
           const hinge=new THREE.Vector3(
-            side<0 ? box.min.x : box.max.x,
-            box.min.y+(box.max.y-box.min.y)*0.08,
-            box.max.z-0.015
+            side<0 ? b.min.x : b.max.x,
+            b.min.y+(b.max.y-b.min.y)*0.08,
+            b.max.z-0.015
           );
 
           const pivot=new THREE.Object3D();
-          pivot.name=side<0?"Door_Left_Hinge":"Door_Right_Hinge";
+          pivot.name=name+"_Hinge";
           pivot.userData.isVehicleDoor=true;
           pivot.position.copy(hinge);
           this.carGroup.add(pivot);
 
-          const meshes=[];
-          for(const part of parts){
-            const geo=buildGeometry(part,part.doorTris[sideIndex]);
-            const p=geo.attributes.position;
-            for(let i=0;i<p.count;i++){
-              const v=new THREE.Vector3(p.getX(i),p.getY(i),p.getZ(i))
-                .applyMatrix4(part.mesh.matrix);
-              p.setXYZ(i,v.x-hinge.x,v.y-hinge.y,v.z-hinge.z);
-            }
-            p.needsUpdate=true;
-            geo.computeVertexNormals();
-            geo.computeBoundingBox();
-            geo.computeBoundingSphere();
-
-            const materialIndex=Math.max(0,sourceNames.indexOf(part.mesh.name));
-            const mesh=new THREE.Mesh(geo,materials[materialIndex]);
-            mesh.name=(side<0?"Door_Left_":"Door_Right_")+part.mesh.name+"_RealDetail";
-            mesh.castShadow=true;
-            mesh.receiveShadow=true;
-            pivot.add(mesh);
-            meshes.push(mesh);
+          const hp=geo.attributes.position;
+          for(let i=0;i<hp.count;i++){
+            hp.setXYZ(i,hp.getX(i)-hinge.x,hp.getY(i)-hinge.y,hp.getZ(i)-hinge.z);
           }
+          hp.needsUpdate=true;
+          geo.computeBoundingBox();
+          geo.computeBoundingSphere();
+          pivot.add(mesh);
 
-          // Keep the real side-window glass attached to the same hinge.
+          // Find the opening direction from the actual door center.
+          const center=new THREE.Vector3(
+            (b.min.x+b.max.x)*0.5-hinge.x,
+            (b.min.y+b.max.y)*0.5-hinge.y,
+            (b.min.z+b.max.z)*0.5-hinge.z
+          );
+          const plus=center.clone().applyAxisAngle(new THREE.Vector3(0,1,0),0.8);
+          const minus=center.clone().applyAxisAngle(new THREE.Vector3(0,1,0),-0.8);
+          const plusOut=side<0 ? -plus.x : plus.x;
+          const minusOut=side<0 ? -minus.x : minus.x;
+          const openSign=plusOut>=minusOut ? 1 : -1;
+
+          // Do not add a rectangular inner panel here. The real door skin and
+          // the real window geometry must remain visible; a BoxGeometry backing
+          // creates the square object behind the door when it opens.
+
+          // Move the REAL side-window glass with the door. geometry_6 contains
+          // all Challenger glass; only the side-window triangles in the door
+          // zone are detached, while windshield/rear glass stays on the body.
           const glassBody=model.getObjectByName("geometry_6");
           if(glassBody?.geometry?.attributes?.position){
             const gs=glassBody.geometry, gp=gs.attributes.position, gi=gs.index;
@@ -655,9 +651,9 @@ export class RetroCarBuilder {
             const inDoorGlass=(i)=>{
               const x=gp.getX(i), y=gp.getY(i), z=gp.getZ(i);
               return (side<0 ? x<=-0.095 : x>=0.095) &&
-                Math.abs(x)<=0.215 &&
-                y>=0.050 && y<=0.135 &&
-                z>=-0.24 && z<=0.30;
+                Math.abs(x)<=0.205 &&
+                y>=0.055 && y<=0.125 &&
+                z>=-0.18 && z<=0.22;
             };
             for(let t=0;t<gTriCount;t++){
               const a=gi?gi.getX(t*3):t*3;
@@ -681,38 +677,31 @@ export class RetroCarBuilder {
               const doorGlassGeo=buildGlass(glassDoor);
               const p=doorGlassGeo.attributes.position;
               for(let i=0;i<p.count;i++){
-                const v=new THREE.Vector3(p.getX(i),p.getY(i),p.getZ(i))
-                  .applyMatrix4(model.matrix);
+                const v=new THREE.Vector3(p.getX(i),p.getY(i),p.getZ(i)).applyMatrix4(model.matrix);
                 p.setXYZ(i,v.x-hinge.x,v.y-hinge.y,v.z-hinge.z);
               }
               p.needsUpdate=true;
               doorGlassGeo.computeVertexNormals();
-              const doorGlass=new THREE.Mesh(
-                doorGlassGeo,
-                new THREE.MeshStandardMaterial({
-                  color:0x101b20, metalness:0.05, roughness:0.16,
-                  transparent:false, opacity:1, depthWrite:true, side:THREE.DoubleSide
-                })
-              );
-              doorGlass.name=(side<0?"Door_Left":"Door_Right")+"_RealWindowGlass";
+              const glassMat=new THREE.MeshStandardMaterial({
+                color:0x101b20, metalness:0.05, roughness:0.16,
+                transparent:false, opacity:1, depthWrite:true,
+                side:THREE.DoubleSide
+              });
+              const doorGlass=new THREE.Mesh(doorGlassGeo,glassMat);
+              doorGlass.name=name+"_RealWindowGlass";
               doorGlass.castShadow=false;
               doorGlass.receiveShadow=true;
               pivot.add(doorGlass);
             }
           }
 
-          // Find the opening direction from the combined real door center.
-          const center=box.getCenter(new THREE.Vector3()).sub(hinge);
-          const plus=center.clone().applyAxisAngle(new THREE.Vector3(0,1,0),0.8);
-          const minus=center.clone().applyAxisAngle(new THREE.Vector3(0,1,0),-0.8);
-          const plusOut=side<0 ? -plus.x : plus.x;
-          const minusOut=side<0 ? -minus.x : minus.x;
-          const openSign=plusOut>=minusOut ? 1 : -1;
+          return {pivot,open:0,openSign,axis:"y",maxAngle:1.08};
+        };
 
-          return {pivot,open:0,openSign,axis:"y",maxAngle:1.08,meshes};
-        }
-
-        return result;
+        return [
+          makeDoor(regions[0],-1,"Door_Left"),
+          makeDoor(regions[1],1,"Door_Right")
+        ].filter(Boolean);
       };
       // The *_ANIM nodes are only markers. Use the ACTUAL hood surface
       // from geometry_0: copy its real triangles, remove those triangles from
