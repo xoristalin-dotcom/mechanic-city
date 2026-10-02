@@ -558,9 +558,9 @@ function animate(traffic=[]){ if(renderer?.setAnimationLoop && window.MechanicCi
       camera.lookAt(target);
     }else{
       let back=forward.clone().multiplyScalar(-1);
-      if(cameraMode===1) back.applyAxisAngle(up,camOrbitYaw);
+      back.applyAxisAngle(up,camOrbitYaw);
       const desired=car.position.clone().addScaledVector(back,distance);
-      desired.y=car.position.y+(moving?5.9:5.6)+(cameraMode===1?Math.sin(camOrbitPitch)*distance*.55:0);
+      desired.y=car.position.y+(moving?5.9:5.6)+Math.sin(camOrbitPitch)*distance*.55;
       camera.position.copy(desired);
       camera.lookAt(target);
     }
@@ -612,7 +612,10 @@ function setupCameraControls(){
     input.left=false;input.right=false;
     publishControl();
   };
-  const end=()=>{
+  const end=e=>{
+    if(activeId!==null&&e?.pointerId!=null&&el.hasPointerCapture?.(e.pointerId)){
+      try{el.releasePointerCapture(e.pointerId);}catch{}
+    }
     camDragging=false;activeId=null;camLastX=0;camLastY=0;
     releaseSteer();
     gestureMode="pending";
@@ -625,11 +628,13 @@ function setupCameraControls(){
     camLastX=e.clientX;camLastY=e.clientY;
     gestureStartX=e.clientX;gestureStartY=e.clientY;
     gestureMode="pending";
+    if(e.pointerId!=null&&el.setPointerCapture){
+      try{el.setPointerCapture(e.pointerId);}catch{}
+    }
     if(e.cancelable)e.preventDefault();
   };
   const move=e=>{
     if(!camDragging)return;
-    if(isUiTarget(e))return;
     if(activeId!==null&&e.pointerId!=null&&e.pointerId!==activeId)return;
     if(e.cancelable)e.preventDefault();
     const dx=e.clientX-gestureStartX,dy=e.clientY-gestureStartY;
