@@ -341,15 +341,10 @@ async function buildCity(){ clearJobMarker(); traffic=[]; trafficLights=[]; smok
 
     const attachPlayerCamera=()=>{
       if(!car||!camera)return;
-      if(cameraRig?.parent!==car){
-        cameraRig=new THREE.Object3D();
-        cameraRig.name="ThirdPersonCameraRig";
-        car.add(cameraRig);
-      }
-      cameraRig.position.set(0,0,0);
-      if(camera.parent!==cameraRig)cameraRig.add(camera);
-      camera.position.set(0,5.7,-8.6);
-      camera.rotation.set(Math.atan2(5.7-1,8.6),Math.PI,0);
+      // Camera remains a scene child while the authoritative R18 GLB loads.
+      if(camera.parent!==scene)scene.add(camera);
+      camera.position.set(state.posX,5.7,state.posZ-8.6);
+      camera.lookAt(state.posX,1,state.posZ);
       camera.updateMatrixWorld(true);
     };
 
@@ -366,35 +361,26 @@ async function buildCity(){ clearJobMarker(); traffic=[]; trafficLights=[]; smok
     for(let i=0;i<9;i++){ const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4],false); npc.scale.setScalar(.86); npc.position.set((i%4)*13-19,0,-12-i*18); npc.userData.speed=1.4+(i%3)*.35; npc.rotation.y=Math.PI; scene.add(npc); traffic.push(npc); } createJobMarker(); }catch(err){window.MechanicCityBuildError=String(err?.message||err); window.MechanicCityDebugLog?.({type:"city-build",message:String(err?.message||err),stack:String(err?.stack||"")}); console.error("City build failed",err); renderEmergencyScene();}}
 function animate(traffic=[]){ requestAnimationFrame(()=>animate(traffic)); if(state.scene!=="city")return; if(!renderer||!scene||!camera)return; const dt=Math.min(clock?.getDelta()||.016,.05); try{ if((state.driving||state.throttle||input.gas)&&state.fuel>0){ physicsDrive(dt); if(state.fuel>0) state.fuel=Math.max(0,state.fuel-dt*(.018+Math.abs(state.speed)*.014)); state.car.oil=Math.max(0,state.car.oil-dt*.004); state.car.coolant=Math.max(0,state.car.coolant-dt*.002); state.heat=Math.min(125,state.heat+dt*(.08+Math.abs(state.speed)*.055)); if(state.car.oil<15||state.car.coolant<15)state.damage=Math.min(100,state.damage+dt*.08); state.car.mileage+=Math.abs(state.speed)*dt*.006; if(state.heat>108)state.damage=Math.min(100,state.damage+dt*.06); for(const npc of traffic){ if(!npc?.position||!car?.position)continue; const d=car.position.distanceTo(npc.position); if(d<2.25&&Math.abs(state.speed)>.35){ state.damage=Math.min(100,state.damage+dt*7); if(chassisBody){ const v=chassisBody.linvel(); chassisBody.setLinvel({x:v.x*.65,y:v.y,z:v.z*.65},true);} msg("⚠️ Столкновение: кузов повреждён."); } } if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();} }
  updateJob(); updateArticulatedCar(dt); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25;
-  // HARD CAMERA FOLLOW: camera is re-attached to the CURRENT player car.
-// This also survives any later car replacement.
-if(car){
-  if(!cameraRig || cameraRig.parent!==car){
-    cameraRig=new THREE.Object3D();
-    cameraRig.name="ThirdPersonCameraRig";
-    car.add(cameraRig);
-  }
-  if(camera.parent!==cameraRig) cameraRig.add(camera);
-
-  cameraRig.position.set(0,0,0);
-  cameraRig.rotation.set(0,camOrbitYaw,0);
-
-  if(cameraMode===2){
-    camera.position.set(0,1.35,.55);
-    camera.rotation.set(-0.03,Math.PI,0);
-  }else{
+  // HARD CAMERA FOLLOW: keep the camera independent from the loading GLB root.
+  // This prevents an invisible/loading vehicle from affecting the render camera.
+  if(camera){
+    if(camera.parent!==scene)scene.add(camera);
     const distance=moving?9.4:8.6;
     const height=(moving?6.1:5.7)+Math.sin(camOrbitPitch)*distance*.55;
-    const z=-Math.max(1.2,Math.cos(camOrbitPitch)*distance);
-    camera.position.set(0,height,z);
-    camera.rotation.set(
-      Math.atan2(height-1.0,Math.abs(z)+2.4),
-      Math.PI,
-      0
-    );
+    const yaw=state.heading+camOrbitYaw;
+    if(cameraMode===2){
+      const hoodOffset=new THREE.Vector3(0,1.35,.55);
+      hoodOffset.applyAxisAngle(new THREE.Vector3(0,1,0),state.heading);
+      camera.position.copy(car.position).add(hoodOffset);
+      camera.lookAt(car.position.x,1.05,car.position.z);
+    }else{
+      const back=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));
+      camera.position.copy(car.position).addScaledVector(back,Math.max(1.2,Math.cos(camOrbitPitch)*distance));
+      camera.position.y+=height;
+      camera.lookAt(car.position.x,1.0,car.position.z);
+    }
+    camera.updateMatrixWorld(true);
   }
-  camera.updateMatrixWorld(true);
-}
  for(const npc of traffic){ if(!npc?.position)continue; const travel=dt*(Number(npc.userData?.trafficSpeed)||0)*8; npc.position.z+=travel; for(const w of(npc.userData?.wheels||[])){ if(w?.rotation)w.rotation.x-=travel/.39; } if(npc.position.z>120)npc.position.z=-120; } const cycle=(performance.now()/1000)%12; const green=cycle<6,yellow=cycle>=6&&cycle<7.5; for(const l of trafficLights){ if(!l?.red?.material?.color||!l?.yellow?.material?.color||!l?.green?.material?.color)continue; l.red.material.color.setHex(green?0x220000:yellow?0x220000:0xff0000); l.yellow.material.color.setHex(yellow?0xffb000:0x332600); l.green.material.color.setHex(green?0x00ff44:0x002200); } updateCarDamage(); stats(); }catch(err){ window.MechanicCityLastFrameError=String(err?.message||err); window.MechanicCityDebugLog?.({type:"frame",message:window.MechanicCityLastFrameError,stack:String(err?.stack||"")}); console.error("Mechanic City frame update failed",err);} finally{ try{renderer.render(scene,camera);}catch(err){ window.MechanicCityRenderError=String(err?.message||err); console.error("Mechanic City render failed",err); } }}
 function teleportToMapCenter(){
   if(state.scene!=="city"||!car){msg("🎯 Телепорт доступен в городе.");return;}
