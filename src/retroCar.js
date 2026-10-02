@@ -710,6 +710,74 @@ export class RetroCarBuilder {
         }
       });
 
+      // Remove an embedded low service/display slab even when the exporter merged it
+      // into one of geometry_0..geometry_6. Only triangles whose three vertices are
+      // below the wheel-contact region are candidates; the car body remains intact.
+      const stripEmbeddedLowSlab = (mesh) => {
+        if (!mesh?.isMesh || !mesh.geometry?.attributes?.position) return;
+        const position = mesh.geometry.attributes.position;
+        const index = mesh.geometry.index;
+        const triangleCount = index ? Math.floor(index.count / 3) : Math.floor(position.count / 3);
+        if (triangleCount < 12) return;
+        const keep = [];
+        let removed = 0;
+        const v = (i) => {
+          const p = index ? index.getX(i) : i;
+          return new THREE.Vector3().fromBufferAttribute(position, p);
+        };
+        // R2.1 is normalized from the body floor to y=0. A display/service slab
+        // is flat and lives below the wheel center; use a conservative threshold.
+        const lowY = Math.min(0.34, wheelRadius * 0.92);
+        for (let t = 0; t < triangleCount; t++) {
+          const a = v(t * 3), b = v(t * 3 + 1), d = v(t * 3 + 2);
+          const minY = Math.min(a.y, b.y, d.y);
+          const maxY = Math.max(a.y, b.y, d.y);
+          const minX = Math.min(a.x, b.x, d.x);
+          const maxX = Math.max(a.x, b.x, d.x);
+          const minZ = Math.min(a.z, b.z, d.z);
+          const maxZ = Math.max(a.z, b.z, d.z);
+          const horizontal = Math.max(maxX - minX, maxZ - minZ);
+          const flat = (maxY - minY) < 0.045;
+          const low = maxY <= lowY;
+          // Tiny triangles belonging to tires/underside are preserved. The slab
+          // consists of a large population of low, nearly coplanar triangles.
+          const slabTriangle = low && flat && horizontal < 1.8;
+          if (slabTriangle) {
+            removed++;
+            continue;
+          }
+          if (index) {
+            keep.push(index.getX(t * 3), index.getX(t * 3 + 1), index.getX(t * 3 + 2));
+          } else {
+            keep.push(t * 3, t * 3 + 1, t * 3 + 2);
+          }
+        }
+        if (removed < 12 || removed / triangleCount > 0.55) return;
+        const next = new THREE.BufferGeometry();
+        for (const name of Object.keys(mesh.geometry.attributes)) {
+          if (name === "position") continue;
+          next.setAttribute(name, mesh.geometry.attributes[name].clone());
+        }
+        const pos = new THREE.BufferAttribute(new Float32Array(keep.length * 3), 3);
+        for (let i = 0; i < keep.length; i++) {
+          const src = keep[i];
+          pos.setX(i, position.getX(src));
+          pos.setY(i, position.getY(src));
+          pos.setZ(i, position.getZ(src));
+        }
+        next.setAttribute("position", pos);
+        next.computeVertexNormals();
+        next.computeBoundingBox();
+        next.computeBoundingSphere();
+        mesh.geometry = next;
+        mesh.userData.removedEmbeddedVehicleSlabTriangles = removed;
+      };
+
+      for (let i = 0; i <= 6; i++) {
+        const mesh = model.getObjectByName("geometry_" + i);
+        if (mesh?.isMesh) stripEmbeddedLowSlab(mesh);
+      }
+
       // FINAL vehicle-stand purge. The GLB visibility pass above can re-enable
       // meshes that were hidden by the earlier name/geometry filters. Run this
       // after ALL R2.1 visual styling and keep the guard available to main.js
