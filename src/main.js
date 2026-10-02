@@ -356,7 +356,21 @@ function syncRendererSize(){
 function buildWorkshop(){ stop(); clearJobMarker(); traffic=[]; trafficLights=[]; smoke=[]; rainDrops=[]; scene=new THREE.Scene(); scene.background=new THREE.Color(0x1a1d20); camera=new THREE.PerspectiveCamera(52,getViewportSize().w/getViewportSize().h,.1,120); viewport.innerHTML=""; const probe=document.createElement("canvas"); renderer=new THREE.WebGLRenderer({canvas:probe,antialias:false,alpha:false,preserveDrawingBuffer:false,powerPreference:"high-performance"}); renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5)); renderer.setSize(getViewportSize().w,getViewportSize().h,false); renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFShadowMap; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.12; renderer.domElement.style.width="100%"; renderer.domElement.style.height="100%"; renderer.domElement.style.display="block"; viewport.appendChild(renderer.domElement); setupCameraControls(); const hemi=new THREE.HemisphereLight(0xb9c9d8,0x16181a,1.35); scene.add(hemi); const key=new THREE.DirectionalLight(0xffffff,2.1); key.position.set(5,10,-7); key.castShadow=true; key.shadow.mapSize.set(1024,1024); scene.add(key); const floor=new THREE.Mesh(new THREE.PlaneGeometry(80,60),new THREE.MeshStandardMaterial({color:0x4a4a47,roughness:.98,map:sidewalkTex})); floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; scene.add(floor); car=createRetroPlayerCar(); car.position.set(0,0.02,0); car.rotation.y=0; scene.add(car); car.userData.workshopMode=true; Promise.resolve().then(()=>{ if(!car?.userData?.serviceParts)return; car.userData.workshopDisassembled=false; syncCarPartsFromCatalog(car,state); msg("🔧 Машина стоит прямо на полу мастерской. Нажми на деталь, чтобы открыть её обслуживание."); }).catch(err=>window.MechanicCityDebugLog?.({type:"workshop-load",message:String(err?.message||err)})); const label=document.createElement("div"); label.className="workshop-hud"; label.innerHTML="<div><b>МАСТЕРСКАЯ</b><span>Автомобиль собран. Выбери деталь для обслуживания.</span></div>"; viewport.appendChild(label); clock=new THREE.Clock(); const loop=()=>{ if(state.scene!=="workshop"||!renderer||!scene||!camera)return; requestAnimationFrame(loop); const dt=Math.min(clock.getDelta(),.05); updateArticulatedCar(dt); const box=car?new THREE.Box3().setFromObject(car,true):null; const center=box?.getCenter(new THREE.Vector3())||new THREE.Vector3(0,1,0); const size=box?.getSize(new THREE.Vector3())||new THREE.Vector3(5,1.5,5); const radius=Math.max(size.x,size.y,size.z); const inspectionDistance=Math.max(2.8,radius*.62); const desired=new THREE.Vector3(center.x+inspectionDistance*.78,center.y+inspectionDistance*.62,center.z+inspectionDistance*.78); camera.position.lerp(desired,.16); camera.lookAt(center); renderer.render(scene,camera); updateMechanicCityDebug(); }; loop(); }
 async function buildCity(){ forceViewportLayout(); clearJobMarker(); traffic=[]; trafficLights=[]; smoke=[]; rainDrops=[]; scene=new THREE.Scene(); const night=state.time<6||state.time>=20,evening=state.time>=18&&state.time<20; scene.background=new THREE.Color(night?0x0b1220:0xc9d9e8); viewport.innerHTML=""; try{ const initialSize=getViewportSize(); camera=new THREE.PerspectiveCamera(58,initialSize.w/initialSize.h,.1,260); camera.position.set(state.posX,5.8,state.posZ-8.6); camera.lookAt(state.posX,1,state.posZ); const probe=document.createElement("canvas"); probe.width=initialSize.w; probe.height=initialSize.h; renderer=new THREE.WebGLRenderer({canvas:probe,antialias:false,alpha:false,preserveDrawingBuffer:false,powerPreference:"high-performance"}); renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5)); renderer.setSize(initialSize.w,initialSize.h,false); renderer.setClearColor(night?0x0b1220:0xc9d9e8,1); renderer.autoClear=true; renderer.autoClearColor=true; renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFShadowMap; renderer.shadowMap.autoUpdate=true; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.22; renderer.domElement.style.display="block"; renderer.domElement.style.width="100%"; renderer.domElement.style.height="100%"; viewport.appendChild(renderer.domElement); const gl=renderer.getContext(); window.MechanicCityWebGL={ok:true,version:gl.getParameter(gl.VERSION),renderer:gl.getParameter(gl.RENDERER)}; renderer.domElement.addEventListener("webglcontextlost",(event)=>{event.preventDefault();console.warn("WebGL context lost");msg("⚠️ Графика временно потеряла связь");},false); renderer.domElement.addEventListener("webglcontextrestored",()=>{console.info("WebGL context restored");try{syncRendererSize();}catch{}}); renderer.render(scene,camera); }catch(err){ renderer=null; window.MechanicCityWebGLError={message:String(err?.message||err),stack:String(err?.stack||""),name:String(err?.name||"Error")}; console.error("WebGL renderer/render failed",err); viewport.innerHTML="<div class='graphics-error'><b>3D-графика не запустилась</b><span>"+String(err?.message||err)+"</span></div>"; return; }
    const hemi=new THREE.HemisphereLight(night?0x5d6f8d:0xbdd6e8,0x283029,night?.8:1.35); scene.add(hemi); const sun=new THREE.DirectionalLight(night?0x7d91b8:0xffead0,night?.65:2.6); sun.position.set(-10,20,-5); scene.add(sun); const groundMat=new THREE.MeshStandardMaterial({color:0x50534f,roughness:.96,map:sidewalkTex}); const ground=new THREE.Mesh(new THREE.PlaneGeometry(220,220),groundMat); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground); for(const z of[-70,-35,0,35,70])for(const side of[-1,1]){ for(let k=-3;k<=3;k++){ const stripe=new THREE.Mesh(new THREE.BoxGeometry(7,.025,.34),new THREE.MeshBasicMaterial({color:0xd9d7cc})); stripe.position.set(side*(k*12),0.03,z); scene.add(stripe); } } for(let x=-39;x<=39;x+=13)for(const z of[-48,48]){ const pole=new THREE.Mesh(new THREE.CylinderGeometry(.045,.07,3.8,8),new THREE.MeshStandardMaterial({color:0x22262a,metalness:.4,roughness:.55, map:metalTex})); pole.position.set(x,1.9,z); scene.add(pole); const lightBulb=new THREE.Mesh(new THREE.BoxGeometry(.12,.12,.12), new THREE.MeshStandardMaterial({color:0xfff7d1, emissive:0xffb000, emissiveIntensity:0.7})); lightBulb.position.set(x,3.8,z); scene.add(lightBulb); }
-  addBuilding(-32,-24,14,11,10,0x6f7a82); addBuilding(30,-15,18,15,12,0x7b6f63); addBuilding(14,32,16,12,11,0x5e6d7a); addBuilding(-20,34,15,17,12,0x5d6667); addStreetProps(); try{
+  // World decoration must never be able to kill the city render.
+  // Keep the ground/camera alive even if one optional prop has a bad asset/material.
+  try{
+    addBuilding(-32,-24,14,11,10,0x6f7a82);
+    addBuilding(30,-15,18,15,12,0x7b6f63);
+    addBuilding(14,32,16,12,11,0x5e6d7a);
+    addBuilding(-20,34,15,17,12,0x5d6667);
+    addStreetProps();
+  }catch(err){
+    window.MechanicCityWorldPropsError=String(err?.message||err);
+    window.MechanicCityDebugLog?.({type:"world-props",message:String(err?.message||err),stack:String(err?.stack||"")});
+    console.warn("Optional city props failed; keeping core city alive.",err);
+  }
+  // Player setup is independent from decorative props and always gets a chance to run.
+  try{
     // Create exactly one persistent player root first. The visual Challenger GLB
     // loads asynchronously INSIDE this root, so the camera never binds to a
     // temporary/procedural car object.
@@ -384,7 +398,43 @@ async function buildCity(){ forceViewportLayout(); clearJobMarker(); traffic=[];
     animate(traffic);
     setupVehiclePhysics().catch(err=>{window.MechanicCityDebugLog?.({type:"physics-async",message:String(err?.message||err),stack:String(err?.stack||"")}); console.warn("Async Rapier setup failed; fallback driving remains active.",err);});
 
-    for(let i=0;i<9;i++){ const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4],false); npc.scale.setScalar(.86); npc.position.set((i%4)*13-19,0,-12-i*18); npc.userData.speed=1.4+(i%3)*.35; npc.rotation.y=Math.PI; scene.add(npc); traffic.push(npc); } createJobMarker(); }catch(err){window.MechanicCityBuildError=String(err?.message||err); window.MechanicCityDebugLog?.({type:"city-build",message:String(err?.message||err),stack:String(err?.stack||"")}); console.error("City build failed",err); renderEmergencyScene();}}
+    for(let i=0;i<9;i++){ const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4],false); npc.scale.setScalar(.86); npc.position.set((i%4)*13-19,0,-12-i*18); npc.userData.speed=1.4+(i%3)*.35; npc.rotation.y=Math.PI; scene.add(npc); traffic.push(npc); } createJobMarker();
+  }catch(err){
+    window.MechanicCityBuildError=String(err?.message||err);
+    window.MechanicCityDebugLog?.({type:"city-build",message:String(err?.message||err),stack:String(err?.stack||"")});
+    console.error("Player/city setup failed",err);
+    // Do not replace the already-renderable city with the old gray emergency scene.
+    // Keep the renderer, ground, lighting and any successfully-created world objects.
+    if(renderer&&scene&&camera){
+      try{
+        const fallback=new THREE.Group();
+        fallback.name="MechanicCity_PlayerFallback";
+        const body=new THREE.Mesh(
+          new RoundedBoxGeometry(2.7,.65,4.8,5,.12),
+          new THREE.MeshStandardMaterial({color:0xc91f2d,metalness:.45,roughness:.3})
+        );
+        body.position.y=.65;
+        fallback.add(body);
+        const cabin=new THREE.Mesh(
+          new RoundedBoxGeometry(2.15,.75,2.15,5,.12),
+          new THREE.MeshStandardMaterial({color:0x17262d,metalness:.15,roughness:.2})
+        );
+        cabin.position.set(0,1.15,.2);
+        fallback.add(cabin);
+        fallback.position.set(state.posX,0,state.posZ);
+        scene.add(fallback);
+        car=fallback;
+        camera.position.set(state.posX,5.7,state.posZ-8.6);
+        camera.lookAt(state.posX,1,state.posZ);
+        renderer.render(scene,camera);
+        animate(traffic);
+      }catch(fallbackErr){
+        window.MechanicCityFallbackError=String(fallbackErr?.message||fallbackErr);
+        console.error("City fallback failed",fallbackErr);
+      }
+    }
+  }
+}
 function updateMechanicCityDebug(){
   if(!window.location.search.includes("debug=1")) return;
   let panel=document.getElementById("mechanic-debug");
