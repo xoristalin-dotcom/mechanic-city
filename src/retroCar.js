@@ -301,7 +301,45 @@ export class RetroCarBuilder {
           const n = String(o.name).toLowerCase();
           const side = /left|(^|[_-])(l|fl|rl)([_-]|$)/.test(n) ? -1 : 1;
           const front = !/rear|rl|rr|back/.test(n);
-          return makeDoor(o, side, front);
+
+          // Keep the complete visible door assembly together. Some R18 exports
+          // put the window/glass as a sibling of the door mesh instead of a
+          // child. If that sibling stays under the car root it looks like a
+          // square rear window left behind when the door opens.
+          const doorBox = worldBox(o);
+          const doorSize = doorBox.getSize(new THREE.Vector3());
+          const expanded = doorBox.clone();
+          expanded.min.addScaledVector(doorSize, -0.08);
+          expanded.max.addScaledVector(doorSize, 0.08);
+          const companions = [];
+          model.traverse(candidate => {
+            if (candidate === o || !candidate.isMesh || !candidate.name) return;
+            const cn = String(candidate.name).toLowerCase();
+            if (!/glass|window|windowpane|sideglass|doorwindow/.test(cn)) return;
+            if (/windshield|windscreen|rearwindow|backglass|back_window/.test(cn)) return;
+            const cb = worldBox(candidate);
+            const cc = cb.getCenter(new THREE.Vector3());
+            const cs = cb.getSize(new THREE.Vector3());
+            // A door window must overlap the door's lateral/vertical envelope
+            // and have its center close to the door center. This deliberately
+            // avoids grabbing the fixed windshield or rear cabin glass.
+            const centerClose =
+              Math.abs(cc.y - doorBox.getCenter(new THREE.Vector3()).y) <= Math.max(doorSize.y * 0.72, 0.45) &&
+              Math.abs(cc.x - doorBox.getCenter(new THREE.Vector3()).x) <= Math.max(doorSize.x * 0.72, 0.8) &&
+              Math.abs(cc.z - doorBox.getCenter(new THREE.Vector3()).z) <= Math.max(doorSize.z * 0.72, 0.8);
+            if (centerClose && cb.intersectsBox(expanded)) companions.push(candidate);
+          });
+
+          const articulation = makeDoor(o, side, front);
+          if (!articulation) return null;
+          articulation.source = o.name;
+          articulation.companions = companions;
+          for (const companion of companions) {
+            // Attach to the same hinge pivot while preserving its current world
+            // transform. Three.js attach() is intended for exactly this use.
+            articulation.pivot.attach(companion);
+          }
+          return articulation;
         }).filter(Boolean);
         const hoodNode = findTopLevel(/hood|bonnet/i)[0] || null;
         const trunkNode = findTopLevel(/trunk|boot/i)[0] || null;
