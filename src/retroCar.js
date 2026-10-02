@@ -954,12 +954,8 @@ export class RetroCarBuilder {
       this.carGroup.add(engineBay);
       this.carGroup.userData.engineBay=engineBay;
 
-      // Полный механический слой Challenger: двигатель уже в моторном отсеке,
-      // остальные узлы собраны в общей системе координат автомобиля.
-      this.addFullChallengerMechanicalLayer();
-
-      // Полный непрозрачный механический слой Challenger: силовой агрегат,
-      // передняя/задняя подвеска, рулевое, тормоза, топливная система и выхлоп.
+      // Mechanical service parts are for workshop inspection only. They must
+      // not render as a flat platform/underbody slab beneath the driving car.
       this.addFullChallengerMechanicalLayer();
 
       // Build real animated doors from the original Challenger body mesh.
@@ -1419,6 +1415,7 @@ export class RetroCarBuilder {
   addFullChallengerMechanicalLayer() {
     const g = new THREE.Group();
     g.name = "Dodge_Challenger_FullMechanical";
+    g.visible = this.carGroup.userData.workshopMode === true;
 
     const opaque = (color, metalness=0.5, roughness=0.45) => new THREE.MeshStandardMaterial({
       color, metalness, roughness, transparent:false, opacity:1, depthWrite:true, side:THREE.DoubleSide
