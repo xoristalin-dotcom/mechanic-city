@@ -398,39 +398,47 @@ async function buildCity(){ forceViewportLayout(); clearJobMarker(); traffic=[];
     animate(traffic);
     setupVehiclePhysics().catch(err=>{window.MechanicCityDebugLog?.({type:"physics-async",message:String(err?.message||err),stack:String(err?.stack||"")}); console.warn("Async Rapier setup failed; fallback driving remains active.",err);});
 
-    for(let i=0;i<9;i++){ const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4],false); npc.scale.setScalar(.86); npc.position.set((i%4)*13-19,0,-12-i*18); npc.userData.speed=1.4+(i%3)*.35; npc.rotation.y=Math.PI; scene.add(npc); traffic.push(npc); } createJobMarker();
+    // Traffic is optional. A broken NPC car must never replace the authoritative player R18.
+    try{
+      for(let i=0;i<9;i++){
+        const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4],false);
+        npc.scale.setScalar(.86);
+        npc.position.set((i%4)*13-19,0,-12-i*18);
+        npc.userData.speed=1.4+(i%3)*.35;
+        npc.rotation.y=Math.PI;
+        scene.add(npc);
+        traffic.push(npc);
+      }
+    }catch(err){
+      window.MechanicCityTrafficError=String(err?.message||err);
+      window.MechanicCityDebugLog?.({type:"traffic",message:window.MechanicCityTrafficError,stack:String(err?.stack||"")});
+      console.warn("Optional traffic creation failed; player R18 remains active.",err);
+    }
+    createJobMarker();
   }catch(err){
     window.MechanicCityBuildError=String(err?.message||err);
     window.MechanicCityDebugLog?.({type:"city-build",message:String(err?.message||err),stack:String(err?.stack||"")});
     console.error("Player/city setup failed",err);
-    // Do not replace the already-renderable city with the old gray emergency scene.
-    // Keep the renderer, ground, lighting and any successfully-created world objects.
+    // Never replace the real R18 player with a procedural box.
+    // Keep the scene alive; the persistent player root may still finish loading
+    // /models/preview.glb asynchronously.
     if(renderer&&scene&&camera){
       try{
-        const fallback=new THREE.Group();
-        fallback.name="MechanicCity_PlayerFallback";
-        const body=new THREE.Mesh(
-          new RoundedBoxGeometry(2.7,.65,4.8,5,.12),
-          new THREE.MeshStandardMaterial({color:0xc91f2d,metalness:.45,roughness:.3})
-        );
-        body.position.y=.65;
-        fallback.add(body);
-        const cabin=new THREE.Mesh(
-          new RoundedBoxGeometry(2.15,.75,2.15,5,.12),
-          new THREE.MeshStandardMaterial({color:0x17262d,metalness:.15,roughness:.2})
-        );
-        cabin.position.set(0,1.15,.2);
-        fallback.add(cabin);
-        fallback.position.set(state.posX,0,state.posZ);
-        scene.add(fallback);
-        car=fallback;
+        if(!car){
+          car=createRetroPlayerCar();
+          car.position.set(state.posX,0,state.posZ);
+          car.rotation.y=state.heading;
+          scene.add(car);
+        }
+        if(camera.parent!==scene)scene.add(camera);
         camera.position.set(state.posX,5.7,state.posZ-8.6);
         camera.lookAt(state.posX,1,state.posZ);
+        camera.updateMatrixWorld(true);
         renderer.render(scene,camera);
         animate(traffic);
-      }catch(fallbackErr){
-        window.MechanicCityFallbackError=String(fallbackErr?.message||fallbackErr);
-        console.error("City fallback failed",fallbackErr);
+      }catch(recoverErr){
+        window.MechanicCityRecoveryError=String(recoverErr?.message||recoverErr);
+        console.error("City recovery failed",recoverErr);
       }
     }
   }
