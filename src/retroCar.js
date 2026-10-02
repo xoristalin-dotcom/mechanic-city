@@ -910,32 +910,6 @@ export class RetroCarBuilder {
       detailKit.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.frustumCulled=true;}});
       this.carGroup.add(detailKit);
 
-      // Last-pass guard after ALL procedural vehicle parts are created.
-      // This runs after detail kit / engine bay / doors, so a late-created
-      // service stand cannot appear under the wheels.
-      const purgeVehicleStand = () => {
-        this.carGroup.updateMatrixWorld(true);
-        const rootBox = new THREE.Box3().setFromObject(model, true);
-        const rootSize = rootBox.getSize(new THREE.Vector3());
-        model.traverse(o => {
-          const n = String(o.name || "").toLowerCase();
-          if (/platform|turntable|display[_ -]?stand|show[_ -]?stand|service[_ -]?stand|vehicle[_ -]?stand|pedestal|support[_ -]?base/.test(n)) {
-            o.visible = false;
-            return;
-          }
-          if (!o.isMesh || !o.geometry) return;
-          const b = new THREE.Box3().setFromObject(o, true);
-          const s = b.getSize(new THREE.Vector3());
-          const broad = s.x >= rootSize.x * 0.45 && s.z >= rootSize.z * 0.45;
-          const low = b.max.y <= rootBox.min.y + 0.28;
-          const thin = s.y <= 0.28;
-          if (broad && low && thin) o.visible = false;
-        });
-        this.carGroup.updateMatrixWorld(true);
-      };
-      this.carGroup.userData.purgeVehicleStand = purgeVehicleStand;
-      purgeVehicleStand();
-
       this.carGroup.visible = true;
       this.carGroup.userData.modelLoading = false;
       this.carGroup.userData.modelRevision = "MechanicCity-R3-visual";
