@@ -387,7 +387,7 @@ async function buildCity(){ forceViewportLayout(); clearJobMarker(); traffic=[];
     window.MechanicCityDebugLog?.({type:"world-props",message:String(err?.message||err),stack:String(err?.stack||"")});
     console.warn("Optional city props failed; keeping core city alive.",err);
   }
-  // Player setup is independent from decorative props and always gets a chance to run.
+  // Draw the core city immediately, before the asynchronous player/traffic setup.\n  // This guarantees the world is visible even if the R18 GLB or optional systems fail.\n  try{ renderer.render(scene,camera); window.MechanicCityCoreCityRendered=true; }catch(err){ window.MechanicCityCoreCityRenderError=String(err?.message||err); console.error("Core city render failed",err); }\n  // Player setup is independent from decorative props and always gets a chance to run.
   try{
     // Create exactly one persistent player root first. The visual Challenger GLB
     // loads asynchronously INSIDE this root, so the camera never binds to a
