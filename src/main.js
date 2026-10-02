@@ -559,7 +559,7 @@ function animate(traffic=[]){ if(renderer?.setAnimationLoop && window.MechanicCi
       const target=car.position.clone(); target.y+=1.0;
       const desired=car.position.clone().addScaledVector(back,Math.max(1.2,Math.cos(camOrbitPitch)*distance));
       desired.y=car.position.y+(moving?6.1:5.7)+Math.sin(camOrbitPitch)*distance*.55;
-      camera.position.lerp(desired,moving?.28:.35);
+      camera.position.copy(desired);
       camera.lookAt(target);
     }
     camera.updateMatrixWorld(true);
@@ -595,32 +595,51 @@ function setupCameraControls(){
   if(!renderer||!viewport)return;
   if(viewport.dataset.cameraControlsBound==="1")return;
   viewport.dataset.cameraControlsBound="1";
-  const el=renderer.domElement||viewport;
+  const el=viewport;
   el.style.touchAction="none";
+  let activeId=null;
   const isUiTarget=e=>!!e.target?.closest?.(".mobile-drive-controls,.floating-bar,.menu,.panel,.help-overlay");
-  const endDrag=()=>{camDragging=false;camLastX=0;camLastY=0;};
+  const end=()=>{camDragging=false;activeId=null;camLastX=0;camLastY=0;};
   const begin=e=>{
     if(isUiTarget(e))return;
     if(e.pointerType==="mouse"&&e.button!==0)return;
+    activeId=e.pointerId??"touch";
     camDragging=true;camLastX=e.clientX;camLastY=e.clientY;
     if(e.cancelable)e.preventDefault();
   };
   const move=e=>{
     if(!camDragging)return;
+    if(activeId!==null&&e.pointerId!=null&&e.pointerId!==activeId)return;
     if(e.cancelable)e.preventDefault();
     const dx=e.clientX-camLastX,dy=e.clientY-camLastY;
     camLastX=e.clientX;camLastY=e.clientY;
-    camOrbitYaw=THREE.MathUtils.euclideanModulo(camOrbitYaw-dx*.012+Math.PI,Math.PI*2)-Math.PI;
+    camOrbitYaw-=dx*.012;
     camOrbitPitch=THREE.MathUtils.clamp(camOrbitPitch+dy*.008,-.45,.9);
   };
-  const end=e=>{if(camDragging)endDrag();};
-  el.addEventListener("pointerdown",begin,{passive:false});
-  el.addEventListener("pointermove",move,{passive:false});
-  el.addEventListener("pointerup",end,{passive:false});
-  el.addEventListener("pointercancel",end,{passive:false});
+  el.addEventListener("pointerdown",begin,{passive:false,capture:true});
+  el.addEventListener("pointermove",move,{passive:false,capture:true});
+  el.addEventListener("pointerup",end,{passive:false,capture:true});
+  el.addEventListener("pointercancel",end,{passive:false,capture:true});
+  el.addEventListener("touchstart",e=>{
+    if(isUiTarget(e))return;
+    const t=e.touches[0]; if(!t)return;
+    camDragging=true;camLastX=t.clientX;camLastY=t.clientY;
+    if(e.cancelable)e.preventDefault();
+  },{passive:false,capture:true});
+  el.addEventListener("touchmove",e=>{
+    if(!camDragging)return;
+    const t=e.touches[0]; if(!t)return;
+    if(e.cancelable)e.preventDefault();
+    const dx=t.clientX-camLastX,dy=t.clientY-camLastY;
+    camLastX=t.clientX;camLastY=t.clientY;
+    camOrbitYaw-=dx*.012;
+    camOrbitPitch=THREE.MathUtils.clamp(camOrbitPitch+dy*.008,-.45,.9);
+  },{passive:false,capture:true});
+  el.addEventListener("touchend",end,{passive:false,capture:true});
+  el.addEventListener("touchcancel",end,{passive:false,capture:true});
   window.addEventListener("pointerup",end,{passive:true});
   window.addEventListener("pointercancel",end,{passive:true});
-  window.addEventListener("blur",endDrag,{passive:true});
+  window.addEventListener("blur",end,{passive:true});
 }
 function bindControls(){
   document.querySelectorAll("[data-drive]").forEach(b=>{
