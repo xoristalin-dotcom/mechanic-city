@@ -477,21 +477,32 @@ export class RetroCarBuilder {
           return true;
         };
 
-        // Preserve all original materials/textures and all visible nodes.
+        // Preserve the authored R18 car, but never render a giant environment mesh
+        // embedded in the GLB (the source contains a Ground node). Those meshes can
+        // cover the entire city and make the player see only the GLB's background.
         model.traverse(o => {
-          if (o.isMesh) {
-            o.visible = true;
-            o.castShadow = true;
-            o.receiveShadow = true;
-            // Keep the authoritative R18 meshes rendered even when authored
-            // local bounds are invalid after normalization/articulation.
-            o.frustumCulled = false;
-            if (o.material) {
-              const materials = Array.isArray(o.material) ? o.material : [o.material];
-              for (const material of materials) {
-                if (material && "side" in material) material.side = THREE.FrontSide;
-                if (material) material.needsUpdate = true;
-              }
+          if (!o.isMesh) return;
+          const n = String(o.name || "").toLowerCase();
+          const environmentMesh =
+            /(^|[._ -])(ground|floor|plane|sky|skydome|environment|world|backdrop|background)([._ -]|$)/.test(n) ||
+            n === "ground";
+          if (environmentMesh) {
+            o.visible = false;
+            o.castShadow = false;
+            o.receiveShadow = false;
+            return;
+          }
+          o.visible = true;
+          o.castShadow = true;
+          o.receiveShadow = true;
+          // Restore normal frustum culling for mobile performance. The previous
+          // global false setting forced all 1,370 GLB meshes through every frame.
+          o.frustumCulled = true;
+          if (o.material) {
+            const materials = Array.isArray(o.material) ? o.material : [o.material];
+            for (const material of materials) {
+              if (material && "side" in material) material.side = THREE.FrontSide;
+              if (material) material.needsUpdate = true;
             }
           }
         });
