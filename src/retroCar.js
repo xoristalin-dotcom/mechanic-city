@@ -121,10 +121,17 @@ export class RetroCarBuilder {
       // (front/rear authored at +X/-X) and Z as track width. The game
       // vehicle space uses Z for forward/back, so align X -> +Z once.
       model.rotation.set(0, -Math.PI / 2, 0);
+      // Center the source bounds after the X->Z vehicle-axis rotation.
+      // The previous code translated the unrotated center, which can move an
+      // authored R18 scene away from the player/camera when its source origin
+      // is not centered.
+      const normalizedCenter = bodyCenter.clone()
+        .applyEuler(model.rotation)
+        .multiplyScalar(scale);
       model.position.set(
-        -bodyCenter.x * scale,
+        -normalizedCenter.x,
         -bodyBox.min.y * scale,
-        -bodyCenter.z * scale
+        -normalizedCenter.z
       );
       model.updateMatrixWorld(true);
 
@@ -142,7 +149,9 @@ export class RetroCarBuilder {
         center: { x: runtimeCenter.x, y: runtimeCenter.y, z: runtimeCenter.z },
         scale,
         visible: model.visible,
-        loading: false
+        loading: false,
+        position: { x: model.position.x, y: model.position.y, z: model.position.z },
+        rotationY: model.rotation.y
       };
       window.MechanicCityModelDiagnostics = this.carGroup.userData.modelDiagnostics;
 
