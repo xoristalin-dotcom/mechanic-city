@@ -389,7 +389,23 @@ export class RetroCarBuilder {
         // Install the authoritative GLB before creating articulation pivots.
         // Pivots live inside the model so they cannot be removed by a later carGroup cleanup.
         this.carGroup.remove(...[...this.carGroup.children]);
-        this.carGroup.add(model);
+        // Runtime audit: expose every imported R2.1 mesh and its world bounds.
+      // This is diagnostic only; it does not alter the rendered vehicle.
+      this.carGroup.userData.auditR2Meshes = () => {
+        model.updateWorldMatrix(true,true);
+        const rows=[];
+        model.traverse(o=>{
+          if(!o.isMesh || !o.visible) return;
+          const b=new THREE.Box3().setFromObject(o,true), s=b.getSize(new THREE.Vector3()), center=b.getCenter(new THREE.Vector3());
+          rows.push({name:o.name,parent:o.parent?.name||"",size:{x:+s.x.toFixed(3),y:+s.y.toFixed(3),z:+s.z.toFixed(3)},center:{x:+center.x.toFixed(3),y:+center.y.toFixed(3),z:+center.z.toFixed(3)},minY:+b.min.y.toFixed(3),maxY:+b.max.y.toFixed(3)});
+        });
+        rows.sort((a,b)=>(b.size.x*b.size.y*b.size.z)-(a.size.x*a.size.y*a.size.z));
+        window.MechanicCityR2MeshAudit=rows;
+        return rows;
+      };
+      this.carGroup.userData.auditR2Meshes();
+
+      this.carGroup.add(model);
         const articulationRoot = new THREE.Object3D();
         articulationRoot.name = "R18_ARTICULATION";
         model.add(articulationRoot);
