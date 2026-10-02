@@ -599,10 +599,11 @@ function setupCameraControls(){
   el.style.touchAction="none";
   // Allow the gas pedal to remain held while the same touch also rotates the camera.
   const isControlTarget=e=>{
-    const target=e.target?.closest?.(".mobile-drive-controls,.floating-bar,.menu,.panel");
-    if(!target)return false;
-    const gas=e.target?.closest?.('[data-drive="gas"]');
-    return !gas;
+    const target=e.target?.closest?.(".floating-bar,.menu,.panel");
+    if(target)return true;
+    // Driving buttons must not disable camera input. Their press is handled
+    // independently, while the follow camera continues to update every frame.
+    return false;
   };
   const begin=(x,y)=>{camDragging=true;camLastX=x;camLastY=y;};
   const move=(x,y,e)=>{
@@ -656,6 +657,11 @@ function bindControls(){
     };
     const pointerDown=e=>{
       e.preventDefault(); e.stopPropagation();
+      // Keep the camera in follow mode while a driving button is pressed.
+      // A left/right press also gives a small, smooth camera yaw instead of
+      // leaving the camera frozen after the touch is released.
+      if(v==="left") camOrbitYaw+=0.045;
+      if(v==="right") camOrbitYaw-=0.045;
       if(e.pointerId!=null){try{b.setPointerCapture(e.pointerId);}catch{}}
       press();
     };
