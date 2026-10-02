@@ -624,19 +624,6 @@ export class RetroCarBuilder {
         this.carGroup.userData.r18NodeAudit = named.map(o => o.name);
         return;
       }
-            if (!o.isMesh || !o.geometry) return;
-            const b = new THREE.Box3().setFromObject(o, true);
-            const s = b.getSize(new THREE.Vector3());
-            const broad = s.x > bodySize.x * 0.45 && s.z > bodySize.z * 0.45;
-            const low = b.max.y < bodyBox.min.y + 0.38;
-            const thin = s.y < 0.30;
-            if (broad && low && thin) o.visible = false;
-          });
-          model.updateMatrixWorld(true);
-        };
-        this.carGroup.userData.purgeVehicleStand = purgeVehicleStand;
-        purgeVehicleStand();
-      }
 
       // The seven meshes geometry_0..geometry_6 are the actual mobile visual
       // car. The extra service geometry is useful in the workshop but was
