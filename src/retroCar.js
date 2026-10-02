@@ -591,7 +591,37 @@ export class RetroCarBuilder {
         this.carGroup.userData.servicePartCount = Object.keys(serviceParts).length;
         this.carGroup.userData.articulation = this.carGroup.userData.articulation;
         this.carGroup.userData.vehicleSpec = this.carGroup.userData.vehicleSpec;
-        // Capture the authoritative assembled R2.1 pose after all real GLB nodes and hinges are installed.\n        const restPose = {};\n        model.traverse(o => { restPose[o.uuid] = { position:o.position.clone(), quaternion:o.quaternion.clone(), scale:o.scale.clone(), visible:o.visible }; });\n        this.carGroup.userData.authoritativeRestPose = restPose;\n        this.carGroup.userData.authoritativeRestPoseVersion = 1;\n        this.carGroup.userData.restoreAuthoritativeAssembly = () => {\n          const pose = this.carGroup.userData.authoritativeRestPose;\n          if (!pose) return;\n          model.traverse(o => { const r=pose[o.uuid]; if(!r)return; o.position.copy(r.position); o.quaternion.copy(r.quaternion); o.scale.copy(r.scale); o.visible=r.visible; });\n          model.updateMatrixWorld(true);\n          const art=this.carGroup.userData.articulation;\n          if(art?.doors) for(const d of art.doors) if(d) d.open=0;\n          if(art?.hood) art.hood.open=0;\n          if(art?.trunk) art.trunk.open=0;\n          this.carGroup.userData.workshopDisassembled=false;\n        };\n        this.carGroup.userData.r18NodeAudit = named.map(o => o.name);
+        // Capture the authoritative assembled R2.1 pose after all real GLB nodes and hinges are installed.
+        const restPose = {};
+        model.traverse(o => {
+          restPose[o.uuid] = {
+            position: o.position.clone(),
+            quaternion: o.quaternion.clone(),
+            scale: o.scale.clone(),
+            visible: o.visible
+          };
+        });
+        this.carGroup.userData.authoritativeRestPose = restPose;
+        this.carGroup.userData.authoritativeRestPoseVersion = 1;
+        this.carGroup.userData.restoreAuthoritativeAssembly = () => {
+          const pose = this.carGroup.userData.authoritativeRestPose;
+          if (!pose) return;
+          model.traverse(o => {
+            const r = pose[o.uuid];
+            if (!r) return;
+            o.position.copy(r.position);
+            o.quaternion.copy(r.quaternion);
+            o.scale.copy(r.scale);
+            o.visible = r.visible;
+          });
+          model.updateMatrixWorld(true);
+          const art = this.carGroup.userData.articulation;
+          if (art?.doors) for (const d of art.doors) if (d) d.open = 0;
+          if (art?.hood) art.hood.open = 0;
+          if (art?.trunk) art.trunk.open = 0;
+          this.carGroup.userData.workshopDisassembled = false;
+        };
+        this.carGroup.userData.r18NodeAudit = named.map(o => o.name);
         return;
       }
             if (!o.isMesh || !o.geometry) return;
