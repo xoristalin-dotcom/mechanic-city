@@ -356,23 +356,12 @@ async function buildCity(){ clearJobMarker(); traffic=[]; trafficLights=[]; smok
     setupCameraControls();
     clock=new THREE.Clock();
 
-    // Do not start the city runtime until the player's final visual model has
-    // finished loading (or the procedural fallback has been revealed).
-    // This prevents any first-frame camera binding to a pre-load vehicle.
-    const waitForPlayerModel=()=>{
-      if(!car)return;
-      if(car.userData?.modelLoading){
-        requestAnimationFrame(waitForPlayerModel);
-        return;
-      }
-      // The R18 GLB is now the only player visual. Its service parts and
-      // articulation are installed by RetroCarBuilder during the async load.
-      syncCarPartsFromCatalog(car,state);
-      attachPlayerCamera();
-      animate(traffic);
-      setupVehiclePhysics().catch(err=>{window.MechanicCityDebugLog?.({type:"physics-async",message:String(err?.message||err),stack:String(err?.stack||"")}); console.warn("Async Rapier setup failed; fallback driving remains active.",err);});
-    };
-    waitForPlayerModel();
+    // Start the city renderer immediately. The authoritative R18 GLB loads asynchronously
+    // inside the persistent player root and must never be allowed to block the world render loop.
+    syncCarPartsFromCatalog(car,state);
+    attachPlayerCamera();
+    animate(traffic);
+    setupVehiclePhysics().catch(err=>{window.MechanicCityDebugLog?.({type:"physics-async",message:String(err?.message||err),stack:String(err?.stack||"")}); console.warn("Async Rapier setup failed; fallback driving remains active.",err);});
 
     for(let i=0;i<9;i++){ const npc=makeCar([0x244b77,0x8a302c,0xc7b77d,0x3c3c3c][i%4],false); npc.scale.setScalar(.86); npc.position.set((i%4)*13-19,0,-12-i*18); npc.userData.speed=1.4+(i%3)*.35; npc.rotation.y=Math.PI; scene.add(npc); traffic.push(npc); } createJobMarker(); }catch(err){window.MechanicCityBuildError=String(err?.message||err); window.MechanicCityDebugLog?.({type:"city-build",message:String(err?.message||err),stack:String(err?.stack||"")}); console.error("City build failed",err); renderEmergencyScene();}}
 function animate(traffic=[]){ requestAnimationFrame(()=>animate(traffic)); if(state.scene!=="city")return; if(!renderer||!scene||!camera)return; const dt=Math.min(clock?.getDelta()||.016,.05); try{ if((state.driving||state.throttle||input.gas)&&state.fuel>0){ physicsDrive(dt); if(state.fuel>0) state.fuel=Math.max(0,state.fuel-dt*(.018+Math.abs(state.speed)*.014)); state.car.oil=Math.max(0,state.car.oil-dt*.004); state.car.coolant=Math.max(0,state.car.coolant-dt*.002); state.heat=Math.min(125,state.heat+dt*(.08+Math.abs(state.speed)*.055)); if(state.car.oil<15||state.car.coolant<15)state.damage=Math.min(100,state.damage+dt*.08); state.car.mileage+=Math.abs(state.speed)*dt*.006; if(state.heat>108)state.damage=Math.min(100,state.damage+dt*.06); for(const npc of traffic){ if(!npc?.position||!car?.position)continue; const d=car.position.distanceTo(npc.position); if(d<2.25&&Math.abs(state.speed)>.35){ state.damage=Math.min(100,state.damage+dt*7); if(chassisBody){ const v=chassisBody.linvel(); chassisBody.setLinvel({x:v.x*.65,y:v.y,z:v.z*.65},true);} msg("⚠️ Столкновение: кузов повреждён."); } } if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();} }
