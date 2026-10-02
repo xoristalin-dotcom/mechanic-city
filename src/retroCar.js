@@ -38,12 +38,15 @@ export class RetroCarBuilder {
       exhaust: null
     };
 
-    this.build();
-    // Keep the procedural build as a fallback, but do not render it while the
-    // real Challenger GLB is loading. This prevents the old car from appearing
-    // for a frame before the player's actual car arrives.
+    // The player vehicle is no longer built procedurally.
+    // This class is now only the controller/container for the authoritative
+    // Higgsfield R18 asset at /models/preview.glb.
+    // Keeping the old build methods below is harmless for legacy code, but
+    // they are never called for the player.
     this.carGroup.visible = false;
     this.carGroup.userData.modelLoading = true;
+    this.carGroup.userData.modelSource = "/models/preview.glb";
+    this.carGroup.userData.originalGLB = true;
     this.loadMechanicCityModel();
   }
 
