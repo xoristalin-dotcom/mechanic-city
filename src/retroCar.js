@@ -658,6 +658,61 @@ export class RetroCarBuilder {
           );
           pivot.add(inner);
 
+          // Move the REAL side-window glass with the door. geometry_6 contains
+          // all Challenger glass; only the side-window triangles in the door
+          // zone are detached, while windshield/rear glass stays on the body.
+          const glassBody=model.getObjectByName("geometry_6");
+          if(glassBody?.geometry?.attributes?.position){
+            const gs=glassBody.geometry, gp=gs.attributes.position, gi=gs.index;
+            const gTriCount=gi ? gi.count/3 : gp.count/3;
+            const glassKeep=[], glassDoor=[];
+            const inDoorGlass=(i)=>{
+              const x=gp.getX(i), y=gp.getY(i), z=gp.getZ(i);
+              return (side<0 ? x<=-0.095 : x>=0.095) &&
+                Math.abs(x)<=0.205 &&
+                y>=0.055 && y<=0.125 &&
+                z>=-0.18 && z<=0.22;
+            };
+            for(let t=0;t<gTriCount;t++){
+              const a=gi?gi.getX(t*3):t*3;
+              const b=gi?gi.getX(t*3+1):t*3+1;
+              const c=gi?gi.getX(t*3+2):t*3+2;
+              const hit=inDoorGlass(a)&&inDoorGlass(b)&&inDoorGlass(c);
+              (hit?glassDoor:glassKeep).push([a,b,c]);
+            }
+            if(glassDoor.length){
+              const buildGlass=(tris)=>{
+                const out=[];
+                for(const [a,b,c] of tris){
+                  for(const i of [a,b,c]) out.push(gp.getX(i),gp.getY(i),gp.getZ(i));
+                }
+                const g=new THREE.BufferGeometry();
+                g.setAttribute("position",new THREE.Float32BufferAttribute(out,3));
+                g.computeVertexNormals();
+                return g;
+              };
+              glassBody.geometry=buildGlass(glassKeep);
+              const doorGlassGeo=buildGlass(glassDoor);
+              const p=doorGlassGeo.attributes.position;
+              for(let i=0;i<p.count;i++){
+                const v=new THREE.Vector3(p.getX(i),p.getY(i),p.getZ(i)).applyMatrix4(model.matrix);
+                p.setXYZ(i,v.x-hinge.x,v.y-hinge.y,v.z-hinge.z);
+              }
+              p.needsUpdate=true;
+              doorGlassGeo.computeVertexNormals();
+              const glassMat=new THREE.MeshStandardMaterial({
+                color:0x101b20, metalness:0.05, roughness:0.16,
+                transparent:false, opacity:1, depthWrite:true,
+                side:THREE.DoubleSide
+              });
+              const doorGlass=new THREE.Mesh(doorGlassGeo,glassMat);
+              doorGlass.name=name+"_RealWindowGlass";
+              doorGlass.castShadow=false;
+              doorGlass.receiveShadow=true;
+              pivot.add(doorGlass);
+            }
+          }
+
           return {pivot,open:0,openSign,axis:"y",maxAngle:1.08};
         };
 
