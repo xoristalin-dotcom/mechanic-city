@@ -229,7 +229,18 @@ function createRetroPlayerCar(){
     save();
   }
   initializeCarParts(state);
-  syncCarPartsFromCatalog(root,state);
+  // The city must always load the vehicle as a complete drivable car.
+  // Garage removals are persistent there, but they must not leave the player
+  // visually disassembled after returning to the city.
+  if(state.scene==="city"){
+    for(const key of Object.keys(state.car.partState||{})){
+      state.car.partState[key].installed=true;
+    }
+    syncCarPartsFromCatalog(root,state);
+    save();
+  }else{
+    syncCarPartsFromCatalog(root,state);
+  }
   root.traverse(o=>{
     if(o.isMesh){
       o.castShadow=true;
