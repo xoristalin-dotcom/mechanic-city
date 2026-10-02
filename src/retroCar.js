@@ -167,6 +167,10 @@ export class RetroCarBuilder {
         -normalizedCenter.z
       );
       model.updateMatrixWorld(true);
+      // Keep the persistent player root as the only world-position owner.
+      // The GLB stays in local space; city/camera coordinates remain untouched.
+      this.carGroup.position.set(0, 0, 0);
+      this.carGroup.updateMatrixWorld(true);
 
       // Runtime diagnostics for the authoritative GLB. Three.js requires
       // up-to-date world matrices before computing a reliable world AABB.
