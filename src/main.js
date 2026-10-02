@@ -599,37 +599,29 @@ function setupCameraControls(){
   viewport.dataset.cameraControlsBound="1";
   const el=viewport;
   el.style.touchAction="none";
-  // Allow the gas pedal to remain held while the same touch also rotates the camera.
-  const isControlTarget=e=>{
-    const target=e.target?.closest?.(".mobile-drive-controls,.floating-bar,.menu,.panel");
-    if(target)return true;
-    // Driving controls are not camera-drag surfaces. The follow camera keeps
-    // updating from the car heading while these buttons are held.
-    return false;
+  const isUiTarget=e=>!!e.target?.closest?.(".mobile-drive-controls,.floating-bar,.menu,.panel,.help-overlay");
+  const endDrag=()=>{camDragging=false;camLastX=0;camLastY=0;};
+  const begin=e=>{
+    if(isUiTarget(e))return;
+    if(e.pointerType==="mouse"&&e.button!==0)return;
+    camDragging=true;camLastX=e.clientX;camLastY=e.clientY;
+    try{el.setPointerCapture?.(e.pointerId);}catch{}
+    if(e.cancelable)e.preventDefault();
   };
-  const begin=(x,y)=>{camDragging=true;camLastX=x;camLastY=y;};
-  const move=(x,y,e)=>{
+  const move=e=>{
     if(!camDragging)return;
-    if(e?.cancelable)e.preventDefault();
-    const dx=x-camLastX,dy=y-camLastY;
-    camLastX=x;camLastY=y;
+    if(e.cancelable)e.preventDefault();
+    const dx=e.clientX-camLastX,dy=e.clientY-camLastY;
+    camLastX=e.clientX;camLastY=e.clientY;
     camOrbitYaw-=dx*.012;
     camOrbitPitch=Math.min(.9,Math.max(-.45,camOrbitPitch+dy*.008));
   };
-  const end=()=>{camDragging=false;};
-  // Listen on the viewport in capture phase so HUD layers cannot swallow the
-  // gesture before it reaches the camera controller.
-  el.addEventListener("pointerdown",e=>{
-    if(isControlTarget(e))return;
-    if(e.pointerType==="mouse"&&e.button!==0)return;
-    begin(e.clientX,e.clientY);
-  },{passive:false,capture:true});
-  el.addEventListener("pointermove",e=>move(e.clientX,e.clientY,e),{passive:false,capture:true});
-  // Pointer capture on the gas pedal can retarget move events to the button.
-  // Listen at window capture too so the camera keeps receiving those moves.
-  window.addEventListener("pointermove",e=>move(e.clientX,e.clientY,e),{passive:false,capture:true});
-  el.addEventListener("pointerup",end,{passive:false,capture:true});
-  el.addEventListener("pointercancel",end,{passive:false,capture:true});
+  el.addEventListener("pointerdown",begin,{passive:false});
+  el.addEventListener("pointermove",move,{passive:false});
+  el.addEventListener("pointerup",endDrag,{passive:false});
+  el.addEventListener("pointercancel",endDrag,{passive:false});
+  el.addEventListener("lostpointercapture",endDrag,{passive:false});
+  window.addEventListener("blur",endDrag,{passive:true});
 }
 function bindControls(){
   document.querySelectorAll("[data-drive]").forEach(b=>{
@@ -706,6 +698,7 @@ function setVehiclePartOpen(part,open){state.car[part]=!!open; save(); const lab
 function toggleVehiclePanel(){const html="<p>Управление кузовом автомобиля</p><div class='buttons'><button id='hoodBtn'>"+(state.car.hoodOpen?"🔽 Закрыть капот":"🔼 Открыть капот")+"</button><button id='trunkBtn'>"+(state.car.trunkOpen?"🔽 Закрыть багажник":"🔼 Открыть багажник")+"</button><button id='doorsBtn'>"+(state.car.doorsOpen?"🚪 Закрыть двери":"🚪 Открыть двери")+"</button>"+(state.scene==="garage"?"<button id='disassemblyBtn'>🔧 Разборка автомобиля</button>":"")+"</div>";openPanel("Кузов",html);document.querySelector("#hoodBtn")?.addEventListener("click",()=>{setVehiclePartOpen("hoodOpen",!state.car.hoodOpen);toggleVehiclePanel();});document.querySelector("#trunkBtn")?.addEventListener("click",()=>{setVehiclePartOpen("trunkOpen",!state.car.trunkOpen);toggleVehiclePanel();});document.querySelector("#doorsBtn")?.addEventListener("click",()=>{setVehiclePartOpen("doorsOpen",!state.car.doorsOpen);toggleVehiclePanel();});document.querySelector("#disassemblyBtn")?.addEventListener("click",openDisassemblyPanel);}
 function openDisassemblyPanel(){const parts=Object.values(car?.userData?.serviceParts||{});const groups={body:[],engine:[],transmission:[],brakes:[],suspension:[],wheels:[],lights:[],glass:[],exhaust:[],other:[]};for(const p of parts)(groups[p.category]||groups.other).push(p);const labels={body:"Кузов",engine:"Двигатель",transmission:"КПП",brakes:"Тормоза",suspension:"Подвеска",wheels:"Колёса",lights:"Свет",glass:"Стёкла",exhaust:"Выхлоп",other:"Прочее"};let html="<p>Выбери узел для снятия или установки.</p>";for(const [cat,list] of Object.entries(groups)){if(!list.length)continue;html+="<h4>"+labels[cat]+"</h4><div class='buttons'>";for(const p of list){html+="<button data-part-key='"+p.key+"'>"+(partInstalled(p.key)?"🔩 Снять ":"🛠️ Установить ")+p.name+"</button>"}html+="</div>"}openPanel("Разборка автомобиля",html);document.querySelectorAll("[data-part-key]").forEach(b=>b.onclick=()=>{const p=car?.userData?.serviceParts?.[b.dataset.partKey];if(p)openPartPanel(p)})}
 function openPanel(title,html){ const existing=document.querySelector("#panel"); if(existing)existing.remove(); const panel=document.createElement("div"); panel.id="panel"; panel.className="panel"; panel.innerHTML="<div class='panel-card'><h3>"+title+"</h3>"+html+"<button id='closePanel'>Закрыть</button></div>"; document.body.appendChild(panel); panel.querySelector("#closePanel")?.addEventListener("click",()=>panel.remove()); }
-function initMenu(){ const html=`<div class="menu-section"> <button data-scene="city">Город</button> <button data-scene="workshop">Мастерская</button> <button data-scene="garage">Гараж</button> <button data-scene="market">Рынок</button> </div>`; menu.innerHTML=html; menu.querySelectorAll("[data-scene]").forEach(btn=>btn.addEventListener("click",()=>{ renderScene(btn.dataset.scene); menu.classList.add("hidden"); })); }
+function initMenu(){ const html=`<div class="menu-section"><button data-scene="city">Город</button><button data-scene="workshop">Мастерская</button><button data-scene="garage">Гараж</button><button data-scene="market">Рынок</button><button id="helpMenuBtn">❔ Справка</button></div>`; menu.innerHTML=html; menu.querySelectorAll("[data-scene]").forEach(btn=>btn.addEventListener("click",()=>{ renderScene(btn.dataset.scene); menu.classList.add("hidden"); })); menu.querySelector("#helpMenuBtn").onclick=showHelp; }
+function showHelp(){ if(document.querySelector(".help-overlay"))return; const o=document.createElement("div"); o.className="help-overlay"; o.innerHTML=`<div class="help-card"><button class="help-close" aria-label="Закрыть">×</button><h2>Справка</h2><div class="help-row"><b>🚗 Управление</b><span>Газ — ехать, ◀ ▶ — поворот, P/R/N/D — передача.</span></div><div class="help-row"><b>📷 Камера</b><span>Проведи пальцем по свободному месту экрана. Камера следует за машиной при повороте.</span></div><div class="help-row"><b>🔧 Машина</b><span>Кнопка 🚗 открывает управление кузовом. В гараже доступны детали и обслуживание.</span></div><div class="help-row"><b>🗺️ Карта</b><span>🎯 возвращает машину в центр карты.</span></div></div>`; document.body.appendChild(o); o.querySelector(".help-close").onclick=()=>o.remove(); o.addEventListener("pointerdown",e=>{if(e.target===o)o.remove();}); }
 function bindUI(){ document.querySelector("#menuBtn").onclick=()=>menu.classList.toggle("hidden"); document.querySelector("#cameraBtn").onclick=()=>{cameraMode=(cameraMode+1)%3;camOrbitYaw=0;camOrbitPitch=.18;if(camera){camera.fov=cameraMode===2?82:cameraMode===1?68:62;camera.updateProjectionMatrix();}}; document.querySelector("#mapBtn").onclick=()=>alert("Карта запчастей будет здесь"); document.querySelector("#teleportBtn").onclick=teleportToMapCenter; document.querySelector("#vehicleBtn").onclick=toggleVehiclePanel; }
 installRuntimeErrorCapture(); installVisualInspectMode(); installAITestMode(); initMenu(); bindUI(); renderScene("city"); installPartInteraction();
