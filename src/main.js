@@ -544,22 +544,40 @@ function updateMechanicCityDebug(){
 
 function animate(traffic=[]){ if(renderer?.setAnimationLoop && window.MechanicCityAnimationRenderer!==renderer){ window.MechanicCityAnimationRenderer=renderer; renderer.setAnimationLoop(()=>animate(traffic)); return; } if(state.scene!=="city")return; if(!renderer||!scene||!camera)return; const dt=Math.min(clock?.getDelta()||.016,.05); try{ if((state.driving||state.throttle||input.gas)&&state.fuel>0){ physicsDrive(dt); if(state.fuel>0) state.fuel=Math.max(0,state.fuel-dt*(.018+Math.abs(state.speed)*.014)); state.car.oil=Math.max(0,state.car.oil-dt*.004); state.car.coolant=Math.max(0,state.car.coolant-dt*.002); state.heat=Math.min(125,state.heat+dt*(.08+Math.abs(state.speed)*.055)); if(state.car.oil<15||state.car.coolant<15)state.damage=Math.min(100,state.damage+dt*.08); state.car.mileage+=Math.abs(state.speed)*dt*.006; if(state.heat>108)state.damage=Math.min(100,state.damage+dt*.06); for(const npc of traffic){ if(!npc?.position||!car?.position)continue; const d=car.position.distanceTo(npc.position); if(d<2.25&&Math.abs(state.speed)>.35){ state.damage=Math.min(100,state.damage+dt*7); if(chassisBody){ const v=chassisBody.linvel(); chassisBody.setLinvel({x:v.x*.65,y:v.y,z:v.z*.65},true);} msg("⚠️ Столкновение: кузов повреждён."); } } if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();} }
  updateJob(); updateArticulatedCar(dt); updateMechanicCityDebug(); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25;
-  // HARD CAMERA FOLLOW: keep the camera independent from the loading GLB root.
-  // This prevents an invisible/loading vehicle from affecting the render camera.
+  // STABLE THIRD-PERSON FOLLOW CAMERA.
+  // Follow the actual player root quaternion so the camera can never drift to
+  // the side or remain at an old world position after acceleration/turning.
   if(camera){
     if(camera.parent!==scene)scene.add(camera);
-    const distance=moving?9.4:8.6;
-    const yaw=state.heading+camOrbitYaw;
+    const carForward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();
+    const carBack=carForward.clone().multiplyScalar(-1);
+    const distance=moving?9.2:8.6;
+    const target=car.position.clone();
+    target.y+=1.15;
+
     if(cameraMode===2){
-      const hoodOffset=new THREE.Vector3(0,1.35,.55).applyAxisAngle(new THREE.Vector3(0,1,0),state.heading);
-      camera.position.copy(car.position).add(hoodOffset);
-      camera.lookAt(car.position.x,1.05,car.position.z);
+      const hoodOffset=carForward.clone().multiplyScalar(0.55);
+      hoodOffset.y=1.35;
+      const desired=car.position.clone().add(hoodOffset);
+      camera.position.lerp(desired,Math.min(1,dt*14));
+      camera.lookAt(target);
+    }else if(cameraMode===1){
+      // Orbit mode is explicit: only here is the finger orbit allowed to move
+      // the camera around the car.
+      const orbitBack=carBack.clone().applyAxisAngle(new THREE.Vector3(0,1,0),camOrbitYaw);
+      const desired=car.position.clone().addScaledVector(
+        orbitBack,
+        Math.max(3.5,Math.cos(camOrbitPitch)*distance)
+      );
+      desired.y=car.position.y+5.8+Math.sin(camOrbitPitch)*distance*.55;
+      camera.position.lerp(desired,Math.min(1,dt*10));
+      camera.lookAt(target);
     }else{
-      const back=new THREE.Vector3(0,0,-1).applyAxisAngle(new THREE.Vector3(0,1,0),yaw);
-      const target=car.position.clone(); target.y+=1.0;
-      const desired=car.position.clone().addScaledVector(back,Math.max(1.2,Math.cos(camOrbitPitch)*distance));
-      desired.y=car.position.y+(moving?6.1:5.7)+Math.sin(camOrbitPitch)*distance*.55;
-      camera.position.copy(desired);
+      // Normal driving camera: rigidly behind the car. Steering changes the
+      // car heading, so this camera follows every turn automatically.
+      const desired=car.position.clone().addScaledVector(carBack,distance);
+      desired.y=car.position.y+(moving?5.9:5.6);
+      camera.position.lerp(desired,Math.min(1,dt*12));
       camera.lookAt(target);
     }
     camera.updateMatrixWorld(true);
@@ -627,6 +645,7 @@ function setupCameraControls(){
   };
   const move=e=>{
     if(!camDragging)return;
+    if(isUiTarget(e))return;
     if(activeId!==null&&e.pointerId!=null&&e.pointerId!==activeId)return;
     if(e.cancelable)e.preventDefault();
     const dx=e.clientX-gestureStartX,dy=e.clientY-gestureStartY;
@@ -646,34 +665,6 @@ function setupCameraControls(){
   el.addEventListener("pointermove",move,{passive:false,capture:true});
   el.addEventListener("pointerup",end,{passive:false,capture:true});
   el.addEventListener("pointercancel",end,{passive:false,capture:true});
-  el.addEventListener("touchstart",e=>{
-    if(isUiTarget(e))return;
-    const t=e.touches[0]; if(!t)return;
-    activeId="touch";
-    camDragging=true;
-    camLastX=t.clientX;camLastY=t.clientY;
-    gestureStartX=t.clientX;gestureStartY=t.clientY;
-    gestureMode="pending";
-    if(e.cancelable)e.preventDefault();
-  },{passive:false,capture:true});
-  el.addEventListener("touchmove",e=>{
-    if(!camDragging)return;
-    const t=e.touches[0]; if(!t)return;
-    if(e.cancelable)e.preventDefault();
-    const dx=t.clientX-gestureStartX,dy=t.clientY-gestureStartY;
-    if(gestureMode==="pending"&&Math.abs(dx)>12&&Math.abs(dx)>Math.abs(dy)*1.15)gestureMode="steer";
-    if(gestureMode==="steer"){
-      input.left=dx<-12; input.right=dx>12;
-      publishControl();
-      return;
-    }
-    const stepX=t.clientX-camLastX,stepY=t.clientY-camLastY;
-    camLastX=t.clientX;camLastY=t.clientY;
-    camOrbitYaw-=stepX*.012;
-    camOrbitPitch=THREE.MathUtils.clamp(camOrbitPitch+stepY*.008,-.45,.9);
-  },{passive:false,capture:true});
-  el.addEventListener("touchend",end,{passive:false,capture:true});
-  el.addEventListener("touchcancel",end,{passive:false,capture:true});
   window.addEventListener("pointerup",end,{passive:true});
   window.addEventListener("pointercancel",end,{passive:true});
   window.addEventListener("blur",end,{passive:true});
@@ -721,17 +712,6 @@ function bindControls(){
     b.addEventListener("pointerup",pointerUp,{passive:false});
     b.addEventListener("pointercancel",pointerUp,{passive:false});
     b.addEventListener("lostpointercapture",release,{passive:false});
-    b.addEventListener("touchstart",e=>{e.preventDefault();press();},{passive:false});
-    b.addEventListener("touchend",e=>{e.preventDefault();release();},{passive:false});
-    b.addEventListener("touchcancel",e=>{e.preventDefault();release();},{passive:false});
-    if(v==="gas"){
-      b.addEventListener("click",e=>{
-        e.preventDefault();
-        press();
-        window.clearTimeout(b._gasFallbackTimer);
-        b._gasFallbackTimer=window.setTimeout(release,1200);
-      });
-    }
   });
   document.querySelectorAll("[data-gear]").forEach(b=>{
     b.addEventListener("click",e=>{
