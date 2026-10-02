@@ -550,7 +550,9 @@ function animate(traffic=[]){ if(renderer?.setAnimationLoop && window.MechanicCi
     if(camera.parent!==scene)scene.add(camera);
     const distance=moving?9.4:8.6;
     const height=(moving?6.1:5.7)+Math.sin(camOrbitPitch)*distance*.55;
-    const yaw=state.heading+camOrbitYaw;
+    // Always follow the actual car rotation. This stays correct after a
+    // left/right turn, reverse, or a full turn-around.
+    const yaw=car.rotation.y+camOrbitYaw;
     if(cameraMode===2){
       const hoodOffset=new THREE.Vector3(0,1.35,.55);
       hoodOffset.applyAxisAngle(new THREE.Vector3(0,1,0),state.heading);
@@ -599,10 +601,10 @@ function setupCameraControls(){
   el.style.touchAction="none";
   // Allow the gas pedal to remain held while the same touch also rotates the camera.
   const isControlTarget=e=>{
-    const target=e.target?.closest?.(".floating-bar,.menu,.panel");
+    const target=e.target?.closest?.(".mobile-drive-controls,.floating-bar,.menu,.panel");
     if(target)return true;
-    // Driving buttons must not disable camera input. Their press is handled
-    // independently, while the follow camera continues to update every frame.
+    // Driving controls are not camera-drag surfaces. The follow camera keeps
+    // updating from the car heading while these buttons are held.
     return false;
   };
   const begin=(x,y)=>{camDragging=true;camLastX=x;camLastY=y;};
@@ -657,11 +659,8 @@ function bindControls(){
     };
     const pointerDown=e=>{
       e.preventDefault(); e.stopPropagation();
-      // Keep the camera in follow mode while a driving button is pressed.
-      // A left/right press also gives a small, smooth camera yaw instead of
-      // leaving the camera frozen after the touch is released.
-      if(v==="left") camOrbitYaw+=0.045;
-      if(v==="right") camOrbitYaw-=0.045;
+      // Driving buttons control the car only; they must never start a camera
+      // drag or inject an artificial camera yaw.
       if(e.pointerId!=null){try{b.setPointerCapture(e.pointerId);}catch{}}
       press();
     };
