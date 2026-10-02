@@ -561,25 +561,26 @@ export class RetroCarBuilder {
         // accidentally exported with the vehicle asset; it must never appear
         // as a platform underneath the player car.
         const nodeName = String(o.name || "").toLowerCase();
-        if (/service[_ -]?platform|vehicle[_ -]?platform|car[_ -]?platform|platform|turntable|display[_ -]?stand|show[_ -]?stand/.test(nodeName)) {
+        if (/service[_ -]?platform|vehicle[_ -]?platform|car[_ -]?platform|platform|turntable|display[_ -]?stand|show[_ -]?stand|stand|base|support|pedestal/.test(nodeName)) {
           o.visible = false;
           o.userData.hiddenVehicleStand = true;
           return;
         }
 
-        // Final platform kill-switch: anything that spans most of the car
-        // footprint while sitting very low is not a vehicle body panel.
+        // The R2.1 asset may contain an unnamed stand made from several meshes.
+        // Remove low, broad geometry by its FINAL normalized world bounds.
+        // A real wheel/body panel cannot occupy the entire footprint while
+        // ending below the wheel contact plane.
         if (o.geometry) {
           const bb = new THREE.Box3().setFromObject(o, true);
           const s = bb.getSize(new THREE.Vector3());
-          const c = bb.getCenter(new THREE.Vector3());
           const broadFootprint =
-            s.x >= bodySize.x * 0.50 &&
-            s.z >= bodySize.z * 0.50;
-          const lowSlab =
-            c.y < bodyBox.min.y + Math.max(0.28, bodySize.y * 0.12) &&
-            s.y < Math.max(0.45, bodySize.y * 0.10);
-          if (broadFootprint && lowSlab) {
+            s.x >= Math.max(2.0, bodySize.x * 0.48) &&
+            s.z >= Math.max(2.0, bodySize.z * 0.48);
+          const belowWheelPlane =
+            bb.max.y <= Math.max(0.34, bodyBox.min.y + 0.34);
+          const slab = s.y <= Math.max(0.22, Math.min(s.x, s.z) * 0.06);
+          if (broadFootprint && belowWheelPlane && slab) {
             o.visible = false;
             o.userData.hiddenVehicleStand = true;
             o.userData.hiddenGenericServicePlatform = true;
