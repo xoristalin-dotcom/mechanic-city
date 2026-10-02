@@ -188,36 +188,15 @@ function createRetroPlayerCar(){
   root.userData.workshopMode=false;
   root.userData.visualOffsetY=0;
   root.userData.physicsBodyOffsetY=1.2;
-  root.userData.wheels=Object.values(builder.articulation.wheels||{}).map(w=>w.assembly).filter(Boolean);
-
-  const aliases={
-    hood:"hood_lid",trunk:"trunk_lid",
-    door_FL:"door_FrontLeft",door_FR:"door_FrontRight",door_RL:"door_RearLeft",door_RR:"door_RearRight",
-    headlight_L:"headlight_l",headlight_R:"headlight_r",
-    taillight_L:"taillight_l",taillight_R:"taillight_r",
-    window_side_L:"window_side_l",window_side_R:"window_side_r"
+  // Do not create service parts from the retired procedural builder.
+  // The authoritative R18 GLB populates serviceParts/articulation asynchronously.
+  // If the GLB has not finished loading yet, keep these containers empty and let
+  // waitForPlayerModel() synchronize them after modelLoading becomes false.
+  if(!root.userData.serviceParts) root.userData.serviceParts={};
+  if(!root.userData.articulation) root.userData.articulation={
+    doors:[],hood:null,trunk:null,steering:null
   };
-  root.userData.serviceParts={};
-  for(const [key,meta] of Object.entries(PART_CATALOG)){
-    const retroKey=aliases[key]||key;
-    const raw=builder.parts?.[retroKey];
-    if(!raw?.mesh) continue;
-    const part={
-      key,name:meta.name,category:meta.category,subsystem:meta.subsystem,
-      removable:meta.removable,tunable:meta.tunable,baseCost:meta.baseCost,
-      mesh:raw.mesh,condition:100,installed:true
-    };
-    raw.mesh.userData.servicePart=part;
-    root.userData.serviceParts[key]=part;
-  }
-
-  const art=builder.articulation;
-  root.userData.articulation={
-    doors:Object.values(art.doors||{}).map(d=>({pivot:d.pivot,open:0,openSign:Math.sign(d.maxAngle)||1,axis:"y"})),
-    hood:art.hood?{pivot:art.hood.pivot,open:0,openSign:Math.sign(art.hood.openSign)||1,axis:"x"}:null,
-    trunk:art.trunk?{pivot:art.trunk.pivot,open:0,openSign:Math.sign(art.trunk.maxAngle)||1,axis:"x"}:null,
-    steering:null
-  };
+  root.userData.wheels=root.userData.wheels||[];
 
   state.car.doorsOpen=false;
   state.car.hoodOpen=false;
@@ -386,6 +365,9 @@ async function buildCity(){ clearJobMarker(); traffic=[]; trafficLights=[]; smok
         requestAnimationFrame(waitForPlayerModel);
         return;
       }
+      // The R18 GLB is now the only player visual. Its service parts and
+      // articulation are installed by RetroCarBuilder during the async load.
+      syncCarPartsFromCatalog(car,state);
       attachPlayerCamera();
       animate(traffic);
       setupVehiclePhysics().catch(err=>{window.MechanicCityDebugLog?.({type:"physics-async",message:String(err?.message||err),stack:String(err?.stack||"")}); console.warn("Async Rapier setup failed; fallback driving remains active.",err);});
