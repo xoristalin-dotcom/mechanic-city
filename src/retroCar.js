@@ -148,7 +148,7 @@ export class RetroCarBuilder {
           const lower = String(o.name || "").toLowerCase();
           const structural =
             /^(chassis|floor_pan|underbody|body_shell|body|root|scene)$/i.test(o.name) ||
-            /^(glass|window|mirror|seat|dash|console|steering|pedal)$/i.test(category);
+            category === "glass" || category === "interior";
           const removable = !structural && category !== "other";
           const part = {
             key,
@@ -167,6 +167,15 @@ export class RetroCarBuilder {
           serviceParts[key] = part;
           if (/door|hood|trunk|bonnet|boot/i.test(o.name || "")) named.push(o);
         });
+
+        // Install the authoritative GLB before creating articulation pivots.
+        // Pivots live inside the model so they cannot be removed by a later carGroup cleanup.
+        this.carGroup.remove(...[...this.carGroup.children]);
+        this.carGroup.add(model);
+        const articulationRoot = new THREE.Object3D();
+        articulationRoot.name = "R18_ARTICULATION";
+        model.add(articulationRoot);
+        model.updateMatrixWorld(true);
 
         // Build hinges from the actual R18 nodes. If the asset contains
         // authored door/hood/trunk nodes, we rotate those nodes directly;
@@ -199,8 +208,8 @@ export class RetroCarBuilder {
           );
           const pivot = new THREE.Object3D();
           pivot.name = "R18_Hinge_" + obj.name;
-          this.carGroup.add(pivot);
-          pivot.position.copy(this.carGroup.worldToLocal(hinge));
+          articulationRoot.add(pivot);
+          pivot.position.copy(articulationRoot.worldToLocal(hinge));
           pivot.attach(obj);
           const openSign = side < 0 ? 1 : -1;
           return {pivot, open: 0, openSign, maxAngle: 1.05, axis: "y", source: obj.name};
@@ -216,8 +225,8 @@ export class RetroCarBuilder {
           );
           const pivot = new THREE.Object3D();
           pivot.name = "R18_Hinge_" + obj.name;
-          this.carGroup.add(pivot);
-          pivot.position.copy(this.carGroup.worldToLocal(hinge));
+          articulationRoot.add(pivot);
+          pivot.position.copy(articulationRoot.worldToLocal(hinge));
           pivot.attach(obj);
           return {pivot, open: 0, openSign: front ? -1 : 1, maxAngle: 0.95, axis: "x", source: obj.name};
         };
@@ -281,8 +290,8 @@ export class RetroCarBuilder {
             o.frustumCulled = true;
           }
         });
-        this.carGroup.remove(...[...this.carGroup.children]);
-        this.carGroup.add(model);
+        // The authoritative model is already installed in carGroup.
+        // Keep the articulation root and pivots in the rendered scene graph.
         this.carGroup.visible = true;
         this.carGroup.userData.modelLoading = false;
         this.carGroup.userData.modelRevision = "Higgsfield-R18";
