@@ -1302,10 +1302,17 @@ export class RetroCarBuilder {
           if (!Number.isFinite(longest) || longest <= 0) return;
           const interiorScale = targetLength / longest;
           interiorModel.scale.setScalar(interiorScale);
+          // preview.glb uses X as the vehicle length axis, just like the
+          // original R18 normalization above. Apply the same X -> Z rotation
+          // so the cabin/interior cannot sit crosswise over the R2.1 chassis.
+          interiorModel.rotation.set(0, -Math.PI / 2, 0);
+          const interiorCenter = center.clone()
+            .applyEuler(interiorModel.rotation)
+            .multiplyScalar(interiorScale);
           interiorModel.position.set(
-            -center.x * interiorScale,
+            -interiorCenter.x,
             -box.min.y * interiorScale,
-            -center.z * interiorScale
+            -interiorCenter.z
           );
           interiorModel.updateMatrixWorld(true);
 
