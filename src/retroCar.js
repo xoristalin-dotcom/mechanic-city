@@ -48,10 +48,7 @@ export class RetroCarBuilder {
   }
 
   async loadMechanicCityModel() {
-    const paths = [
-      import.meta.env.VITE_MECHANIC_CITY_MODEL_URL || "/models/preview.glb",
-      "/models/preview.glb"
-    ].filter((v,i,a)=>v && a.indexOf(v)===i);
+    const paths = ["/models/preview.glb"];
 
     try {
       const loader = new GLTFLoader();
@@ -80,8 +77,7 @@ export class RetroCarBuilder {
 
       // R18 uses the complete scene bounds. Keep the older R2.1 body-only
       // normalization only for the legacy fallback path below.
-      const isR18Source = sourcePath === "/models/preview.glb" ||
-        sourcePath === (import.meta.env.VITE_MECHANIC_CITY_MODEL_URL || "/models/preview.glb");
+      const isR18Source = sourcePath === "/models/preview.glb";
       const bodyMesh = !isR18Source ? model.getObjectByName("geometry_0") : null;
       const bodyBox = bodyMesh
         ? new THREE.Box3().setFromObject(bodyMesh)
@@ -110,7 +106,7 @@ export class RetroCarBuilder {
       // geometry all come from the original asset. Three.js keeps these nodes
       // addressable through the scene graph, so the workshop can operate on
       // individual parts instead of cutting the car into geometry_* fragments.
-      if (sourcePath === "/models/preview.glb" || sourcePath === (import.meta.env.VITE_MECHANIC_CITY_MODEL_URL || "/models/preview.glb")) {
+      if (sourcePath === "/models/preview.glb") {
         const categoryFor = (name) => {
           const n = String(name || "").toLowerCase();
           if (/gearbox|transmission|clutch|differential/.test(n)) return "transmission";
@@ -1142,11 +1138,11 @@ export class RetroCarBuilder {
         mobileOptimized: true
       };
     } catch (err) {
-      // If the GLB really fails, reveal the procedural fallback instead of
-      // leaving the player vehicle invisible.
-      this.carGroup.visible = true;
+      // Never reveal the procedural fallback: the original R18 GLB is the sole player visual.
+      this.carGroup.visible = false;
       this.carGroup.userData.modelLoading = false;
-      console.warn("Mechanic City Challenger R2.1 load failed; keeping procedural car.", err);
+      this.carGroup.userData.modelLoadError = String(err?.message || err);
+      console.error("Mechanic City R18 GLB load failed; procedural fallback remains hidden.", err);
     }
   }
 
