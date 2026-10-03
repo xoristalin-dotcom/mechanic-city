@@ -48,16 +48,20 @@ function makeWheel(parent, x, z, front, side){
   wheel.position.set(x,0.39,z);
   parent.add(wheel);
 
-  const tire=cylinder(wheel,M.tire,"Tire",0.405,0.235,0,0,0,0,0,Math.PI/2,28);
+  const rolling=new THREE.Group();
+  rolling.name="Wheel_RollingAssembly";
+  wheel.add(rolling);
+  const tire=cylinder(rolling,M.tire,"Tire",0.405,0.235,0,0,0,0,0,Math.PI/2,28);
   tire.userData.isWheel=true;
-  const rim=cylinder(wheel,M.chrome,"Alloy_Rim",0.255,0.245,0,0,0,0,0,Math.PI/2,24);
-  const hub=cylinder(wheel,M.black,"Hub",0.085,0.255,0,0,0,0,0,Math.PI/2,20);
-  const disc=cylinder(wheel,M.chrome,"Brake_Disc",0.315,0.055,side<0?-0.125:0.125,0,0,0,Math.PI/2,28);
+  cylinder(rolling,M.chrome,"Alloy_Rim",0.255,0.245,0,0,0,0,0,Math.PI/2,24);
+  cylinder(rolling,M.black,"Hub",0.085,0.255,0,0,0,0,0,Math.PI/2,20);
+  cylinder(rolling,M.chrome,"Brake_Disc",0.315,0.055,side<0?-0.125:0.125,0,0,0,Math.PI/2,28);
   const caliper=box(wheel,M.brake,"Brake_Caliper",0.07,0.15,0.20,side<0?-0.16:0.16,0.05,0.0,0.025);
   caliper.rotation.z=0.15;
   wheel.userData.front=front;
   wheel.userData.side=side;
-  wheel.userData.spin=tire;
+  wheel.userData.rolling=rolling;
+  wheel.userData.spin=rolling;
   wheel.userData.baseSteerY=0;
   return wheel;
 }
