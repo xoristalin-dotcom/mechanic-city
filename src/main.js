@@ -434,41 +434,36 @@ function enhancePlayerVehicleVisuals(root){
 function updatePlayerCamera(){
   if(!camera||!scene||!car)return false;
 
-  // AUTHORITATIVE CAMERA: the camera is a real child of the persistent player
-  // root. We never compute a world-space camera position while following.
-  // This prevents the old "camera freezes beside the car" regression because
-  // the car transform (position + rotation) is inherited automatically.
-  if(camera.parent!==car){
-    car.add(camera);
-  }
+  // Camera is permanently attached to the player car.
+  if(camera.parent!==car) car.add(camera);
 
   camera.userData.followTarget=car.uuid;
   camera.userData.followingPlayer=true;
   camera.userData.followMode=cameraModeNames[cameraMode]||"follow";
 
-  const moving=Math.abs(state.speed)>.25;
   if(cameraMode===2){
-    // Hood/cockpit view: local coordinates are relative to the car.
-    camera.position.set(0,1.42,.62);
+    // Cockpit: fixed local point inside the Challenger.
+    camera.position.set(0,1.38,0.35);
     camera.rotation.set(0,0,0);
-    const lookWorld=car.localToWorld(new THREE.Vector3(0,1.25,4));
-    camera.lookAt(lookWorld);
+    const target=car.localToWorld(new THREE.Vector3(0,1.25,5));
+    camera.lookAt(target);
   }else{
-    const distance=moving?9.6:9;
-    const localOffset=new THREE.Vector3(
-      Math.sin(camOrbitYaw)*distance,
-      (moving?5.9:5.7)+Math.sin(camOrbitPitch)*distance*.55,
-      -Math.cos(camOrbitYaw)*distance
-    );
-    camera.position.copy(localOffset);
+    // Chase camera: FIXED behind and above the car.
+    // Negative local Z is the rear of the vehicle.
+    camera.position.set(0,4.6,-8.8);
     camera.rotation.set(0,0,0);
-    const lookWorld=car.localToWorld(new THREE.Vector3(0,1.15,0));
-    camera.lookAt(lookWorld);
+    const target=car.localToWorld(new THREE.Vector3(0,1.05,1.8));
+    camera.lookAt(target);
   }
 
   car.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
   window.MechanicCityCameraAttachedToPlayer=true;
+  window.MechanicCityCameraMode={
+    parent:camera.parent===car,
+    position:{x:camera.position.x,y:camera.position.y,z:camera.position.z},
+    mode:cameraMode===2?"cockpit":"fixed-rear"
+  };
   return true;
 }
 function updateCarDamage(){if(!car)return;const mark=car.userData.damageMark;if(mark)mark.visible=state.damage>25;if(state.damage>65&&smoke.length===0)for(let i=0;i<5;i++){const p=new THREE.Mesh(new THREE.SphereGeometry(.12,8,8),new THREE.MeshBasicMaterial({color:0x665341,transparent:true,opacity:.7}));p.position.set(Math.random()-.5,1.2+Math.random()*.6,Math.random()-.5);scene.add(p);smoke.push(p);}}
