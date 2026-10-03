@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import RAPIER from "@dimforge/rapier3d-compat";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
-import { RetroCarBuilder } from "./retroCar.js?vehicle=Dodge-Challenger-MechanicCity-R2.1-20261002-v1";
+import { RetroCarBuilder } from "./retroCar.js?vehicle=Dodge-Challenger-MechanicCity-SINGLE-20261003-v1";
 import {
   PART_CATALOG,
   initializeCarParts,
@@ -241,7 +241,7 @@ function createRetroPlayerCar(){
   state.car.hoodOpen=false;
   state.car.trunkOpen=false;
   state.car.articulationActive=true;
-  state.car.name="Higgsfield-R18";
+  state.car.name="Dodge Challenger";
   state.car.year=2026;
 
   if(state.car.partStateVersion!==PART_STATE_VERSION){
@@ -887,7 +887,7 @@ function buildJunkyardScene(){
 function buildDealerScene(){
   const html="<div class='cards'><h2>🚘 Автосалон</h2><article><b>Higgsfield R18 / Dodge Challenger</b><span>2026 · 4.88 м · 1.92 м · V8-класс</span><strong>АКТИВНА</strong><button id='dealerCurrent'>Сделать основной машиной</button></article><article><b>Retro Coupe 1972</b><span>Классический профиль · задний привод · проектная машина</span><strong>КАТАЛОГ</strong><button id='dealerProfile'>Просмотреть характеристики</button></article><article><b>Classic Sedan 1978</b><span>Городской автомобиль · комфортная подвеска</span><strong>КАТАЛОГ</strong><button id='dealerProfile2'>Просмотреть характеристики</button></article><p class='muted'>Модели каталога подключаются к общей системе деталей, ремонта и сохранения.</p></div>";
   viewport.innerHTML=html;
-  viewport.querySelector("#dealerCurrent").onclick=()=>{state.car.name="Higgsfield R18";state.car.year=2026;save();msg("🚘 R18 выбрана основной машиной");};
+  viewport.querySelector("#dealerCurrent").onclick=()=>{state.car.name="Dodge Challenger";state.car.year=2026;save();msg("🚘 R18 выбрана основной машиной");};
   viewport.querySelector("#dealerProfile").onclick=()=>openPanel("Retro Coupe 1972","<p>Задний привод · классический кузов · проект для будущей замены кузова.</p>");
   viewport.querySelector("#dealerProfile2").onclick=()=>openPanel("Classic Sedan 1978","<p>Комфортная подвеска · городской профиль · проект для будущего отдельного GLB.</p>");
 }
