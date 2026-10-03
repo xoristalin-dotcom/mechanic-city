@@ -152,7 +152,7 @@ function restoreAuthoritativeVehicleAssembly(root){
 }
 function updateArticulatedCar(dt){const a=car?.userData?.articulation;if(!a)return;state.car.articulationActive=true;if(a.hood){const target=state.car.hoodOpen?1:0;a.hood.open=THREE.MathUtils.damp(a.hood.open,target,7,dt);a.hood.pivot.rotation.x=a.hood.openSign*a.hood.maxAngle*a.hood.open;a.hood.pivot.visible=true;if(car?.userData?.engineBay)car.userData.engineBay.visible=a.hood.open>0.08;}if(a.trunk){const target=state.car.trunkOpen?1:0;a.trunk.open=THREE.MathUtils.damp(a.trunk.open,target,7,dt);a.trunk.pivot.rotation.x=a.trunk.openSign*a.trunk.maxAngle*a.trunk.open;a.trunk.pivot.visible=true;}if(Array.isArray(a.doors)){const target=state.car.doorsOpen?1:0;for(const door of a.doors){if(!door?.pivot)continue;door.open=THREE.MathUtils.damp(door.open,target,7,dt);door.pivot.rotation.y=door.openSign*door.maxAngle*door.open;door.pivot.visible=true;}}}
 function physicsDrive(dt){
-  const steerInput=(input.left?1:0)+(input.right?-1:0);
+  const steerInput=(input.right?1:0)+(input.left?-1:0);
   const throttle=(input.gas===true||state.throttle===true)&&(state.gear==="D"||state.gear==="R");
   const reverse=state.gear==="R";
   const maxForward=16;
@@ -225,7 +225,7 @@ function physicsDrive(dt){
   window.MechanicCityWheelDiagnostics=wheelDiagnostics;
 }
 
-function fallbackDrive(dt){const throttle=(input.gas||state.throttle)&&(state.gear==="D"||state.gear==="R"),reverse=state.gear==="R",steer=(input.left?1:0)+(input.right?-1:0);const accel=throttle?(reverse?10:10):2.5; state.speed=THREE.MathUtils.damp(state.speed,throttle?(reverse?-8:8):0,accel,dt); state.heading+=steer*dt*1.2; if(car){car.rotation.y=state.heading;const forward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();state.posX+=forward.x*state.speed*dt*2;state.posZ+=forward.z*state.speed*dt*2;car.position.set(state.posX,0,state.posZ);}} 
+function fallbackDrive(dt){const throttle=(input.gas||state.throttle)&&(state.gear==="D"||state.gear==="R"),reverse=state.gear==="R",steer=(input.right?1:0)+(input.left?-1:0);const accel=throttle?(reverse?10:10):2.5; state.speed=THREE.MathUtils.damp(state.speed,throttle?(reverse?-8:8):0,accel,dt); state.heading+=steer*dt*1.2; if(car){car.rotation.y=state.heading;const forward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();state.posX+=forward.x*state.speed*dt*2;state.posZ+=forward.z*state.speed*dt*2;car.position.set(state.posX,0,state.posZ);}} 
 function createRetroPlayerCar(){
   const builder=new RetroCarBuilder({color:0x252b31,type:"sedan",year:1975,damageLevel:state.damage});
   const root=builder.getGroup();
