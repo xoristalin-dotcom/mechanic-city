@@ -103,7 +103,7 @@ function buildChallengerBodyShell(carGroup){
   add(new RoundedBoxGeometry(1.93,0.10,3.85,6,0.035),black,"Lower_Rocker_Base",[0,0.38,0]);
   // These outer skins are represented by the articulated door/hood groups below.
   // Keep only one visible copy so opening a panel cannot leave a static duplicate.
-  for(const name of ["Hood_Skin","Door_Skin_L","Door_Skin_R","SideGlass_L","SideGlass_R","Door_BeltTrim_L","Door_BeltTrim_R"]){
+  for(const name of ["Hood_Skin","Trunk_Skin","Door_Skin_L","Door_Skin_R","SideGlass_L","SideGlass_R","Door_BeltTrim_L","Door_BeltTrim_R"]){
     const duplicate=shell.getObjectByName(name);
     if(duplicate) duplicate.visible=false;
   }
@@ -135,12 +135,18 @@ function buildChallengerBodyShell(carGroup){
   add(new RoundedBoxGeometry(0.56,0.045,0.70,5,0.018),black,"Hood_Scoop",[0,0.105,-0.72],undefined,hoodPivot);
   hood.castShadow=true;
 
+  const trunkPivot=new THREE.Object3D();
+  trunkPivot.name="Rebuilt_Trunk_Hinge";
+  trunkPivot.position.set(0,0.92,-2.08);
+  shell.add(trunkPivot);
+  add(new RoundedBoxGeometry(1.68,0.18,0.92,8,0.07),paint,"Rebuilt_Trunk",[0,0,0.46],undefined,trunkPivot);
+
   return {
     shell,
     articulation:{
       doors,
       hood:{pivot:hoodPivot,open:0,openSign:-1,axis:"x",maxAngle:0.82},
-      trunk:null,
+      trunk:{pivot:trunkPivot,open:0,openSign:-1,axis:"x",maxAngle:0.72},
       steering:null
     }
   };
@@ -1730,7 +1736,7 @@ export class RetroCarBuilder {
       this.carGroup.userData.rebuiltExteriorRevision="Dodge-Challenger-Shell-R1";
       this.carGroup.userData.articulation.doors=rebuilt.articulation.doors;
       this.carGroup.userData.articulation.hood=rebuilt.articulation.hood;
-      this.carGroup.userData.articulation.trunk=null;
+      this.carGroup.userData.articulation.trunk=rebuilt.articulation.trunk;
       this.carGroup.userData.vehicleSpec = {
         ...this.carGroup.userData.vehicleSpec,
         lengthMeters:4.95,
