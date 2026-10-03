@@ -387,6 +387,8 @@ function installAITestMode(){ if(new URLSearchParams(location.search).get("test"
         render:window.MechanicCityRenderError||null,
         emergency:window.MechanicCityEmergencyError||null
       },
+      cameraMode:cameraMode,
+      cameraAttached:!!(camera&&scene&&camera.parent===scene&&!!car),
       camera:{
         mode:cameraMode,name:cameraModeNames[cameraMode]||null,attached:!!(camera&&scene&&camera.parent===scene&&!!car),
         parent:camera?.parent?{type:camera.parent.type,name:camera.parent.name||null}:null,
