@@ -101,6 +101,12 @@ function buildChallengerBodyShell(carGroup){
 
   // Black lower splitter/rocker line makes the body read as one continuous shell.
   add(new RoundedBoxGeometry(1.93,0.10,3.85,6,0.035),black,"Lower_Rocker_Base",[0,0.38,0]);
+  // These outer skins are represented by the articulated door/hood groups below.
+  // Keep only one visible copy so opening a panel cannot leave a static duplicate.
+  for(const name of ["Hood_Skin","Door_Skin_L","Door_Skin_R","SideGlass_L","SideGlass_R","Door_BeltTrim_L","Door_BeltTrim_R"]){
+    const duplicate=shell.getObjectByName(name);
+    if(duplicate) duplicate.visible=false;
+  }
   shell.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
 
   const makeDoor=(side)=>{
