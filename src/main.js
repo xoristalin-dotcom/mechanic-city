@@ -360,7 +360,7 @@ function installAITestMode(){ if(new URLSearchParams(location.search).get("test"
       position:{x:state.posX,z:state.posZ},
       speed:state.speed,heading:state.heading,gear:state.gear,fuel:state.fuel,heat:state.heat,damage:state.damage,
       gas:input.gas,throttle:state.throttle,driving:state.driving,
-      physics:{ready:physicsReady,error:physicsError||window.MechanicCityPhysicsError||null,world:!!physicsWorld,chassis:!!chassisBody,rapierInit:!!RAPIER?.init},
+      physicsReady:!!physicsReady,\n      physics:{ready:!!physicsReady,error:physicsError||window.MechanicCityPhysicsError||null,world:!!physicsWorld,chassis:!!chassisBody,rapierInit:!!RAPIER?.init},
       errors:{
         build:window.MechanicCityBuildError||null,
         glb:window.MechanicCityGLBError||null,
