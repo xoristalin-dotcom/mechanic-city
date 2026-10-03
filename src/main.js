@@ -194,6 +194,11 @@ function updatePlayerWheelVisuals(dt,steeringInput){
     diagnostics.push({name:w.name||"(unnamed)",front:!!w.userData.front,side,steerDeg:THREE.MathUtils.radToDeg(steerAngle),hasSpin:!!spin});
   }
   window.MechanicCityWheelDiagnostics=diagnostics;
+  const steeringWheel=car.userData?.steering;
+  if(steeringWheel?.rotation){
+    const target=-steer*2.25;
+    steeringWheel.rotation.z=THREE.MathUtils.damp(steeringWheel.rotation.z,target,11,dt);
+  }
 }
 
 function physicsDrive(dt){
@@ -243,7 +248,7 @@ function physicsDrive(dt){
   updatePlayerWheelVisuals(dt,state.steer);
 }
 
-function fallbackDrive(dt){const throttle=(input.gas||state.throttle)&&(state.gear==="D"||state.gear==="R"),reverse=state.gear==="R",steer=(input.right?1:0)+(input.left?-1:0);const accel=throttle?(reverse?10:10):2.5;state.speed=THREE.MathUtils.damp(state.speed,throttle?(reverse?-8:8):0,accel,dt);state.steer=THREE.MathUtils.damp(state.steer,steer,7,dt);state.heading+=steer*dt*1.2;if(car){car.rotation.y=state.heading;const forward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();state.posX+=forward.x*state.speed*dt*2;state.posZ+=forward.z*state.speed*dt*2;car.position.set(state.posX,car.position.y,state.posZ);updatePlayerWheelVisuals(dt,state.steer);}}
+function fallbackDrive(dt){const throttle=(input.gas||state.throttle)&&(state.gear==="D"||state.gear==="R"),reverse=state.gear==="R",steer=(input.right?1:0)+(input.left?-1:0);const accel=throttle?(reverse?10:10):2.5;state.speed=THREE.MathUtils.damp(state.speed,throttle?(reverse?-8:8):0,accel,dt);state.steer=THREE.MathUtils.damp(state.steer,steer,7,dt);const steerAngle=state.steer*THREE.MathUtils.degToRad(34);if(Math.abs(state.speed)>.01)state.heading+=(state.speed/2.946)*Math.tan(steerAngle)*dt;if(car){car.rotation.y=state.heading;const forward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();state.posX+=forward.x*state.speed*dt*2;state.posZ+=forward.z*state.speed*dt*2;car.position.set(state.posX,car.position.y,car.position.z);updatePlayerWheelVisuals(dt,state.steer);}}
 function createRetroPlayerCar(){
   const builder=new RetroCarBuilder({color:0x252b31,type:"coupe",year:2023,damageLevel:state.damage});
   const root=builder.getGroup();
