@@ -151,6 +151,51 @@ function restoreAuthoritativeVehicleAssembly(root){
   syncCarPartsFromCatalog(root,state);
 }
 function updateArticulatedCar(dt){const a=car?.userData?.articulation;if(!a)return;state.car.articulationActive=true;if(a.hood){const target=state.car.hoodOpen?1:0;a.hood.open=THREE.MathUtils.damp(a.hood.open,target,7,dt);a.hood.pivot.rotation.x=a.hood.openSign*a.hood.maxAngle*a.hood.open;a.hood.pivot.visible=true;if(car?.userData?.engineBay)car.userData.engineBay.visible=a.hood.open>0.08;}if(a.trunk){const target=state.car.trunkOpen?1:0;a.trunk.open=THREE.MathUtils.damp(a.trunk.open,target,7,dt);a.trunk.pivot.rotation.x=a.trunk.openSign*a.trunk.maxAngle*a.trunk.open;a.trunk.pivot.visible=true;}if(Array.isArray(a.doors)){const target=state.car.doorsOpen?1:0;for(const door of a.doors){if(!door?.pivot)continue;door.open=THREE.MathUtils.damp(door.open,target,7,dt);door.pivot.rotation.y=door.openSign*door.maxAngle*door.open;door.pivot.visible=true;}}}
+function updatePlayerWheelVisuals(dt,steeringInput){
+  if(!car)return;
+  const wheels=car.userData?.wheels||[];
+  const wheelbase=Number(car.userData?.vehicleSpec?.wheelbaseMeters)||2.946;
+  const frontTrack=Number(car.userData?.vehicleSpec?.frontTrackMeters)||1.610;
+  const maxSteer=THREE.MathUtils.degToRad(34);
+  const steer=Math.max(-1,Math.min(1,Number(steeringInput)||0));
+  const centerAngle=steer*maxSteer*(1-Math.min(Math.abs(state.speed)/22,.42));
+  const absCenter=Math.abs(centerAngle);
+  const sign=THREE.MathUtils.sign(centerAngle);
+  const turnRadius=absCenter>.0005?wheelbase/Math.tan(absCenter):Infinity;
+  const diagnostics=[];
+  for(const w of wheels){
+    if(!w)continue;
+    w.userData??={};
+    if(!w.userData.wheelBound){
+      const n=String(w.name||"").toLowerCase();
+      if(typeof w.userData.front!=="boolean")w.userData.front=/(wheelpivot_f[lr]|front|_fl|_fr|_l_f|_r_f|_f$)/.test(n);
+      if(typeof w.userData.side!=="number")w.userData.side=n.includes("_l")?-1:n.includes("_r")?1:0;
+      w.userData.baseSteerY=Number.isFinite(w.rotation?.y)?w.rotation.y:0;
+      if(!w.userData.spin&&Array.isArray(w.children)){
+        const spin=w.children.find(ch=>ch?.isObject3D&&/rolling|spin/i.test(ch.name||""))||w.children.find(ch=>ch?.isObject3D);
+        if(spin)w.userData.spin=spin;
+      }
+      w.userData.wheelBound=true;
+    }
+    let steerAngle=centerAngle;
+    const side=Number(w.userData.side)||0;
+    if(w.userData.front&&absCenter>.0005&&Number.isFinite(turnRadius)){
+      const denominator=Math.max(.05,turnRadius-sign*side*(frontTrack*.5));
+      steerAngle=sign*Math.atan(wheelbase/denominator);
+    }else if(!w.userData.front){
+      steerAngle=0;
+    }
+    const base=Number.isFinite(w.userData.baseSteerY)?w.userData.baseSteerY:0;
+    if(w.rotation)w.rotation.y=base+steerAngle;
+    w.userData.steerAngle=steerAngle;
+    const spin=w.userData.spin;
+    const radius=Number(w.userData.tireRadius)||.365;
+    if(spin?.rotation)spin.rotation.x+=state.speed*dt/radius;
+    diagnostics.push({name:w.name||"(unnamed)",front:!!w.userData.front,side,steerDeg:THREE.MathUtils.radToDeg(steerAngle),hasSpin:!!spin});
+  }
+  window.MechanicCityWheelDiagnostics=diagnostics;
+}
+
 function physicsDrive(dt){
   const steerInput=(input.right?1:0)+(input.left?-1:0);
   const throttle=(input.gas===true||state.throttle===true)&&(state.gear==="D"||state.gear==="R");
@@ -174,8 +219,8 @@ function physicsDrive(dt){
     else if(state.speed<0)state.speed=Math.min(0,state.speed+brakeStep);
   }
   state.steer=THREE.MathUtils.damp(state.steer,steerInput,7,dt);
-  const steerAngle=state.steer*THREE.MathUtils.degToRad(36)*(1-Math.min(Math.abs(state.speed)/22,.38));
-  if(Math.abs(state.speed)>.01)state.heading+=(state.speed/2.95)*Math.tan(steerAngle)*dt;
+  const steerAngle=state.steer*THREE.MathUtils.degToRad(34)*(1-Math.min(Math.abs(state.speed)/22,.42));
+  if(Math.abs(state.speed)>.01)state.heading+=(state.speed/2.946)*Math.tan(steerAngle)*dt;
   car.rotation.y=state.heading;
   const forward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();
   state.posX+=forward.x*state.speed*dt;
@@ -195,39 +240,12 @@ function physicsDrive(dt){
       chassisBody.setAngvel({x:0,y:0,z:0},true);
     }catch{}
   }
-  const wheelDiagnostics=[];
-  for(const w of(car.userData?.wheels||[])){
-    if(!w) continue;
-    w.userData??={};
-    // Imported R2.1 pivots are authoritative. Bind them once from their names
-    // so steering can never accidentally rotate all four wheels.
-    if(!w.userData.wheelBound){
-      const n=String(w.name||"").toLowerCase();
-      w.userData.front=/wheelpivot_f[lr]|front|_fl|_fr/.test(n);
-      w.userData.baseSteerY=Number.isFinite(w.rotation?.y)?w.rotation.y:0;
-      if(!w.userData.spin && Array.isArray(w.children)){
-        const spin=w.children.find(ch=>ch?.isObject3D);
-        if(spin) w.userData.spin=spin;
-      }
-      w.userData.wheelBound=true;
-    }
-    const front=!!w.userData.front;
-    if(front && w.rotation){ const base=Number.isFinite(w.userData.baseSteerY)?w.userData.baseSteerY:0; w.rotation.y=base+steerAngle; w.userData.steerAngle=steerAngle; } else if(w.rotation){ w.rotation.y=Number.isFinite(w.userData.baseSteerY)?w.userData.baseSteerY:0; }
-    // Spin a child only; steering stays on the pivot and cannot create the
-    // old figure-eight/sideways wheel motion.
-    const spin=w.userData.spin;
-    if(spin?.rotation){
-      // The wheel axle is local X; steering remains on the wheel pivot.
-      spin.rotation.x-=state.speed*dt/.39;
-    }
-    wheelDiagnostics.push({name:w.name||"(unnamed)",front,hasSpin:!!spin});
-  }
-  window.MechanicCityWheelDiagnostics=wheelDiagnostics;
+  updatePlayerWheelVisuals(dt,state.steer);
 }
 
-function fallbackDrive(dt){const throttle=(input.gas||state.throttle)&&(state.gear==="D"||state.gear==="R"),reverse=state.gear==="R",steer=(input.right?1:0)+(input.left?-1:0);const accel=throttle?(reverse?10:10):2.5; state.speed=THREE.MathUtils.damp(state.speed,throttle?(reverse?-8:8):0,accel,dt); state.heading+=steer*dt*1.2; if(car){car.rotation.y=state.heading;const forward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();state.posX+=forward.x*state.speed*dt*2;state.posZ+=forward.z*state.speed*dt*2;car.position.set(state.posX,0,state.posZ);}} 
+function fallbackDrive(dt){const throttle=(input.gas||state.throttle)&&(state.gear==="D"||state.gear==="R"),reverse=state.gear==="R",steer=(input.right?1:0)+(input.left?-1:0);const accel=throttle?(reverse?10:10):2.5;state.speed=THREE.MathUtils.damp(state.speed,throttle?(reverse?-8:8):0,accel,dt);state.steer=THREE.MathUtils.damp(state.steer,steer,7,dt);state.heading+=steer*dt*1.2;if(car){car.rotation.y=state.heading;const forward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();state.posX+=forward.x*state.speed*dt*2;state.posZ+=forward.z*state.speed*dt*2;car.position.set(state.posX,car.position.y,state.posZ);updatePlayerWheelVisuals(dt,state.steer);}}
 function createRetroPlayerCar(){
-  const builder=new RetroCarBuilder({color:0x252b31,type:"sedan",year:1975,damageLevel:state.damage});
+  const builder=new RetroCarBuilder({color:0x252b31,type:"coupe",year:2023,damageLevel:state.damage});
   const root=builder.getGroup();
   root.name="Dodge_Challenger_MechanicCity_Player";
   root.userData.retroBuilder=builder;
