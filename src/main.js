@@ -212,7 +212,7 @@ function physicsDrive(dt){
       w.userData.wheelBound=true;
     }
     const front=!!w.userData.front;
-    if(front && w.rotation) w.rotation.y=(w.userData.baseSteerY||0)+steerAngle;
+    if(front && w.rotation){ const base=Number.isFinite(w.userData.baseSteerY)?w.userData.baseSteerY:0; w.rotation.y=base+steerAngle; w.userData.steerAngle=steerAngle; } else if(w.rotation){ w.rotation.y=Number.isFinite(w.userData.baseSteerY)?w.userData.baseSteerY:0; }
     // Spin a child only; steering stays on the pivot and cannot create the
     // old figure-eight/sideways wheel motion.
     const spin=w.userData.spin;
