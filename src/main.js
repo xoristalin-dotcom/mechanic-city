@@ -342,7 +342,7 @@ function installVisualInspectMode(){
       car:{...state.car},
       cameraMode,
       cameraModeName:cameraModeNames[cameraMode],
-      cameraAttached:!!(camera&&scene&&camera.parent===scene&&!!car&&camera.userData?.followTarget===car.uuid),
+      cameraAttached:!!(camera&&car&&camera.parent===car&&camera.userData?.followTarget===car.uuid),
       cameraFollowTarget:camera?.userData?.followTarget||null,
       openWorld:!!scene?.userData?.openWorld,
       openWorldDistricts:scene?.userData?.openWorldDistricts?.length||0,
@@ -395,10 +395,10 @@ function installAITestMode(){ if(new URLSearchParams(location.search).get("test"
         emergency:window.MechanicCityEmergencyError||null
       },
       cameraMode:cameraMode,
-      cameraAttached:!!(camera&&scene&&camera.parent===scene&&!!car),
+      cameraAttached:!!(camera&&car&&camera.parent===car&&camera.userData?.followTarget===car.uuid),
       camera:{
         mode:cameraMode,name:cameraModeNames[cameraMode]||null,attached:!!(camera&&scene&&camera.parent===scene&&!!car),
-        parent:camera?.parent?{type:camera.parent.type,name:camera.parent.name||null}:null,
+        parent:camera?.parent?{type:camera.parent.type,name:camera.parent.name||null,nameMatchesCar:camera.parent===car}:null,
         position:cp?{x:cp.x,y:cp.y,z:cp.z}:null
       },
       renderer:rp?{width:rp.width,height:rp.height,cssWidth:rp.clientWidth,cssHeight:rp.clientHeight,calls:renderer.info?.render?.calls||0,triangles:renderer.info?.render?.triangles||0}:null,
@@ -438,22 +438,40 @@ function enhancePlayerVehicleVisuals(root){
 }
 function updatePlayerCamera(){
   if(!camera||!scene||!car)return false;
-  if(camera.parent!==scene)scene.add(camera);
-  const moving=Math.abs(state.speed)>.25;
-  const distance=moving?9.6:9;
-  const forward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();
-  if(cameraMode===2){
-    const off=new THREE.Vector3(0,1.42,.62).applyQuaternion(car.quaternion);
-    camera.position.copy(car.position).add(off);
-    const look=car.position.clone().addScaledVector(forward,4); look.y+=1.25; camera.lookAt(look);
-  }else{
-    const off=new THREE.Vector3(Math.sin(camOrbitYaw)*distance,(moving?5.9:5.7)+Math.sin(camOrbitPitch)*distance*.55,-Math.cos(camOrbitYaw)*distance).applyQuaternion(car.quaternion);
-    camera.position.copy(car.position).add(off);
-    camera.lookAt(car.position.x,car.position.y+1.15,car.position.z);
+
+  // AUTHORITATIVE CAMERA: the camera is a real child of the persistent player
+  // root. We never compute a world-space camera position while following.
+  // This prevents the old "camera freezes beside the car" regression because
+  // the car transform (position + rotation) is inherited automatically.
+  if(camera.parent!==car){
+    car.add(camera);
   }
-  camera.updateMatrixWorld(true);
+
   camera.userData.followTarget=car.uuid;
   camera.userData.followingPlayer=true;
+  camera.userData.followMode=cameraModeNames[cameraMode]||"follow";
+
+  const moving=Math.abs(state.speed)>.25;
+  if(cameraMode===2){
+    // Hood/cockpit view: local coordinates are relative to the car.
+    camera.position.set(0,1.42,.62);
+    camera.rotation.set(0,0,0);
+    const lookLocal=new THREE.Vector3(0,1.25,4);
+    camera.lookAt(lookLocal);
+  }else{
+    const distance=moving?9.6:9;
+    const localOffset=new THREE.Vector3(
+      Math.sin(camOrbitYaw)*distance,
+      (moving?5.9:5.7)+Math.sin(camOrbitPitch)*distance*.55,
+      -Math.cos(camOrbitYaw)*distance
+    );
+    camera.position.copy(localOffset);
+    camera.rotation.set(0,0,0);
+    camera.lookAt(new THREE.Vector3(0,1.15,0));
+  }
+
+  car.updateMatrixWorld(true);
+  camera.updateMatrixWorld(true);
   window.MechanicCityCameraAttachedToPlayer=true;
   return true;
 }
@@ -584,8 +602,8 @@ async function buildCity(){ forceViewportLayout(); clearJobMarker(); traffic=[];
           car.rotation.y=state.heading;
           scene.add(car);
         }
-        if(camera.parent!==scene)scene.add(camera);
-        camera.position.set(state.posX,5.7,state.posZ-8.6);
+        if(car&&camera.parent!==car)car.add(camera);
+        camera.position.set(0,5.7,-8.6);
         camera.lookAt(state.posX,1,state.posZ);
         camera.updateMatrixWorld(true);
         renderer.render(scene,camera);
@@ -631,7 +649,7 @@ function updateMechanicCityDebug(){
 }
 
 function animate(traffic=[]){ if(renderer?.setAnimationLoop && window.MechanicCityAnimationRenderer!==renderer){ window.MechanicCityAnimationRenderer=renderer; renderer.setAnimationLoop(()=>animate(traffic)); return; } if(state.scene!=="city")return; if(!renderer||!scene||!camera)return; const dt=Math.min(clock?.getDelta()||.016,.05); try{ if((state.driving||state.throttle||input.gas)&&state.fuel>0){ physicsDrive(dt); if(state.fuel>0) state.fuel=Math.max(0,state.fuel-dt*(.018+Math.abs(state.speed)*.014)); state.car.oil=Math.max(0,state.car.oil-dt*.004); state.car.coolant=Math.max(0,state.car.coolant-dt*.002); state.heat=Math.min(125,state.heat+dt*(.08+Math.abs(state.speed)*.055)); if(state.car.oil<15||state.car.coolant<15)state.damage=Math.min(100,state.damage+dt*.08); state.car.mileage+=Math.abs(state.speed)*dt*.006; if(state.heat>108)state.damage=Math.min(100,state.damage+dt*.06); for(const npc of traffic){ if(!npc?.position||!car?.position)continue; const d=car.position.distanceTo(npc.position); if(d<2.25&&Math.abs(state.speed)>.35){ state.damage=Math.min(100,state.damage+dt*7); if(chassisBody){ const v=chassisBody.linvel(); chassisBody.setLinvel({x:v.x*.65,y:v.y,z:v.z*.65},true);} msg("⚠️ Столкновение: кузов повреждён."); } } if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();} }
- if(state.scene==="city"){ state.time=(state.time+dt*0.02)%24; if(state.rain){ for(const pts of rainDrops){ const a=pts.geometry.getAttribute("position"); for(let i=0;i<a.count;i++){ a.array[i*3+1]-=dt*12; if(a.array[i*3+1]<0)a.array[i*3+1]=38; } a.needsUpdate=true; } } } updateJob(); updateOpenWorld(state,car,msg); updateArticulatedCar(dt); car?.userData?.purgeVehicleStand?.(); updateMechanicCityDebug(); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25;
+ if(state.scene==="city"){ state.time=(state.time+dt*0.02)%24; if(state.rain){ for(const pts of rainDrops){ const a=pts.geometry.getAttribute("position"); for(let i=0;i<a.count;i++){ a.array[i*3+1]-=dt*12; if(a.array[i*3+1]<0)a.array[i*3+1]=38; } a.needsUpdate=true; } } } updateJob(); updateOpenWorld(state,car,msg,scene); updateArticulatedCar(dt); car?.userData?.purgeVehicleStand?.(); updateMechanicCityDebug(); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25;
   if(camera&&car) updatePlayerCamera();
  for(const npc of traffic){ if(!npc?.position)continue; const travel=dt*(Number(npc.userData?.trafficSpeed)||0)*8; npc.position.z+=travel; for(const w of(npc.userData?.wheels||[])){ if(w?.rotation)w.rotation.x-=travel/.39; } if(npc.position.z>120)npc.position.z=-120; } const cycle=(performance.now()/1000)%12; const green=cycle<6,yellow=cycle>=6&&cycle<7.5; for(const l of trafficLights){ if(!l?.red?.material?.color||!l?.yellow?.material?.color||!l?.green?.material?.color)continue; l.red.material.color.setHex(green?0x220000:yellow?0x220000:0xff0000); l.yellow.material.color.setHex(yellow?0xffb000:0x332600); l.green.material.color.setHex(green?0x00ff44:0x002200); } updateCarDamage(); stats(); }catch(err){ window.MechanicCityLastFrameError=String(err?.message||err); window.MechanicCityDebugLog?.({type:"frame",message:window.MechanicCityLastFrameError,stack:String(err?.stack||"")}); console.error("Mechanic City frame update failed",err);} finally{ try{renderer.render(scene,camera);}catch(err){ window.MechanicCityRenderError=String(err?.message||err); console.error("Mechanic City render failed",err); } }}
 function teleportToMapCenter(){
