@@ -16,8 +16,9 @@ const M = {
   }),
   black: new THREE.MeshStandardMaterial({color:0x050607,roughness:0.48,metalness:0.25}),
   tire: new THREE.MeshStandardMaterial({color:0x090a0b,roughness:0.94,metalness:0.02}),
-  glass: new THREE.MeshPhysicalMaterial({
-    color:0x111a20, metalness:0.08, roughness:0.08, clearcoat:0.75, clearcoatRoughness:0.06
+  // Opaque dark glass: no alpha/transmission/floating transparent surfaces.
+  glass: new THREE.MeshStandardMaterial({
+    color:0x080b0e, metalness:0.18, roughness:0.30
   }),
   chrome: new THREE.MeshPhysicalMaterial({color:0xbfc4c8,metalness:0.96,roughness:0.16}),
   lamp: new THREE.MeshPhysicalMaterial({color:0xeaf4ff,metalness:0.25,roughness:0.08,emissive:0x334455,emissiveIntensity:0.35}),
@@ -222,6 +223,47 @@ function buildChallenger(){
     const w=makeWheel(root,x,z,front,side);
     root.userData.wheels.push(w);
   }
+
+  // Dense body surfacing: rocker panels, shoulder lines, fender caps and panel seams.
+  box(root,M.paint2,"Rocker_L",.10,.22,3.25,-.96,.48,0,.035);
+  box(root,M.paint2,"Rocker_R",.10,.22,3.25,.96,.48,0,.035);
+  for(const side of [-1,1]){
+    box(root,M.paint,"Front_Fender_"+(side<0?"L":"R"),.12,.30,.88,side*.91,.76,1.18,.09);
+    box(root,M.paint,"Rear_Fender_"+(side<0?"L":"R"),.13,.32,.92,side*.92,.76,-1.22,.10);
+    box(root,M.chrome,"Side_Character_Line_"+(side<0?"L":"R"),.025,.035,2.55,side*.968,.82,-.05,.008);
+    box(root,M.black,"Lower_Door_Vent_"+(side<0?"L":"R"),.028,.10,.42,side*.974,.62,.76,.012);
+  }
+
+  // Hood details: recessed center channel and twin heat-extractor inserts.
+  box(root,M.paint2,"Hood_Center_Channel",.055,.025,1.25,0,.105,-.72,.008);
+  for(const x of [-.38,.38]){
+    box(root,M.black,"Hood_Heat_Extractor_"+(x<0?"L":"R"),.19,.025,.42,x,.11,-.77,.018);
+    for(let i=0;i<4;i++){
+      box(root,M.chrome,"Hood_Grille_"+x+"_"+i,.025,.012,.055,x-.07+i*.047,.125,-.77,.004);
+    }
+  }
+
+  // Front fascia detail: recessed intake, grille bars and separate fog lamps.
+  box(root,M.black,"Lower_Intake",1.18,.15,.06,0,.49,2.42,.018);
+  for(let i=-5;i<=5;i++){
+    box(root,M.chrome,"Grille_Bar_"+i,.025,.12,.025,i*.105,.73,2.45,.008);
+  }
+  for(const x of [-.72,.72]){
+    cylinder(root,M.lamp,"FogLamp_"+(x<0?"L":"R"),.075,.035,x,.55,2.43,Math.PI/2,0,0,20);
+  }
+
+  // Rear detail: license recess, reverse lamps and quad exhaust finishers.
+  box(root,M.black,"Plate_Recess",.52,.18,.035,0,.66,-2.43,.012);
+  for(const x of [-.30,.30]){
+    box(root,M.lamp,"Reverse_Lamp_"+(x<0?"L":"R"),.17,.045,.025,x,.82,-2.455,.006);
+  }
+  for(const x of [-.42,.42]){
+    cylinder(root,M.chrome,"Exhaust_Finisher_"+(x<0?"L":"R"),.095,.11,x,.43,-2.49,Math.PI/2,0,0,24);
+  }
+
+  // Roof and glass surround: solid pillars and a continuous roof skin.
+  box(root,M.paint2,"Roof_Trim_L",.045,.055,1.92,-.75,1.31,-.08,.012);
+  box(root,M.paint2,"Roof_Trim_R",.045,.055,1.92,.75,1.31,-.08,.012);
 
   // Mirrors and flush handles.
   for(const side of [-1,1]){
