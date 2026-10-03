@@ -143,6 +143,183 @@ function makeDoor(root, side){
   return {pivot,open:0,openSign:side<0?1:-1,axis:"y",maxAngle:1.04};
 }
 
+
+function makeDetailedMechanicalLayer(root){
+  const detail=new THREE.Group();
+  detail.name="Detailed_Mechanical_Layer";
+  root.add(detail);
+
+  const rubber=new THREE.MeshStandardMaterial({color:0x111214,roughness:.82,metalness:.04});
+  const darkMetal=new THREE.MeshStandardMaterial({color:0x24282b,roughness:.48,metalness:.78});
+  const brushed=new THREE.MeshStandardMaterial({color:0x6f7478,roughness:.30,metalness:.88});
+  const redDark=new THREE.MeshPhysicalMaterial({color:0x7d0c12,roughness:.20,metalness:.55,emissive:0x180103,emissiveIntensity:.25});
+  const amber=new THREE.MeshPhysicalMaterial({color:0xffa11a,roughness:.18,metalness:.25,emissive:0x5a2700,emissiveIntensity:.35});
+  const white=new THREE.MeshPhysicalMaterial({color:0xf2f6ff,roughness:.12,metalness:.22,emissive:0x293747,emissiveIntensity:.45});
+
+  // Front suspension and brake hardware.
+  for(const side of [-1,1]){
+    const s=side<0?"L":"R";
+    for(const z of [1.30,-1.30]){
+      const wheelTag=z>0?"F":"R";
+      cylinder(detail,darkMetal,"BrakeRotor_"+s+"_"+wheelTag,.285,.035,side*.965,.39,z,0,Math.PI/2,0,28);
+      cylinder(detail,brushed,"RotorHub_"+s+"_"+wheelTag,.075,.05,side*.985,.39,z,0,Math.PI/2,0,20);
+      box(detail,M.brake,"CaliperHousing_"+s+"_"+wheelTag,.075,.19,.24,side*.995,.48,z+.015,.025);
+      box(detail,darkMetal,"ControlArm_"+s+"_"+wheelTag,.10,.08,.52,side*.72,.34,z,.025);
+      cylinder(detail,rubber,"StrutBoot_"+s+"_"+wheelTag,.07,.36,side*.67,.64,z,Math.PI/2,0,0,16);
+      cylinder(detail,darkMetal,"HubBearing_"+s+"_"+wheelTag,.10,.10,side*.99,.39,z,0,Math.PI/2,0,18);
+    }
+  }
+
+  // Visible steering/suspension links under the body.
+  for(const side of [-1,1]){
+    const s=side<0?"L":"R";
+    box(detail,darkMetal,"Front_Subframe_"+s,.10,.12,1.55,side*.58,.32,.98,.025);
+    box(detail,darkMetal,"Rear_Subframe_"+s,.10,.12,1.42,side*.58,.32,-.92,.025);
+    cylinder(detail,rubber,"Front_Shock_"+s,.055,.62,side*.58,.56,1.02,Math.PI/2,0,0,16);
+    cylinder(detail,rubber,"Rear_Shock_"+s,.055,.56,side*.58,.54,-1.00,Math.PI/2,0,0,16);
+  }
+
+  // Engine: belts, pulleys, intake runners, oil filler and wiring.
+  const engine=root.userData.engineBay;
+  if(engine){
+    box(engine,darkMetal,"Alternator",.30,.22,.34,-.50,.65,1.10,.035);
+    cylinder(engine,brushed,"AlternatorPulley",.095,.055,-.50,.65,1.28,Math.PI/2,0,0,20);
+    cylinder(engine,darkMetal,"CrankPulley",.13,.055,0,.47,1.05,Math.PI/2,0,0,22);
+    box(engine,M.black,"AirFilterBox",.42,.18,.52,0,1.00,1.42,.045);
+    cylinder(engine,brushed,"OilFiller",.055,.12,.34,.98,1.02,0,0,0,14);
+    for(const x of [-.22,-.11,0,.11,.22]){
+      box(engine,M.black,"IntakeRunner_"+x,.045,.07,.43,x,.99,1.08,.012);
+    }
+    for(const side of [-1,1]){
+      for(let i=0;i<4;i++){
+        cylinder(engine,redDark,"IgnitionCoil_"+side+"_"+i,.028,.18,side*.27,(.91-i*.035),.84+i*.11,Math.PI/2,0,0,12);
+      }
+    }
+    box(engine,darkMetal,"ThrottleBody",.18,.16,.16,0,1.02,1.69,.025);
+    box(engine,brushed,"EngineBadge",.25,.055,.10,0,1.08,1.46,.01);
+  }
+
+  // Radiator support, fan shroud and crash structure.
+  box(detail,darkMetal,"RadiatorSupport",1.48,.10,.14,0,.51,1.93,.025);
+  box(detail,M.black,"FanShroud",1.38,.08,.08,0,.70,1.90,.018);
+  for(const x of [-.54,.54]){
+    cylinder(detail,darkMetal,"CoolingFanHub",.07,.08,x,.72,1.87,Math.PI/2,0,0,18);
+    for(let i=0;i<6;i++){
+      const a=i*Math.PI/3;
+      box(detail,rubber,"CoolingBlade",.035,.16,.025,x+Math.cos(a)*.12,.72+Math.sin(a)*.12,1.87,.008);
+    }
+  }
+
+  // Door inner skins, armrests, speakers, lock pins and hinge hardware.
+  for(const side of [-1,1]){
+    const s=side<0?"L":"R";
+    const door=root.children.find(o=>o.name==="Door_"+s+"_Assembly");
+    if(!door) continue;
+    box(door,M.interior,"Door_InnerSkin_"+s,.035,.46,1.31,-side*.105,.01,-.38,.035);
+    box(door,M.dash,"Door_Armrest_"+s,.045,.10,.70,-side*.13,-.03,-.34,.025);
+    box(door,M.black,"Door_Speaker_"+s,.025,.16,.16,-side*.135,-.17,-.76,.06);
+    box(door,M.chrome,"Door_Lock_"+s,.025,.055,.09,-side*.14,.32,-.02,.01);
+    for(let i=0;i<3;i++) box(door,darkMetal,"Door_Hinge_"+s+"_"+i,.045,.045,.12,-side*.12,.25+i*.16,.45,.012);
+  }
+
+  // Seats get rails, bolsters and four-point-visible belt anchors.
+  const cabin=root.userData.interior;
+  if(cabin){
+    for(const side of [-1,1]){
+      const s=side<0?"L":"R";
+      box(cabin,darkMetal,"SeatRail_"+s,.08,.06,.60,side*.43,.49,-.24,.018);
+      box(cabin,darkMetal,"SeatRailRear_"+s,.08,.06,.60,side*.43,.49,-.62,.018);
+      for(const z of [-.55,-.15]){
+        cylinder(cabin,brushed,"SeatRailPin_"+s,.025,.12,side*.43,.50,z,Math.PI/2,0,0,12);
+      }
+      box(cabin,redDark,"SeatBeltAnchor_"+s,.035,.08,.07,side*.58,.69,-.08,.018);
+      box(cabin,M.black,"SeatBelt_"+s,.025,.045,.62,side*.55,.90,-.34,.012);
+    }
+    box(cabin,darkMetal,"CenterConsoleTrim",.32,.035,.92,0,.86,.02,.015);
+    box(cabin,M.black,"Handbrake",.045,.12,.24,.12,.87,-.05,.025);
+    box(cabin,brushed,"ClimatePanel",.42,.10,.035,0,1.11,.57,.012);
+    for(let i=0;i<3;i++) cylinder(cabin,darkMetal,"ClimateDial_"+i,.045,.025,-.14+i*.14,1.12,.58,Math.PI/2,0,0,16);
+  }
+
+  // Instrument cluster: two gauges, center display and warning lights.
+  const dash=root.userData.interior;
+  if(dash){
+    for(const x of [-.25,.02,.29]){
+      cylinder(dash,darkMetal,"GaugeBezel_"+x,.12,.035,x,1.20,.56,Math.PI/2,0,0,24);
+      cylinder(dash,white,"GaugeFace_"+x,.085,.018,x,1.20,.585,Math.PI/2,0,0,24);
+    }
+    for(let i=0;i<8;i++){
+      box(dash,amber,"WarningLamp_"+i,.018,.018,.012,-.30+i*.085,1.14,.59,.004);
+    }
+    box(dash,M.black,"CenterDisplay",.24,.09,.018,.02,1.20,.595,.008);
+  }
+
+  // Steering spokes, center badge and column stalks.
+  const steering=root.userData.steering;
+  if(steering){
+    for(const a of [0,Math.PI/2,Math.PI]){
+      const spoke=box(steering,darkMetal,"SteeringSpoke",.035,.18,.045,0,Math.cos(a)*.09,Math.sin(a)*.09,.012);
+      spoke.rotation.z=a;
+    }
+    cylinder(steering,brushed,"SteeringBadge",.055,.035,0,0,0,Math.PI/2,0,0,20);
+    box(steering,M.black,"TurnSignalStalk",.025,.025,.20,.16,-.02,0,.01);
+  }
+
+  // Lighting internals: projectors, DRL strips, side markers and rear segments.
+  for(const side of [-1,1]){
+    const s=side<0?"L":"R";
+    box(detail,white,"HeadlampProjector_"+s,.12,.07,.025,side*.61,.88,2.475,.008);
+    box(detail,white,"DRL_"+s,.31,.018,.018,side*.61,.81,2.472,.006);
+    box(detail,amber,"SideMarker_"+s,.035,.07,.025,side*1.02,.76,1.83,.008);
+    box(detail,redDark,"TailSegment_"+s,.48,.055,.025,side*.39,.82,-2.45,.006);
+    box(detail,redDark,"RearSideMarker_"+s,.035,.06,.025,side*1.02,.72,-1.82,.008);
+  }
+
+  // Fuel door, antenna, tow points and body fasteners.
+  box(detail,M.paint2,"FuelDoor",.035,.18,.34,.93,.78,-.82,.055);
+  cylinder(detail,darkMetal,"AntennaBase",.055,.035,.58,1.42,-.78,Math.PI/2,0,0,16);
+  cylinder(detail,black,"Antenna",.018,.28,.58,1.57,-.78,0,0,0,12);
+  for(const side of [-1,1]){
+    box(detail,brushed,"TowPointFront_"+side,.10,.08,.16,side*.66,.43,2.46,.018);
+    box(detail,brushed,"TowPointRear_"+side,.10,.08,.16,side*.66,.43,-2.48,.018);
+  }
+  for(const side of [-1,1]){
+    for(let i=0;i<7;i++){
+      cylinder(detail,brushed,"BodyFastener_"+side+"_"+i,.012,.018,side*.99,.69,-1.35+i*.42,Math.PI/2,0,0,10);
+    }
+  }
+
+  // Exhaust system: mid-pipe, resonators and muffler bodies.
+  for(const side of [-1,1]){
+    const s=side<0?"L":"R";
+    cylinder(detail,darkMetal,"ExhaustMidPipe_"+s,.045,1.35,side*.32,.38,-.55,Math.PI/2,0,0,14);
+    cylinder(detail,darkMetal,"Muffler_"+s,.16,.46,side*.43,.38,-1.25,Math.PI/2,0,0,20);
+    cylinder(detail,brushed,"ExhaustTip_"+s,.085,.34,side*.42,.43,-2.38,Math.PI/2,0,0,20);
+    box(detail,rubber,"ExhaustHanger_"+s,.045,.08,.18,side*.35,.49,-1.00,.012);
+  }
+
+  // Trunk and hood underside ribs/struts.
+  const hood=root.children.find(o=>o.name==="Hood_Hinge");
+  const trunk=root.children.find(o=>o.name==="Trunk_Hinge");
+  if(hood){
+    for(const x of [-.62,-.30,.30,.62]) box(hood,darkMetal,"HoodUndersideRib_"+x,.055,.07,1.22,x,-.10,-.72,.012);
+    for(const side of [-1,1]) cylinder(hood,darkMetal,"HoodGasStrut_"+side,.025,.58,side*.70,-.02,-.38,0,Math.PI/2,0,12);
+  }
+  if(trunk){
+    for(const x of [-.58,-.20,.20,.58]) box(trunk,darkMetal,"TrunkUndersideRib_"+x,.05,.06,.62,x,-.09,.41,.012);
+  }
+
+  // Door, hood and trunk latch plates: useful visual service targets.
+  for(const side of [-1,1]){
+    box(detail,brushed,"DoorStriker_"+side,.035,.08,.14,side*.91,.79,.49,.012);
+  }
+  box(detail,brushed,"HoodLatch",.16,.06,.08,0,.50,1.99,.012);
+  box(detail,brushed,"TrunkLatch",.16,.06,.08,0,.69,-2.01,.012);
+
+  detail.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+  root.userData.detailLayer=detail;
+}
+
 function buildChallenger(){
   const root=new THREE.Group();
   root.name="Dodge_Challenger_MechanicCity_SINGLE";
@@ -278,6 +455,7 @@ function buildChallenger(){
 
   makeInterior(root);
   makeEngineBay(root);
+  makeDetailedMechanicalLayer(root);
 
   // Mechanical/service points are real meshes on the same single hierarchy.
   root.userData.serviceParts.engine={mesh:root.userData.engineBay,condition:100,installed:true};
