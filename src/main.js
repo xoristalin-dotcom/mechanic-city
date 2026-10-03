@@ -216,7 +216,10 @@ function physicsDrive(dt){
     // Spin a child only; steering stays on the pivot and cannot create the
     // old figure-eight/sideways wheel motion.
     const spin=w.userData.spin;
-    if(spin?.rotation) spin.rotation.x-=state.speed*dt/.39;
+    if(spin?.rotation){
+      // The wheel axle is local X; steering remains on the wheel pivot.
+      spin.rotation.x-=state.speed*dt/.39;
+    }
     wheelDiagnostics.push({name:w.name||"(unnamed)",front,hasSpin:!!spin});
   }
   window.MechanicCityWheelDiagnostics=wheelDiagnostics;
