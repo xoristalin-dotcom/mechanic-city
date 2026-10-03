@@ -160,16 +160,13 @@ function makeDetailedMechanicalLayer(root){
   const amber=new THREE.MeshPhysicalMaterial({color:0xffa11a,roughness:.18,metalness:.25,emissive:0x5a2700,emissiveIntensity:.35});
   const white=new THREE.MeshPhysicalMaterial({color:0xf2f6ff,roughness:.12,metalness:.22,emissive:0x293747,emissiveIntensity:.45});
 
-  // Front suspension and brake hardware.
+  // Suspension arms only: wheel hubs, rotors and calipers live inside each wheel assembly.
   for(const side of [-1,1]){
     const s=side<0?"L":"R";
     for(const z of [1.30,-1.30]){
       const wheelTag=z>0?"F":"R";
-      cylinder(detail,darkMetal,"BrakeRotor_"+s+"_"+wheelTag,.285,.035,side*.965,.39,z,0,Math.PI/2,0,28);
-      cylinder(detail,brushed,"RotorHub_"+s+"_"+wheelTag,.075,.05,side*.985,.39,z,0,Math.PI/2,0,20);
-      box(detail,M.brake,"CaliperHousing_"+s+"_"+wheelTag,.075,.19,.24,side*.995,.48,z+.015,.025);
       box(detail,darkMetal,"ControlArm_"+s+"_"+wheelTag,.10,.08,.52,side*.72,.34,z,.025);
-      cylinder(detail,rubber,"StrutBoot_"+s+"_"+wheelTag,.07,.36,side*.67,.64,z,Math.PI/2,0,0,16);
+      cylinder(detail,rubber,"StrutBoot_"+s+"_"+wheelTag,.07,.36,side*.67,.64,z,0,0,0,16);
       cylinder(detail,darkMetal,"HubBearing_"+s+"_"+wheelTag,.10,.10,side*.99,.39,z,0,Math.PI/2,0,18);
     }
   }
@@ -179,8 +176,8 @@ function makeDetailedMechanicalLayer(root){
     const s=side<0?"L":"R";
     box(detail,darkMetal,"Front_Subframe_"+s,.10,.12,1.55,side*.58,.32,.98,.025);
     box(detail,darkMetal,"Rear_Subframe_"+s,.10,.12,1.42,side*.58,.32,-.92,.025);
-    cylinder(detail,rubber,"Front_Shock_"+s,.055,.62,side*.58,.56,1.02,Math.PI/2,0,0,16);
-    cylinder(detail,rubber,"Rear_Shock_"+s,.055,.56,side*.58,.54,-1.00,Math.PI/2,0,0,16);
+    cylinder(detail,rubber,"Front_Shock_"+s,.055,.62,side*.58,.56,1.02,0,0,0,16);
+    cylinder(detail,rubber,"Rear_Shock_"+s,.055,.56,side*.58,.54,-1.00,0,0,0,16);
   }
 
   // Engine: belts, pulleys, intake runners, oil filler and wiring.
