@@ -451,8 +451,8 @@ function updatePlayerCamera(){
     // Hood/cockpit view: local coordinates are relative to the car.
     camera.position.set(0,1.42,.62);
     camera.rotation.set(0,0,0);
-    const lookLocal=new THREE.Vector3(0,1.25,4);
-    camera.lookAt(lookLocal);
+    const lookWorld=car.localToWorld(new THREE.Vector3(0,1.25,4));
+    camera.lookAt(lookWorld);
   }else{
     const distance=moving?9.6:9;
     const localOffset=new THREE.Vector3(
@@ -462,7 +462,8 @@ function updatePlayerCamera(){
     );
     camera.position.copy(localOffset);
     camera.rotation.set(0,0,0);
-    camera.lookAt(new THREE.Vector3(0,1.15,0));
+    const lookWorld=car.localToWorld(new THREE.Vector3(0,1.15,0));
+    camera.lookAt(lookWorld);
   }
 
   car.updateMatrixWorld(true);
