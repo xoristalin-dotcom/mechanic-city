@@ -12,6 +12,8 @@ import {
   damagePart
 } from "./parts.js";
 import "./style.css";
+import { installCareerSystems } from "./careerSystems.js";
+
 
 function makeNoiseTexture(base="#777", dark="#555", light="#999", size=128){
   const c=document.createElement("canvas"); c.width=c.height=size;
@@ -959,4 +961,4 @@ function bindUI(){
   document.querySelector("#teleportBtn").onclick=teleportToMapCenter;
   document.querySelector("#vehicleBtn").onclick=toggleVehiclePanel;
 }
-installRuntimeErrorCapture(); installVisualInspectMode(); installAITestMode(); initMenu(); bindUI(); renderScene("city"); installPartInteraction();
+installRuntimeErrorCapture(); installVisualInspectMode(); installAITestMode(); initMenu(); bindUI(); installCareerSystems({state,msg,renderScene}); renderScene("city"); installPartInteraction();
