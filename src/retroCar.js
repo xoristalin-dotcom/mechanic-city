@@ -40,7 +40,7 @@ function buildChallengerBodyShell(carGroup){
   };
 
   // Measured envelope follows the current Challenger asset: ~4.95 x 1.92 m.
-  // The structural floor stays above the visible wheel centers; it is not an exterior slab.\n  // Keep the lower body narrow so the Challenger rocker/fenders define the silhouette.\n  add(new RoundedBoxGeometry(1.74,0.30,4.36,8,0.12),paint,"Chassis_Sculpted",[0,0.61,0]);
+  // No external lower platform: the visible silhouette is formed only by the body panels and wheel arches.
   add(new RoundedBoxGeometry(1.88,0.25,3.72,8,0.09),paint,"Beltline_Sculpted",[0,0.78,-0.05]);
 
   // Long hood and short rear deck give the car the classic Challenger stance.
