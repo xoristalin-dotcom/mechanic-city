@@ -230,7 +230,31 @@ export class RetroCarBuilder {
         return;
       }
 
-      const bodySize = bodyBox.getSize(new THREE.Vector3());
+      // Remove an authored service/floor plate that can appear as a large flat
+      // panel directly below the four wheels. Keep real wheels, suspension and
+      // underbody meshes by requiring a very broad, thin footprint and a low Y.
+      const carSpanX = Math.max(0.001, bodyBox.max.x - bodyBox.min.x);
+      const carSpanZ = Math.max(0.001, bodyBox.max.z - bodyBox.min.z);
+      const panelCutoffY = bodyBox.min.y + (bodyBox.max.y - bodyBox.min.y) * 0.22;
+      const removedLowPanels = [];
+      model.traverse(o => {
+        if (!o.isMesh || !o.geometry) return;
+        const b = new THREE.Box3().setFromObject(o, true);
+        if (b.isEmpty()) return;
+        const s = b.getSize(new THREE.Vector3());
+        const flat = s.y <= Math.max(0.10, Math.min(carSpanX, carSpanZ) * 0.10);
+        const broad = (s.x / carSpanX >= 0.65 && s.z / carSpanZ >= 0.45) ||
+                      (s.z / carSpanZ >= 0.65 && s.x / carSpanX >= 0.45);
+        const low = b.max.y <= panelCutoffY;
+        const n = String(o.name || '').toLowerCase();
+        const wheelLike = /wheel|tire|tyre|rim|hub|brake|suspension|strut|spring|arm|knuckle/.test(n);
+        if (flat && broad && low && !wheelLike) {
+          o.visible = false;
+          o.userData.removedLowServicePanel = true;
+          removedLowPanels.push({name:o.name || '(unnamed)', size:{x:s.x,y:s.y,z:s.z}});
+        }
+      });
+      window.MechanicCityRemovedLowPanels = removedLowPanels;\n\n      const bodySize = bodyBox.getSize(new THREE.Vector3());
       const bodyCenter = bodyBox.getCenter(new THREE.Vector3());
       const bodyLength = isR18Source
         ? Math.max(bodySize.x, bodySize.y, bodySize.z)
