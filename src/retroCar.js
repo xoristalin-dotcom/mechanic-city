@@ -875,16 +875,113 @@ export class RetroCarBuilder {
       }
       this.carGroup.userData.wheels = runtimeWheels;
 
-      // Challenger R3 visual detail kit: keep the imported body lightweight,
-      // then add a few separate high-contrast parts that read well on iPhone.
-      // These are intentionally simple primitives so they stay cheap in WebGL.
-      // R2.1 is the authoritative imported Challenger assembly.
-      // Do not overlay the legacy procedural DetailKit: its coordinates belong
-      // to the old procedural car and can float above the imported body.
+      // Improve the runtime wheel assemblies without touching the authored
+      // Challenger body. The tire is now a real torus instead of a solid barrel,
+      // with a brake disc + caliper kept outside the spin transform.
       const detailKit = new THREE.Group();
-      detailKit.name = "Challenger_R2_1_DetailKit_DISABLED";
+      detailKit.name = "Challenger_R2_1_DetailKit";
       detailKit.visible = false;
       this.carGroup.add(detailKit);
+
+      const brakeDiscMat = new THREE.MeshStandardMaterial({
+        color: 0x55595d,
+        roughness: 0.42,
+        metalness: 0.82
+      });
+      const brakeCaliperMat = new THREE.MeshStandardMaterial({
+        color: 0x8f1f1f,
+        roughness: 0.42,
+        metalness: 0.48
+      });
+
+      for (const wheel of runtimeWheels) {
+        const name = String(wheel.name || "");
+        const spin = wheel.userData.spin;
+        if (!spin) continue;
+
+        // Replace the old cylindrical tire with a rounded sidewall/tread shape.
+        while (spin.children.length) spin.remove(spin.children[0]);
+        const tire = new THREE.Mesh(
+          new THREE.TorusGeometry(wheelRadius * 0.79, wheelRadius * 0.20, 12, 24),
+          tireMat
+        );
+        tire.rotation.y = Math.PI / 2;
+        tire.castShadow = true;
+        tire.receiveShadow = true;
+        spin.add(tire);
+
+        const rim = new THREE.Mesh(
+          new THREE.CylinderGeometry(wheelRadius * 0.55, wheelRadius * 0.55, 0.25, 16),
+          rimMat
+        );
+        rim.rotation.z = Math.PI / 2;
+        rim.castShadow = true;
+        rim.receiveShadow = true;
+        spin.add(rim);
+
+        const hub = new THREE.Mesh(
+          new THREE.CylinderGeometry(wheelRadius * 0.18, wheelRadius * 0.18, 0.27, 12),
+          new THREE.MeshStandardMaterial({color: 0x303338, roughness: 0.34, metalness: 0.86})
+        );
+        hub.rotation.z = Math.PI / 2;
+        spin.add(hub);
+
+        if (wheel.userData.front) {
+          const disc = new THREE.Mesh(
+            new THREE.CylinderGeometry(wheelRadius * 0.42, wheelRadius * 0.42, 0.075, 20),
+            brakeDiscMat
+          );
+          disc.rotation.z = Math.PI / 2;
+          disc.position.x = 0.15;
+          disc.castShadow = true;
+          disc.receiveShadow = true;
+          spin.add(disc);
+
+          const caliper = new THREE.Mesh(
+            new RoundedBoxGeometry(0.09, 0.18, 0.28, 2, 0.025),
+            brakeCaliperMat
+          );
+          caliper.position.set(0.17, 0.08, 0);
+          caliper.castShadow = true;
+          wheel.add(caliper);
+        }
+      }
+
+      // Visual material pass: preserve authored textures while making paint,
+      // glass and chrome react more like real automotive materials. We clone
+      // materials once so the source GLB materials are never mutated globally.
+      const upgradedMaterials = new Set();
+      model.traverse(o => {
+        if (!o.isMesh || !o.material) return;
+        const materials = Array.isArray(o.material) ? o.material : [o.material];
+        const upgraded = materials.map(material => {
+          if (!material || upgradedMaterials.has(material)) return material;
+          const n = String((material.name || "") + " " + (o.name || "")).toLowerCase();
+          let next = material;
+          if (material.isMeshStandardMaterial && /paint|body|car|metallic|exterior/.test(n)) {
+            next = new THREE.MeshPhysicalMaterial().copy(material);
+            next.clearcoat = 0.72;
+            next.clearcoatRoughness = 0.16;
+            next.roughness = Math.min(0.42, Math.max(0.18, material.roughness ?? 0.3));
+          } else if (material.isMeshStandardMaterial && /glass|window|windshield|mirror/.test(n)) {
+            next = new THREE.MeshPhysicalMaterial().copy(material);
+            next.roughness = 0.08;
+            next.metalness = 0.05;
+            next.clearcoat = 0.25;
+            next.clearcoatRoughness = 0.08;
+            next.transparent = material.transparent;
+            next.opacity = material.opacity;
+          } else if (material.isMeshStandardMaterial && /chrome|trim|grille|rim|metal/.test(n)) {
+            next = new THREE.MeshPhysicalMaterial().copy(material);
+            next.metalness = Math.max(0.82, material.metalness ?? 0.8);
+            next.roughness = Math.min(0.28, Math.max(0.16, material.roughness ?? 0.25));
+          }
+          upgradedMaterials.add(material);
+          return next;
+        });
+        o.material = Array.isArray(o.material) ? upgraded : upgraded[0];
+      });
+      this.carGroup.userData.visualMaterialUpgrade = true;
 
       this.carGroup.visible = true;
       this.carGroup.userData.modelLoading = false;
