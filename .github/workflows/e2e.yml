@@ -16,6 +16,9 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm run preview -- --host 0.0.0.0 > /tmp/mechanic-city.log 2>&1 &
+      - run: npx wait-on http://127.0.0.1:4173/?test=1
       - run: npm run test:e2e
         env:
-          GAME_URL: https://mechanic-city.onrender.com/?test=1
+          GAME_URL: http://127.0.0.1:4173/?test=1
