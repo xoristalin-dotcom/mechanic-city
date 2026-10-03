@@ -11,6 +11,135 @@ import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
  * - Each part has condition state and visual wear
  */
 
+function buildChallengerBodyShell(carGroup){
+  const shell=new THREE.Group();
+  shell.name="Dodge_Challenger_Rebuilt_Exterior";
+
+  const paint=new THREE.MeshPhysicalMaterial({
+    color:0x20252a, metalness:0.72, roughness:0.22,
+    clearcoat:0.9, clearcoatRoughness:0.12
+  });
+  const paintDark=new THREE.MeshPhysicalMaterial({
+    color:0x111418, metalness:0.66, roughness:0.25,
+    clearcoat:0.75, clearcoatRoughness:0.15
+  });
+  const black=new THREE.MeshStandardMaterial({color:0x07090b,roughness:0.55,metalness:0.18});
+  const glass=new THREE.MeshPhysicalMaterial({
+    color:0x10181d, metalness:0.08, roughness:0.08,
+    clearcoat:0.65, clearcoatRoughness:0.08,
+    transparent:false, opacity:1
+  });
+  const chrome=new THREE.MeshPhysicalMaterial({color:0xb9bec3,metalness:0.94,roughness:0.18});
+  const lamp=new THREE.MeshPhysicalMaterial({color:0xdde7ef,metalness:0.35,roughness:0.08});
+  const redLamp=new THREE.MeshPhysicalMaterial({color:0x9d1219,metalness:0.35,roughness:0.16});
+
+  const add=(geo,mat,name,pos=[0,0,0],rot=[0,0,0],parent=shell)=>{
+    const m=new THREE.Mesh(geo,mat);
+    m.name=name; m.position.set(...pos); m.rotation.set(...rot);
+    m.castShadow=true; m.receiveShadow=true; parent.add(m); return m;
+  };
+
+  // Measured envelope follows the current Challenger asset: ~4.95 x 1.92 m.
+  add(new RoundedBoxGeometry(1.80,0.43,4.48,8,0.13),paint,"Chassis_Sculpted",[0,0.55,0]);
+  add(new RoundedBoxGeometry(1.88,0.25,3.72,8,0.09),paint,"Beltline_Sculpted",[0,0.78,-0.05]);
+
+  // Long hood and short rear deck give the car the classic Challenger stance.
+  add(new RoundedBoxGeometry(1.68,0.18,1.55,8,0.075),paint,"Hood_Skin",[0,0.91,1.40]);
+  add(new RoundedBoxGeometry(1.68,0.18,0.92,8,0.07),paint,"Trunk_Skin",[0,0.93,-1.62]);
+
+  // Fastback cabin: roof, A/B/C pillars and dark glass are separate panels.
+  add(new RoundedBoxGeometry(1.50,0.20,2.08,8,0.16),paint,"Roof_Skin",[0,1.27,-0.12]);
+  add(new RoundedBoxGeometry(1.54,0.48,0.12,6,0.045),paintDark,"Windshield_Frame",[0,1.14,0.77],[Math.PI*0.16,0,0]);
+  add(new RoundedBoxGeometry(1.54,0.38,0.10,6,0.04),paintDark,"RearGlass_Frame",[0,1.13,-1.02],[-Math.PI*0.12,0,0]);
+  add(new RoundedBoxGeometry(1.43,0.42,0.035,4,0.018),glass,"Windshield_Glass",[0,1.16,0.79],[Math.PI*0.16,0,0]);
+  add(new RoundedBoxGeometry(1.43,0.34,0.035,4,0.018),glass,"Rear_Glass",[0,1.15,-1.03],[-Math.PI*0.12,0,0]);
+  add(new RoundedBoxGeometry(0.055,0.42,1.55,4,0.018),paintDark,"Roof_Pillar_L",[-0.75,1.16,-0.10],[0.06,0,0]);
+  add(new RoundedBoxGeometry(0.055,0.42,1.55,4,0.018),paintDark,"Roof_Pillar_R",[0.75,1.16,-0.10],[0.06,0,0]);
+
+  // Side glass sits inside the door envelope, never behind a moving door.
+  for(const side of [-1,1]){
+    add(new RoundedBoxGeometry(0.035,0.38,1.42,5,0.02),glass,"SideGlass_"+(side<0?"L":"R"),[side*0.765,1.13,-0.08],[0,0,side*0.035]);
+    add(new RoundedBoxGeometry(0.055,0.52,1.46,6,0.035),paint,"Door_Skin_"+(side<0?"L":"R"),[side*0.905,0.75,-0.02]);
+    add(new RoundedBoxGeometry(0.035,0.08,0.72,4,0.02),chrome,"Door_BeltTrim_"+(side<0?"L":"R"),[side*0.928,0.99,-0.02]);
+  }
+
+  // Wide muscle-car fenders and wheel-arch accents.
+  for(const side of [-1,1]){
+    for(const z of [-1.38,1.38]){
+      add(new RoundedBoxGeometry(0.16,0.42,0.92,6,0.07),paint,"Fender_"+(side<0?"L":"R")+"_"+(z>0?"F":"R"),[side*0.91,0.63,z]);
+      const curve=new THREE.CatmullRomCurve3([
+        new THREE.Vector3(side*0.93,0.54,z-0.48),
+        new THREE.Vector3(side*0.97,0.72,z-0.34),
+        new THREE.Vector3(side*0.99,0.80,z),
+        new THREE.Vector3(side*0.97,0.72,z+0.34),
+        new THREE.Vector3(side*0.93,0.54,z+0.48)
+      ]);
+      add(new THREE.TubeGeometry(curve,12,0.035,6,false),paint,"WheelArch_"+(side<0?"L":"R")+"_"+(z>0?"F":"R"));
+    }
+  }
+
+  // Front fascia: recessed grille, bumper and dual headlamps.
+  add(new RoundedBoxGeometry(1.82,0.34,0.22,7,0.08),paintDark,"Front_Bumper",[0,0.51,2.30]);
+  add(new RoundedBoxGeometry(1.38,0.20,0.08,5,0.025),black,"Dodge_Grille",[0,0.70,2.405]);
+  add(new RoundedBoxGeometry(1.18,0.045,0.035,4,0.01),chrome,"Grille_Trim",[0,0.72,2.45]);
+  for(const x of [-0.62,0.62]){
+    add(new RoundedBoxGeometry(0.42,0.16,0.045,5,0.018),lamp,"Headlamp_"+(x<0?"L":"R"),[x,0.86,2.43]);
+    add(new RoundedBoxGeometry(0.25,0.045,0.03,4,0.01),chrome,"Headlamp_Trim_"+(x<0?"L":"R"),[x,0.86,2.455]);
+  }
+
+  // Rear fascia and continuous Challenger-style lamp signature.
+  add(new RoundedBoxGeometry(1.82,0.32,0.20,7,0.08),paintDark,"Rear_Bumper",[0,0.51,-2.30]);
+  add(new RoundedBoxGeometry(1.46,0.16,0.05,5,0.018),redLamp,"Tail_Light_Bar",[0,0.82,-2.405]);
+  add(new RoundedBoxGeometry(1.55,0.045,0.035,4,0.01),chrome,"Rear_Trim",[0,0.70,-2.44]);
+  for(const x of [-0.57,0.57]) add(new THREE.CylinderGeometry(0.075,0.075,0.08,16),chrome,"Exhaust_"+(x<0?"L":"R"),[x,0.43,-2.43],[Math.PI/2,0,0]);
+
+  // Side mirrors and flush handles.
+  for(const side of [-1,1]){
+    add(new RoundedBoxGeometry(0.16,0.10,0.26,5,0.035),paintDark,"Mirror_"+(side<0?"L":"R"),[side*0.94,1.05,0.48],[0,side*0.18,0]);
+    add(new RoundedBoxGeometry(0.04,0.055,0.34,4,0.015),chrome,"DoorHandle_"+(side<0?"L":"R"),[side*0.945,0.91,-0.02]);
+  }
+
+  // Black lower splitter/rocker line makes the body read as one continuous shell.
+  add(new RoundedBoxGeometry(1.93,0.10,3.85,6,0.035),black,"Lower_Rocker_Base",[0,0.38,0]);
+  shell.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+
+  const makeDoor=(side)=>{
+    const pivot=new THREE.Object3D();
+    pivot.name="Rebuilt_Door_"+(side<0?"L":"R")+"_Hinge";
+    pivot.position.set(side*0.96,0.77,0.40);
+    shell.add(pivot);
+    const door=new THREE.Group();
+    door.name="Rebuilt_Door_"+(side<0?"L":"R");
+    door.position.set(-side*0.035,0,0);
+    pivot.add(door);
+    const skin=add(new RoundedBoxGeometry(0.10,0.52,1.38,7,0.055),paint,"Door_OuterPanel_"+(side<0?"L":"R"),[0,0, -0.42], [0,0,0],door);
+    add(new RoundedBoxGeometry(0.055,0.36,1.20,5,0.025),glass,"Door_Window_"+(side<0?"L":"R"),[side*0.035,0.30,-0.42],[0,0,0],door);
+    add(new RoundedBoxGeometry(0.035,0.06,0.28,4,0.012),chrome,"Door_Handle_"+(side<0?"L":"R"),[side*0.055,0.10,-0.05],[0,0,0],door);
+    skin.castShadow=true;
+    return {pivot,open:0,openSign:side<0?1:-1,axis:"y",maxAngle:1.02};
+  };
+
+  const doors=[makeDoor(-1),makeDoor(1)];
+
+  const hoodPivot=new THREE.Object3D();
+  hoodPivot.name="Rebuilt_Hood_Hinge";
+  hoodPivot.position.set(0,0.91,2.08);
+  shell.add(hoodPivot);
+  const hood=add(new RoundedBoxGeometry(1.68,0.18,1.52,8,0.075),paint,"Rebuilt_Hood",[0,0,-0.68],undefined,hoodPivot);
+  add(new RoundedBoxGeometry(0.56,0.045,0.70,5,0.018),black,"Hood_Scoop",[0,0.105,-0.72],undefined,hoodPivot);
+  hood.castShadow=true;
+
+  return {
+    shell,
+    articulation:{
+      doors,
+      hood:{pivot:hoodPivot,open:0,openSign:-1,axis:"x",maxAngle:0.82},
+      trunk:null,
+      steering:null
+    }
+  };
+}
+
 export class RetroCarBuilder {
   constructor(config = {}) {
     this.config = {
@@ -1581,6 +1710,29 @@ export class RetroCarBuilder {
       }
 
       this.carGroup.userData.servicePartCount = Object.keys(serviceParts).length;
+      // Final exterior rebuild: keep the current measured Challenger envelope,
+      // but render a single coherent body shell instead of the fragmented source
+      // presentation. The original GLB remains available as a hidden reference.
+      for(const d of doorAssemblies) if(d?.pivot) d.pivot.visible=false;
+      const oldHood=articulation.hood;
+      if(oldHood?.pivot) oldHood.pivot.visible=false;
+      model.traverse(o=>{ if(o.isMesh) o.visible=false; });
+
+      const rebuilt=buildChallengerBodyShell(this.carGroup);
+      this.carGroup.add(rebuilt.shell);
+      this.carGroup.userData.rebuiltExterior=true;
+      this.carGroup.userData.rebuiltExteriorRevision="Dodge-Challenger-Shell-R1";
+      this.carGroup.userData.articulation.doors=rebuilt.articulation.doors;
+      this.carGroup.userData.articulation.hood=rebuilt.articulation.hood;
+      this.carGroup.userData.articulation.trunk=null;
+      this.carGroup.userData.vehicleSpec = {
+        ...this.carGroup.userData.vehicleSpec,
+        lengthMeters:4.95,
+        widthMeters:1.93,
+        heightMeters:1.36,
+        bodyBuild:"rebuilt-proportional-Dodge-Challenger"
+      };
+
       this.carGroup.userData.vehicleSpec = {
         lengthMeters: 4.95,
         revision: "MechanicCity-R3-visual",
