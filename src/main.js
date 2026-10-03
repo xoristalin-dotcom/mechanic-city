@@ -192,7 +192,7 @@ function physicsDrive(dt){
   }
   for(const w of(car.userData?.wheels||[])){
     // Only the front axle steers. Rear wheels stay aligned with the chassis.
-    if(w?.userData?.front && w?.rotation) w.rotation.y=steerAngle;
+    if(w?.userData?.front && w?.rotation) w.rotation.y=(w.userData.baseSteerY||0)+steerAngle;
     // Rolling is applied to a dedicated child so steering cannot tilt the
     // wheel's spin axis and create the "figure-eight" wobble.
     const spin=w?.userData?.spin;
@@ -470,7 +470,7 @@ async function buildCity(){ forceViewportLayout(); clearJobMarker(); traffic=[];
     addBuilding(30,-15,18,15,12,0x7b6f63);
     addBuilding(14,32,16,12,11,0x5e6d7a);
     addBuilding(-20,34,15,17,12,0x5d6667);
-    addStreetProps();
+    addStreetProps();\n    if(state.rain) addRain();
   }catch(err){
     window.MechanicCityWorldPropsError=String(err?.message||err);
     window.MechanicCityDebugLog?.({type:"world-props",message:String(err?.message||err),stack:String(err?.stack||"")});
@@ -575,7 +575,7 @@ function updateMechanicCityDebug(){
 }
 
 function animate(traffic=[]){ if(renderer?.setAnimationLoop && window.MechanicCityAnimationRenderer!==renderer){ window.MechanicCityAnimationRenderer=renderer; renderer.setAnimationLoop(()=>animate(traffic)); return; } if(state.scene!=="city")return; if(!renderer||!scene||!camera)return; const dt=Math.min(clock?.getDelta()||.016,.05); try{ if((state.driving||state.throttle||input.gas)&&state.fuel>0){ physicsDrive(dt); if(state.fuel>0) state.fuel=Math.max(0,state.fuel-dt*(.018+Math.abs(state.speed)*.014)); state.car.oil=Math.max(0,state.car.oil-dt*.004); state.car.coolant=Math.max(0,state.car.coolant-dt*.002); state.heat=Math.min(125,state.heat+dt*(.08+Math.abs(state.speed)*.055)); if(state.car.oil<15||state.car.coolant<15)state.damage=Math.min(100,state.damage+dt*.08); state.car.mileage+=Math.abs(state.speed)*dt*.006; if(state.heat>108)state.damage=Math.min(100,state.damage+dt*.06); for(const npc of traffic){ if(!npc?.position||!car?.position)continue; const d=car.position.distanceTo(npc.position); if(d<2.25&&Math.abs(state.speed)>.35){ state.damage=Math.min(100,state.damage+dt*7); if(chassisBody){ const v=chassisBody.linvel(); chassisBody.setLinvel({x:v.x*.65,y:v.y,z:v.z*.65},true);} msg("⚠️ Столкновение: кузов повреждён."); } } if(Date.now()-lastSaveTick>5000){lastSaveTick=Date.now();save();} }
- updateJob(); updateArticulatedCar(dt); car?.userData?.purgeVehicleStand?.(); updateMechanicCityDebug(); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25;
+ if(state.scene==="city"){ state.time=(state.time+dt*0.02)%24; if(state.rain){ for(const pts of rainDrops){ const a=pts.geometry.getAttribute("position"); for(let i=0;i<a.count;i++){ a.array[i*3+1]-=dt*12; if(a.array[i*3+1]<0)a.array[i*3+1]=38; } a.needsUpdate=true; } } } updateJob(); updateArticulatedCar(dt); car?.userData?.purgeVehicleStand?.(); updateMechanicCityDebug(); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25;
   // AUTHORITATIVE THIRD-PERSON FOLLOW CAMERA: derive every frame from the player root.
   if(camera&&car){
     // Stable world-space chase camera: follow the car without parenting the
