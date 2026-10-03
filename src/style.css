@@ -93,3 +93,13 @@ button{cursor:pointer}
 @media (orientation:landscape) and (max-height:500px){.steering-zone{bottom:20px}.pedals{bottom:18px}.steer{width:62px;height:62px;font-size:38px}.pedal{width:62px;height:70px}.pedal.gas{height:88px}.drive-actions{bottom:10px}.drive-actions button{width:43px;height:34px}.fuel-box{top:58px}.message{top:58px}}
 
 .help-overlay{position:absolute;inset:0;z-index:60;background:#0006;display:flex;align-items:flex-start;justify-content:center;padding:76px 12px 12px;pointer-events:auto}.help-card{position:relative;width:min(420px,calc(100vw - 24px));max-height:58vh;overflow:auto;background:#171b20f5;border:1px solid #ffffff24;border-radius:18px;padding:16px;box-shadow:0 12px 45px #000b;backdrop-filter:blur(14px)}.help-card h2{margin:0 0 10px;font-size:20px}.help-row{padding:9px 0;border-top:1px solid #ffffff14}.help-row b{display:block;font-size:13px;margin-bottom:3px}.help-row span{display:block;color:#c5ccd1;font-size:11px;line-height:1.4}.help-close{position:absolute;right:9px;top:8px;width:36px;height:36px;border-radius:50%;border:1px solid #ffffff22;background:#292f35;color:#fff;font-size:24px;line-height:1}
+
+.cards-inline{display:grid;gap:9px;max-height:48vh;overflow:auto;margin:10px 0}
+.cards-inline article{display:grid;grid-template-columns:1fr auto;gap:5px 10px;padding:12px;border:1px solid #ffffff19;background:#1b2025;border-radius:12px}
+.cards-inline article b{font-size:14px}.cards-inline article span{font-size:11px;color:#aeb6bd}
+.cards-inline article button{grid-column:1/-1;padding:10px;border-radius:9px;background:#e9ebed;color:#101316}
+.cards-inline article button:disabled{opacity:.45;cursor:default}
+.garage-info{width:min(92vw,620px);padding:4px}.garage-info h2{margin:0 0 10px}.garage-info .carbox{box-shadow:0 10px 30px #0006}
+.garage-info .buttons,.panel-card .buttons{display:grid;gap:8px;margin-top:10px}
+.garage-info .buttons button,.panel-card .buttons button{margin:0}
+.cards article button:disabled{opacity:.45}
