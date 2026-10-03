@@ -1,4 +1,5 @@
 name: Mechanic City E2E
+# Test the exact main branch build, including imported-car runtime fixes.
 
 on:
   workflow_dispatch:
