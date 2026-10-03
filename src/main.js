@@ -154,7 +154,7 @@ function physicsDrive(dt){
   const maxReverse=8;
   // Direct arcade drivetrain: input must never be blocked by Rapier/part state.
   if(throttle){
-    const target=reverse?-maxReverse:maxForward;
+    const performance=tuningMultiplier(); const target=reverse?-maxReverse*0.92:maxForward*performance;
     const step=(reverse?8:10)*dt;
     if(state.speed<target)state.speed=Math.min(target,state.speed+step);
     if(state.speed>target)state.speed=Math.max(target,state.speed-step);
@@ -740,8 +740,168 @@ function bindControls(){
 }
 function installRuntimeErrorCapture(){ const key="mechanic-city-debug-log"; let saved=[]; try{saved=JSON.parse(localStorage.getItem(key)||"[]");if(!Array.isArray(saved))saved=[];}catch{} window.MechanicCityRuntimeErrors=saved.slice(-80); const push=(entry)=>{ const item={time:new Date().toISOString(),...entry}; window.MechanicCityRuntimeErrors.push(item); if(window.MechanicCityRuntimeErrors.length>80)window.MechanicCityRuntimeErrors.shift(); try{localStorage.setItem(key,JSON.stringify(window.MechanicCityRuntimeErrors));}catch{} }; window.MechanicCityDebugLog=push; window.addEventListener("error",e=>push({type:"error",message:String(e.message||e.error||"unknown"),source:String(e.filename||""),line:e.lineno||0,column:e.colno||0,stack:String(e.error?.stack||"")})); window.addEventListener("unhandledrejection",e=>push({type:"unhandledrejection",message:String(e.reason?.message||e.reason||"unknown"),stack:String(e.reason?.stack||"")})); }
 function renderEmergencyScene(){ try{ scene=new THREE.Scene(); scene.background=new THREE.Color(0x7893a3); camera=new THREE.PerspectiveCamera(58,Math.max(1,viewport.clientWidth)/Math.max(1,viewport.clientHeight),.1,260); camera.position.set(10,7,14); camera.lookAt(0,0,0); const hemi=new THREE.HemisphereLight(0xdceeff,0x334033,1.5); scene.add(hemi); const sun=new THREE.DirectionalLight(0xffffff,2); sun.position.set(8,14,10); scene.add(sun); const ground=new THREE.Mesh(new THREE.PlaneGeometry(100,100),new THREE.MeshStandardMaterial({color:0x50534f,roughness:1})); ground.rotation.x=-Math.PI/2; scene.add(ground); const marker=new THREE.Mesh(new THREE.BoxGeometry(3.2,.7,5.2),new THREE.MeshStandardMaterial({color:0x252b31,roughness:.55,metalness:.2})); marker.position.y=.7; scene.add(marker); renderer.render(scene,camera); window.MechanicCityEmergency=true; }catch(e){window.MechanicCityEmergencyError=String(e?.message||e);} }
-function renderScene(name){ cameraMode=0; camOrbitYaw=0; camOrbitPitch=.18; state.scene=name; menu.classList.add("hidden"); if(name==="workshop"){ document.querySelector(".drive-hud").style.display="none"; if(renderer){renderer.dispose();renderer=null;} buildWorkshop(); return;} stop(); document.querySelector(".drive-hud").style.display="none"; if(renderer){renderer.dispose();renderer=null;} if(name==="market"){ viewport.innerHTML="<div class='cards'><h2>🚘 Рынок</h2><p>Здесь будет рынок запчастей.</p></div>"; return;} if(name==="garage"){ buildGarage(); return;} if(name==="city"){ document.querySelector(".drive-hud").style.display=""; try{ buildCity(); bindControls(); stats(); msg("▲ газ • руль • ■ тормоз"); }catch(err){window.MechanicCityBuildError=String(err?.message||err); console.error("City build failed",err); renderEmergencyScene();} return; }}
-function buildGarage(){ stop(); cameraMode=0; camOrbitYaw=0; camOrbitPitch=.18; clearJobMarker(); traffic=[]; trafficLights=[]; smoke=[]; rainDrops=[]; scene=new THREE.Scene(); scene.background=new THREE.Color(0x15181b); viewport.innerHTML=""; const probe=document.createElement("canvas"); renderer=new THREE.WebGLRenderer({canvas:probe,antialias:false,alpha:false,preserveDrawingBuffer:false,powerPreference:"high-performance"}); renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5)); renderer.setSize(Math.max(1,viewport.clientWidth),Math.max(1,viewport.clientHeight),false); renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFShadowMap; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.18; renderer.domElement.style.width="100%"; renderer.domElement.style.height="100%"; renderer.domElement.style.display="block"; viewport.appendChild(renderer.domElement); camera=new THREE.PerspectiveCamera(50,Math.max(1,viewport.clientWidth)/Math.max(1,viewport.clientHeight),.1,120); camera.position.set(0,5.7,8.6); setupCameraControls(); const hemi=new THREE.HemisphereLight(0xc6d6e2,0x17191b,1.5); scene.add(hemi); const key=new THREE.DirectionalLight(0xffffff,2.4); key.position.set(-5,10,6); scene.add(key); const floor=new THREE.Mesh(new THREE.PlaneGeometry(35,28),new THREE.MeshStandardMaterial({color:0x3d3f40,roughness:.96})); floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; scene.add(floor); car=createRetroPlayerCar(); car.userData.workshopMode=true; car.position.set(0,0,0); car.rotation.y=Math.PI; scene.add(car); const title=document.createElement("div"); title.className="workshop-hud"; title.innerHTML="<div><b>ГАРАЖ</b><span>Осмотр автомобиля</span></div>"; viewport.appendChild(title); const loop=()=>{if(state.scene!=="garage"||!renderer||!scene||!camera)return;requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);updateArticulatedCar(dt);if(car){const distance=8.6;const yaw=car.rotation.y+camOrbitYaw;const back=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));const desired=car.position.clone().addScaledVector(back,Math.max(3,Math.cos(camOrbitPitch)*distance));desired.y=car.position.y+5.7+Math.sin(camOrbitPitch)*distance*.55;camera.position.lerp(desired,.18);camera.lookAt(car.position.x,1.0,car.position.z);camera.updateMatrixWorld(true);}renderer.render(scene,camera);};clock=new THREE.Clock();loop();}function stop(){ if(renderer){ try{ if(renderer.setAnimationLoop) renderer.setAnimationLoop(null); renderer.dispose(); }catch{} renderer=null; } window.MechanicCityAnimationLoopStarted=false; }
+function repairAllParts(){
+  if(!car) return;
+  let total=0, count=0;
+  for(const p of Object.values(car.userData.serviceParts||{})){
+    const c=partCondition(p.key);
+    if(c>=100) continue;
+    total += Math.max(40,Math.round((100-c)*0.22*(p.baseCost||100)));
+    count++;
+  }
+  if(!count){msg("✅ Все детали уже исправны.");return;}
+  if(state.money<total){msg("💸 Не хватает $"+Math.round(total-state.money));return;}
+  state.money-=total;
+  for(const key of Object.keys(state.car.partState||{})) state.car.partState[key].condition=100;
+  state.damage=0; state.car.condition=100; syncCarPartsFromCatalog(car,state); save();
+  msg("🔧 Отремонтировано деталей: "+count);
+}
+
+function tuningMultiplier(){
+  const parts=state.car.parts||{};
+  let m=1;
+  for(const [key,v] of Object.entries(parts)){
+    if(!v?.installed) continue;
+    if(key==="tune_engine")m*=1.18;
+    else if(key==="tune_transmission")m*=1.10;
+    else if(/^tune_(tire_|rim_)/.test(key))m*=1.025;
+    else if(/^tune_(strut_)/.test(key))m*=1.018;
+  }
+  return Math.min(1.55,m);
+}
+
+function tuningPanel(){
+  const tunable=Object.values(car?.userData?.serviceParts||{}).filter(p=>p.tunable);
+  let html="<p>Улучшения меняют характеристики машины и сохраняются.</p><div class='cards-inline'>";
+  for(const p of tunable){
+    const installed=partInstalled(p.key);
+    const tuned=!!state.car.parts?.["tune_"+p.key];
+    html+="<article><b>"+p.name+"</b><span>"+partCategoryLabel(p.category)+" · "+partCondition(p.key)+"%</span><button data-tune-key='"+p.key+"' "+(!installed||tuned?"disabled":"")+">"+(tuned?"✅ Установлено":"⚙️ Установить тюнинг")+"</button></article>";
+  }
+  html+="</div><p>Множитель мощности/управляемости: <b>x"+tuningMultiplier().toFixed(2)+"</b></p>";
+  openPanel("Тюнинг",html);
+  document.querySelectorAll("[data-tune-key]").forEach(b=>b.onclick=()=>{
+    const key=b.dataset.tuneKey;
+    if(tunePart(state,car,key)){syncCarPartsFromCatalog(car,state);save();msg("⚙️ Тюнинг установлен");}
+    tuningPanel();
+  });
+}
+
+function renderMap(){
+  const locations=[
+    ["garage","🔧 Гараж","Осмотр, ремонт и тюнинг"],
+    ["workshop","🛠️ Мастерская","Разборка и обслуживание"],
+    ["market","🛒 Рынок","Новые запчасти"],
+    ["junkyard","♻️ Разборка","Дешёвые детали"],
+    ["dealer","🚘 Автосалон","Автомобили и профили"],
+    ["jobs","📋 Работа","Задания и награды"]
+  ];
+  const html="<div class='cards'><h2>🗺️ Карта города</h2><p class='muted'>Выбирай точку — переход происходит сразу.</p>"+locations.map(([id,t,d])=>"<article><b>"+t+"</b><span>"+d+"</span><button data-map-scene='"+id+"'>Открыть</button></article>").join("")+"</div>";
+  viewport.innerHTML=html;
+  viewport.querySelectorAll("[data-map-scene]").forEach(b=>b.onclick=()=>renderScene(b.dataset.mapScene));
+}
+
+const MARKET_ITEMS=[
+  ["engine","🏎️ Двигатель","engine",1250],
+  ["transmission","⚙️ Спортивная КПП","transmission",980],
+  ["tire_FL","🛞 Комплект шин","wheels",420],
+  ["strut_FL","🏁 Спортивная подвеска","suspension",650],
+  ["brakeKit","🛑 Спортивные тормоза","brakes",540],
+  ["exhaustKit","💨 Спортивный выхлоп","exhaust",360]
+];
+function buyMarketItem(id){
+  const item=MARKET_ITEMS.find(x=>x[0]===id); if(!item)return;
+  if(state.money<item[3]){msg("💸 Недостаточно денег");return;}
+  state.money-=item[3];
+  if(id==="brakeKit")state.car.sportBrakes=true;
+  else if(id==="exhaustKit")state.car.parts.exhaustKit={installed:true,bonus:1.08};
+  else {
+    const keys=id==="tire_FL"?["tire_FL","tire_FR","tire_RL","tire_RR"]:[id];
+    for(const key of keys)setPartState(key,{installed:true,condition:100});
+  }
+  syncCarPartsFromCatalog(car,state); save(); msg("🛒 Куплено: "+item[1]);
+  renderScene("market");
+}
+function buildMarketScene(){
+  const html="<div class='cards'><h2>🛒 Рынок запчастей</h2><div class='carbox'><b>$"+Math.round(state.money)+"</b><span>Баланс</span></div>"+MARKET_ITEMS.map(x=>"<article><b>"+x[1]+"</b><span>"+partCategoryLabel(x[2])+" · новое</span><strong>$"+x[3]+"</strong><button data-buy='"+x[0]+"'>Купить</button></article>").join("")+"</div>";
+  viewport.innerHTML=html; viewport.querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>buyMarketItem(b.dataset.buy));
+}
+
+function buildJunkyardScene(){
+  const pool=Object.values(PART_CATALOG).filter(p=>p.removable);
+  const offers=pool.slice(0,12);
+  const html="<div class='cards'><h2>♻️ Авторазборка</h2><p class='muted'>Подержанные детали дешевле, но их состояние ниже.</p>"+offers.map((p,i)=>{const key=Object.keys(PART_CATALOG).find(k=>PART_CATALOG[k]===p)||"engine";const price=Math.max(35,Math.round(p.baseCost*.42));return "<article><b>"+p.name+"</b><span>Состояние "+(58+(i*7)%30)+"%</span><strong>$"+price+"</strong><button data-junk='"+key+"'>Забрать деталь</button></article>"}).join("")+"</div>";
+  viewport.innerHTML=html;
+  viewport.querySelectorAll("[data-junk]").forEach(b=>b.onclick=()=>{
+    const key=b.dataset.junk, meta=PART_CATALOG[key], price=Math.max(35,Math.round(meta.baseCost*.42));
+    if(state.money<price){msg("💸 Недостаточно денег");return;}
+    state.money-=price; setPartState(key,{installed:true,condition:58+Math.floor(Math.random()*30)});
+    syncCarPartsFromCatalog(car,state);save();msg("♻️ Деталь установлена из разборки");buildJunkyardScene();
+  });
+}
+
+function buildDealerScene(){
+  const html="<div class='cards'><h2>🚘 Автосалон</h2><article><b>Higgsfield R18 / Dodge Challenger</b><span>2026 · 4.88 м · 1.92 м · V8-класс</span><strong>АКТИВНА</strong><button id='dealerCurrent'>Сделать основной машиной</button></article><article><b>Retro Coupe 1972</b><span>Классический профиль · задний привод · проектная машина</span><strong>КАТАЛОГ</strong><button id='dealerProfile'>Просмотреть характеристики</button></article><article><b>Classic Sedan 1978</b><span>Городской автомобиль · комфортная подвеска</span><strong>КАТАЛОГ</strong><button id='dealerProfile2'>Просмотреть характеристики</button></article><p class='muted'>Модели каталога подключаются к общей системе деталей, ремонта и сохранения.</p></div>";
+  viewport.innerHTML=html;
+  viewport.querySelector("#dealerCurrent").onclick=()=>{state.car.name="Higgsfield R18";state.car.year=2026;save();msg("🚘 R18 выбрана основной машиной");};
+  viewport.querySelector("#dealerProfile").onclick=()=>openPanel("Retro Coupe 1972","<p>Задний привод · классический кузов · проект для будущей замены кузова.</p>");
+  viewport.querySelector("#dealerProfile2").onclick=()=>openPanel("Classic Sedan 1978","<p>Комфортная подвеска · городской профиль · проект для будущего отдельного GLB.</p>");
+}
+
+const JOBS=[
+  ["Доставка детали",12, -42,28,650],
+  ["Забрать автомобиль", -34,0, -36,900],
+  ["Срочный ремонт",28,0,34,780],
+  ["Перегон в гараж",-6,0,58,1100],
+  ["Ночная доставка",42,0,-12,1250]
+];
+function buildJobsScene(){
+  const active=state.job;
+  let html="<div class='cards'><h2>📋 Работа</h2><p class='muted'>Заверши маршрут и получи деньги. Активное задание можно выполнить в городе.</p>";
+  if(active) html+="<article><b>🚨 "+active.title+"</b><span>Цель: X "+Math.round(active.targetX)+" · Z "+Math.round(active.targetZ)+"</span><strong>$"+active.reward+"</strong><button id='cancelJob'>Отменить</button></article>";
+  for(const j of JOBS) html+="<article><b>"+j[0]+"</b><span>Маршрут по городу</span><strong>$"+j[4]+"</strong><button data-job='"+j[0]+"'>"+(active?"Занято":"Взять задание")+"</button></article>";
+  html+="</div>"; viewport.innerHTML=html;
+  viewport.querySelector("#cancelJob")?.addEventListener("click",()=>{state.job=null;clearJobMarker();save();buildJobsScene();});
+  viewport.querySelectorAll("[data-job]").forEach(b=>b.onclick=()=>{
+    if(state.job){msg("📋 Сначала выполни текущее задание.");return;}
+    const j=JOBS.find(x=>x[0]===b.dataset.job); if(!j)return;
+    state.job={title:j[0],targetX:j[1],targetZ:j[3],reward:j[4]}; save(); msg("📋 Задание принято"); renderScene("city");
+  });
+}
+
+function buildSettingsScene(){
+  const html="<div class='cards'><h2>⚙️ Настройки</h2><article><b>Время</b><span>Сейчас "+Math.floor(state.time)+":00</span><button id='timeDay'>☀️ День</button><button id='timeNight'>🌙 Ночь</button></article><article><b>Погода</b><span>"+(state.rain?"Дождь включён":"Ясно")+"</span><button id='rainToggle'>"+(state.rain?"☀️ Выключить дождь":"🌧️ Включить дождь")+"</button></article><article><b>Прогресс</b><span>Деньги $"+Math.round(state.money)+" · Пробег "+Math.round(state.car.mileage)+" км</span><button id='resetSave'>♻️ Сбросить прогресс</button></article></div>";
+  viewport.innerHTML=html;
+  viewport.querySelector("#timeDay").onclick=()=>{state.time=14;save();renderScene("settings");};
+  viewport.querySelector("#timeNight").onclick=()=>{state.time=22;save();renderScene("settings");};
+  viewport.querySelector("#rainToggle").onclick=()=>{state.rain=!state.rain;save();renderScene("city");};
+  viewport.querySelector("#resetSave").onclick=()=>{localStorage.removeItem("mechanic-city");location.reload();};
+}
+
+function buildGarageInfo(){
+  const h=mechanicalHealth();
+  return "<div class='garage-info'><h2>🔧 Гараж</h2><div class='carbox'><b>"+state.car.name+"</b><span>"+state.car.year+" · "+Math.round(state.car.mileage)+" км</span><span>Двигатель "+Math.round(h.engine*100)+"% · КПП "+Math.round(h.transmission*100)+"% · тормоза "+Math.round(h.brakes*100)+"%</span><span>Подвеска "+Math.round(h.suspension*100)+"% · колёса "+Math.round(h.wheels*100)+"%</span><div class='buttons'><button id='repairAllGarage'>🧰 Починить всё</button><button id='tuningGarage'>⚙️ Тюнинг</button><button id='partsGarage'>🔩 Детали</button><button id='backCityGarage'>🚗 В город</button></div></div></div>";
+}
+
+function renderScene(name){
+  cameraMode=0; camOrbitYaw=0; camOrbitPitch=.18; state.scene=name; menu.classList.add("hidden");
+  if(name==="workshop"){document.querySelector(".drive-hud").style.display="none";if(renderer){renderer.dispose();renderer=null;}buildWorkshop();return;}
+  stop();document.querySelector(".drive-hud").style.display="none";if(renderer){renderer.dispose();renderer=null;}
+  if(name==="market"){buildMarketScene();return;}
+  if(name==="junkyard"){buildJunkyardScene();return;}
+  if(name==="dealer"){buildDealerScene();return;}
+  if(name==="jobs"){buildJobsScene();return;}
+  if(name==="settings"){buildSettingsScene();return;}
+  if(name==="garage"){buildGarage();return;}
+  if(name==="city"){document.querySelector(".drive-hud").style.display="";try{buildCity();bindControls();stats();msg("▲ газ • руль • ■ тормоз");}catch(err){window.MechanicCityBuildError=String(err?.message||err);console.error("City build failed",err);renderEmergencyScene();}return;}
+  if(name==="map"){renderMap();return;}
+}
+
+function buildGarage(){ stop(); cameraMode=0; camOrbitYaw=0; camOrbitPitch=.18; clearJobMarker(); traffic=[]; trafficLights=[]; smoke=[]; rainDrops=[]; scene=new THREE.Scene(); scene.background=new THREE.Color(0x15181b); viewport.innerHTML=""; const probe=document.createElement("canvas"); renderer=new THREE.WebGLRenderer({canvas:probe,antialias:false,alpha:false,preserveDrawingBuffer:false,powerPreference:"high-performance"}); renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5)); renderer.setSize(Math.max(1,viewport.clientWidth),Math.max(1,viewport.clientHeight),false); renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFShadowMap; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.18; renderer.domElement.style.width="100%"; renderer.domElement.style.height="100%"; renderer.domElement.style.display="block"; viewport.appendChild(renderer.domElement); camera=new THREE.PerspectiveCamera(50,Math.max(1,viewport.clientWidth)/Math.max(1,viewport.clientHeight),.1,120); camera.position.set(0,5.7,8.6); setupCameraControls(); const hemi=new THREE.HemisphereLight(0xc6d6e2,0x17191b,1.5); scene.add(hemi); const key=new THREE.DirectionalLight(0xffffff,2.4); key.position.set(-5,10,6); scene.add(key); const floor=new THREE.Mesh(new THREE.PlaneGeometry(35,28),new THREE.MeshStandardMaterial({color:0x3d3f40,roughness:.96})); floor.rotation.x=-Math.PI/2; floor.receiveShadow=true; scene.add(floor); car=createRetroPlayerCar(); car.userData.workshopMode=true; car.position.set(0,0,0); car.rotation.y=Math.PI; scene.add(car); const title=document.createElement("div"); title.className="workshop-hud"; title.innerHTML=buildGarageInfo(); viewport.appendChild(title);
+  title.querySelector("#repairAllGarage")?.addEventListener("click",repairAllParts);
+  title.querySelector("#tuningGarage")?.addEventListener("click",tuningPanel);
+  title.querySelector("#partsGarage")?.addEventListener("click",openDisassemblyPanel);
+  title.querySelector("#backCityGarage")?.addEventListener("click",()=>renderScene("city")); const loop=()=>{if(state.scene!=="garage"||!renderer||!scene||!camera)return;requestAnimationFrame(loop);const dt=Math.min(clock.getDelta(),.05);updateArticulatedCar(dt);if(car){const distance=8.6;const yaw=car.rotation.y+camOrbitYaw;const back=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw));const desired=car.position.clone().addScaledVector(back,Math.max(3,Math.cos(camOrbitPitch)*distance));desired.y=car.position.y+5.7+Math.sin(camOrbitPitch)*distance*.55;camera.position.lerp(desired,.18);camera.lookAt(car.position.x,1.0,car.position.z);camera.updateMatrixWorld(true);}renderer.render(scene,camera);};clock=new THREE.Clock();loop();}function stop(){ if(renderer){ try{ if(renderer.setAnimationLoop) renderer.setAnimationLoop(null); renderer.dispose(); }catch{} renderer=null; } window.MechanicCityAnimationLoopStarted=false; }
 const handleViewportResize=()=>{try{syncRendererSize();}catch(err){window.MechanicCityDebugLog?.({type:"resize",message:String(err?.message||err)});}};
 window.addEventListener("resize",handleViewportResize,{passive:true});
 window.visualViewport?.addEventListener("resize",handleViewportResize,{passive:true});
@@ -751,7 +911,28 @@ function setVehiclePartOpen(part,open){state.car[part]=!!open; save(); const lab
 function toggleVehiclePanel(){const html="<p>Управление кузовом автомобиля</p><div class='buttons'><button id='hoodBtn'>"+(state.car.hoodOpen?"🔽 Закрыть капот":"🔼 Открыть капот")+"</button><button id='trunkBtn'>"+(state.car.trunkOpen?"🔽 Закрыть багажник":"🔼 Открыть багажник")+"</button><button id='doorsBtn'>"+(state.car.doorsOpen?"🚪 Закрыть двери":"🚪 Открыть двери")+"</button>"+(state.scene==="garage"?"<button id='disassemblyBtn'>🔧 Разборка автомобиля</button>":"")+"</div>";openPanel("Кузов",html);document.querySelector("#hoodBtn")?.addEventListener("click",()=>{setVehiclePartOpen("hoodOpen",!state.car.hoodOpen);toggleVehiclePanel();});document.querySelector("#trunkBtn")?.addEventListener("click",()=>{setVehiclePartOpen("trunkOpen",!state.car.trunkOpen);toggleVehiclePanel();});document.querySelector("#doorsBtn")?.addEventListener("click",()=>{setVehiclePartOpen("doorsOpen",!state.car.doorsOpen);toggleVehiclePanel();});document.querySelector("#disassemblyBtn")?.addEventListener("click",openDisassemblyPanel);}
 function openDisassemblyPanel(){const parts=Object.values(car?.userData?.serviceParts||{});const groups={body:[],engine:[],transmission:[],brakes:[],suspension:[],wheels:[],lights:[],glass:[],exhaust:[],other:[]};for(const p of parts)(groups[p.category]||groups.other).push(p);const labels={body:"Кузов",engine:"Двигатель",transmission:"КПП",brakes:"Тормоза",suspension:"Подвеска",wheels:"Колёса",lights:"Свет",glass:"Стёкла",exhaust:"Выхлоп",other:"Прочее"};let html="<p>Выбери узел для снятия или установки.</p>";for(const [cat,list] of Object.entries(groups)){if(!list.length)continue;html+="<h4>"+labels[cat]+"</h4><div class='buttons'>";for(const p of list){html+="<button data-part-key='"+p.key+"'>"+(partInstalled(p.key)?"🔩 Снять ":"🛠️ Установить ")+p.name+"</button>"}html+="</div>"}openPanel("Разборка автомобиля",html);document.querySelectorAll("[data-part-key]").forEach(b=>b.onclick=()=>{const p=car?.userData?.serviceParts?.[b.dataset.partKey];if(p)openPartPanel(p)})}
 function openPanel(title,html){ const existing=document.querySelector("#panel"); if(existing)existing.remove(); const panel=document.createElement("div"); panel.id="panel"; panel.className="panel"; panel.innerHTML="<div class='panel-card'><h3>"+title+"</h3>"+html+"<button id='closePanel'>Закрыть</button></div>"; document.body.appendChild(panel); panel.querySelector("#closePanel")?.addEventListener("click",()=>panel.remove()); }
-function initMenu(){ const html=`<div class="menu-section"><button data-scene="city">Город</button><button data-scene="workshop">Мастерская</button><button data-scene="garage">Гараж</button><button data-scene="market">Рынок</button><button id="helpMenuBtn">❔ Справка</button></div>`; menu.innerHTML=html; menu.querySelectorAll("[data-scene]").forEach(btn=>btn.addEventListener("click",()=>{ renderScene(btn.dataset.scene); menu.classList.add("hidden"); })); menu.querySelector("#helpMenuBtn").onclick=showHelp; }
+function initMenu(){
+  const html=`<div class="menu-card">
+    <button data-scene="city">🌆 Город</button>
+    <button data-scene="garage">🔧 Гараж</button>
+    <button data-scene="workshop">🛠️ Мастерская</button>
+    <button data-scene="market">🛒 Рынок</button>
+    <button data-scene="junkyard">♻️ Авторазборка</button>
+    <button data-scene="dealer">🚘 Автосалон</button>
+    <button data-scene="jobs">📋 Задания</button>
+    <button data-scene="settings">⚙️ Настройки</button>
+    <button id="helpMenuBtn">❔ Справка</button>
+  </div>`;
+  menu.innerHTML=html;
+  menu.querySelectorAll("[data-scene]").forEach(btn=>btn.addEventListener("click",()=>renderScene(btn.dataset.scene)));
+  menu.querySelector("#helpMenuBtn").onclick=showHelp;
+}
 function showHelp(){ if(document.querySelector(".help-overlay"))return; const o=document.createElement("div"); o.className="help-overlay"; o.innerHTML=`<div class="help-card"><button class="help-close" aria-label="Закрыть">×</button><h2>Справка</h2><div class="help-row"><b>🚗 Управление</b><span>Газ — ехать, ◀ ▶ — поворот, P/R/N/D — передача.</span></div><div class="help-row"><b>📷 Камера</b><span>Проведи пальцем по свободному месту экрана. Камера следует за машиной при повороте.</span></div><div class="help-row"><b>🔧 Машина</b><span>Кнопка 🚗 открывает управление кузовом. В гараже доступны детали и обслуживание.</span></div><div class="help-row"><b>🗺️ Карта</b><span>🎯 возвращает машину в центр карты.</span></div></div>`; document.body.appendChild(o); o.querySelector(".help-close").onclick=()=>o.remove(); o.addEventListener("pointerdown",e=>{if(e.target===o)o.remove();}); }
-function bindUI(){ document.querySelector("#menuBtn").onclick=()=>menu.classList.toggle("hidden"); document.querySelector("#cameraBtn").onclick=()=>{cameraMode=(cameraMode+1)%3;camOrbitYaw=0;camOrbitPitch=.18;if(camera){camera.fov=cameraMode===2?82:cameraMode===1?68:62;camera.updateProjectionMatrix();}}; document.querySelector("#mapBtn").onclick=()=>alert("Карта запчастей будет здесь"); document.querySelector("#teleportBtn").onclick=teleportToMapCenter; document.querySelector("#vehicleBtn").onclick=toggleVehiclePanel; }
+function bindUI(){
+  document.querySelector("#menuBtn").onclick=()=>menu.classList.toggle("hidden");
+  document.querySelector("#cameraBtn").onclick=()=>{cameraMode=(cameraMode+1)%3;camOrbitYaw=0;camOrbitPitch=.18;if(camera){camera.fov=cameraMode===2?82:cameraMode===1?68:62;camera.updateProjectionMatrix();}};
+  document.querySelector("#mapBtn").onclick=()=>{if(state.scene==="city"){renderScene("map");}else{renderScene("map");}};
+  document.querySelector("#teleportBtn").onclick=teleportToMapCenter;
+  document.querySelector("#vehicleBtn").onclick=toggleVehiclePanel;
+}
 installRuntimeErrorCapture(); installVisualInspectMode(); installAITestMode(); initMenu(); bindUI(); renderScene("city"); installPartInteraction();
