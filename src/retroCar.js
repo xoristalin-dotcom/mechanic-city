@@ -278,7 +278,7 @@ function makeDetailedMechanicalLayer(root){
   // Fuel door, antenna, tow points and body fasteners.
   box(detail,M.paint2,"FuelDoor",.035,.18,.34,.93,.78,-.82,.055);
   cylinder(detail,darkMetal,"AntennaBase",.055,.035,.58,1.42,-.78,Math.PI/2,0,0,16);
-  cylinder(detail,black,"Antenna",.018,.28,.58,1.57,-.78,0,0,0,12);
+  cylinder(detail,M.black,"Antenna",.018,.28,.58,1.57,-.78,0,0,0,12);
   for(const side of [-1,1]){
     box(detail,brushed,"TowPointFront_"+side,.10,.08,.16,side*.66,.43,2.46,.018);
     box(detail,brushed,"TowPointRear_"+side,.10,.08,.16,side*.66,.43,-2.48,.018);
