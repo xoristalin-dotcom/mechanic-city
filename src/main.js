@@ -71,6 +71,7 @@ appRoot.innerHTML = `
       <button class="pedal brake" data-drive="brake" aria-label="Тормоз">■<small>ТОРМОЗ</small></button>
       <button class="pedal gas" data-drive="gas" aria-label="Газ">▲<small>ГАЗ</small></button>
     </div>
+    <div class="camera-pedal-zone" id="cameraPedalZone" aria-label="Зона вращения камеры"><span>↔ КАМЕРА</span></div>
     <div class="drive-actions" aria-label="Передача">
       <button data-gear="P">P</button>
       <button data-gear="R">R</button>
@@ -448,9 +449,15 @@ function updatePlayerCamera(){
     const target=car.localToWorld(new THREE.Vector3(0,1.25,5));
     camera.lookAt(target);
   }else{
-    // Chase camera: FIXED behind and above the car.
-    // Negative local Z is the rear of the vehicle.
-    camera.position.set(0,4.6,-8.8);
+    // Chase/orbit camera: yaw and pitch are controlled by the dedicated
+    // camera zone below the pedals.
+    const distance=8.8;
+    const horizontal=Math.cos(camOrbitPitch)*distance;
+    camera.position.set(
+      Math.sin(camOrbitYaw)*horizontal,
+      4.6 + Math.sin(camOrbitPitch)*1.6,
+      -Math.cos(camOrbitYaw)*horizontal
+    );
     camera.rotation.set(0,0,0);
     const target=car.localToWorld(new THREE.Vector3(0,1.05,1.8));
     camera.lookAt(target);
@@ -723,6 +730,33 @@ function setupCameraControls(){
   window.addEventListener("pointercancel",end,{passive:true});
   window.addEventListener("blur",end,{passive:true});
 }
+function setupPedalCameraZone(){
+  const zone=document.querySelector("#cameraPedalZone");
+  if(!zone||zone.dataset.bound==="1")return;
+  zone.dataset.bound="1";
+  zone.style.touchAction="none";
+  let activeId=null,lastX=0,lastY=0;
+  const end=e=>{
+    if(activeId!==null&&e?.pointerId!=null&&zone.hasPointerCapture?.(e.pointerId)){try{zone.releasePointerCapture(e.pointerId);}catch{}}
+    activeId=null;lastX=0;lastY=0;zone.classList.remove("active");
+  };
+  zone.addEventListener("pointerdown",e=>{
+    if(e.pointerType==="mouse"&&e.button!==0)return;
+    activeId=e.pointerId??"touch";lastX=e.clientX;lastY=e.clientY;
+    try{if(e.pointerId!=null)zone.setPointerCapture(e.pointerId);}catch{}
+    e.preventDefault();e.stopPropagation();zone.classList.add("active");
+  },{passive:false});
+  zone.addEventListener("pointermove",e=>{
+    if(activeId===null||(e.pointerId!=null&&e.pointerId!==activeId))return;
+    e.preventDefault();e.stopPropagation();
+    const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
+    camOrbitYaw-=dx*.012;
+    camOrbitPitch=THREE.MathUtils.clamp(camOrbitPitch+dy*.008,-.45,.9);
+  },{passive:false});
+  zone.addEventListener("pointerup",end,{passive:false});
+  zone.addEventListener("pointercancel",end,{passive:false});
+  zone.addEventListener("lostpointercapture",end,{passive:true});
+}
 function bindControls(){
   if(viewport.dataset.driveControlsBound==="1")return;
   viewport.dataset.driveControlsBound="1";
@@ -975,4 +1009,4 @@ function bindUI(){
   document.querySelector("#teleportBtn").onclick=teleportToMapCenter;
   document.querySelector("#vehicleBtn").onclick=toggleVehiclePanel;
 }
-installRuntimeErrorCapture(); installVisualInspectMode(); installAITestMode(); initMenu(); bindUI(); installCareerSystems({state,msg,renderScene}); renderScene("city"); installPartInteraction();
+installRuntimeErrorCapture(); installVisualInspectMode(); installAITestMode(); initMenu(); bindUI(); installCareerSystems({state,msg,renderScene}); setupPedalCameraZone(); renderScene("city"); installPartInteraction();
