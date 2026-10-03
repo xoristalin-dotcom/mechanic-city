@@ -254,7 +254,9 @@ export class RetroCarBuilder {
           removedLowPanels.push({name:o.name || '(unnamed)', size:{x:s.x,y:s.y,z:s.z}});
         }
       });
-      window.MechanicCityRemovedLowPanels = removedLowPanels;\n\n      const bodySize = bodyBox.getSize(new THREE.Vector3());
+      window.MechanicCityRemovedLowPanels = removedLowPanels;
+
+      const bodySize = bodyBox.getSize(new THREE.Vector3());
       const bodyCenter = bodyBox.getCenter(new THREE.Vector3());
       const bodyLength = isR18Source
         ? Math.max(bodySize.x, bodySize.y, bodySize.z)
