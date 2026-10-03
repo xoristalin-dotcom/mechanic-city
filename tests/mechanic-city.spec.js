@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 const URL = process.env.GAME_URL || 'https://mechanic-city.onrender.com/?test=1';
 
 test.describe('Mechanic City live smoke', () => {
-  test('loads game and exposes healthy physics state', async ({ page }) => {
+  test('loads game with healthy physics, camera follow and open-world districts', async ({ page }) => {
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(URL, { waitUntil: 'networkidle', timeout: 60000 });
@@ -14,10 +14,12 @@ test.describe('Mechanic City live smoke', () => {
     expect(state.scene).toBe('city');
     expect(state.cameraMode).toBe(0);
     expect(state.cameraAttached).toBe(true);
+    expect(state.openWorld).toBe(true);
+    expect(state.openWorldDistricts).toBeGreaterThanOrEqual(6);
     expect(errors).toEqual([]);
   });
 
-  test('drive, steer, brake and camera modes change state', async ({ page }) => {
+  test('drive, steer, brake and camera remain attached to the moving player', async ({ page }) => {
     await page.goto(URL, { waitUntil: 'networkidle', timeout: 60000 });
     const state = async () => page.evaluate(() => window.MechanicCityTest.getState());
 
@@ -26,11 +28,13 @@ test.describe('Mechanic City live smoke', () => {
 
     await page.evaluate(() => window.MechanicCityTest.action('gas', true));
     await page.waitForTimeout(1800);
+    const moving = await state();
     await page.evaluate(() => window.MechanicCityTest.action('gas', false));
-    const afterGas = await state();
 
-    expect(afterGas.physicsReady).toBe(true);
-    expect(Math.abs(afterGas.position.x - before.position.x) + Math.abs(afterGas.position.z - before.position.z)).toBeGreaterThan(0.1);
+    expect(moving.physicsReady).toBe(true);
+    expect(Math.abs(moving.position.x - before.position.x) + Math.abs(moving.position.z - before.position.z)).toBeGreaterThan(0.1);
+    expect(moving.cameraAttached).toBe(true);
+    expect(moving.cameraFollowTarget).toBe(moving.car.uuid);
 
     await page.evaluate(() => window.MechanicCityTest.action('right', true));
     await page.waitForTimeout(600);
@@ -42,16 +46,17 @@ test.describe('Mechanic City live smoke', () => {
     await page.waitForTimeout(700);
     await page.evaluate(() => window.MechanicCityTest.action('brake', false));
     const afterBrake = await state();
-    expect(afterBrake.speed).toBeLessThanOrEqual(afterGas.speed + 1);
+    expect(afterBrake.speed).toBeLessThanOrEqual(moving.speed + 1);
 
     for (const mode of [1, 2, 0]) {
       await page.evaluate((m) => window.MechanicCityTest.action('camera', m), mode);
       const s = await state();
       expect(s.cameraMode).toBe(mode);
+      expect(s.cameraAttached).toBe(true);
     }
   });
 
-  test('service actions and scene routing work', async ({ page }) => {
+  test('service actions and open-world routing work', async ({ page }) => {
     await page.goto(URL, { waitUntil: 'networkidle', timeout: 60000 });
     const state = async () => page.evaluate(() => window.MechanicCityTest.getState());
 
