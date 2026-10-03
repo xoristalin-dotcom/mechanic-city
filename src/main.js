@@ -487,14 +487,14 @@ async function buildCity(){ forceViewportLayout(); clearJobMarker(); traffic=[];
     scene.add(car);
 
     const attachPlayerCamera=()=>{
-      if(!car||!camera)return;
-      // The camera is a child of the authoritative player root. This makes
-      // follow mathematically rigid: position and heading can never drift
-      // apart from the car during driving, physics updates, or UI touches.
-      if(camera.parent!==car)car.add(camera);
-      camera.position.set(0,5.7,-8.6);
-      camera.rotation.set(0,0,0);
-      camera.lookAt(0,1.15,0);
+      if(!car||!camera||!scene)return;
+      // Keep the camera owned by the scene. Rebuild its world transform from
+      // the authoritative player root every frame to prevent touch/drive freezes.
+      if(camera.parent!==scene)scene.add(camera);
+      const forward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();
+      camera.position.copy(car.position).addScaledVector(forward,-8.6);
+      camera.position.y=car.position.y+5.7;
+      camera.lookAt(car.position.x,car.position.y+1.15,car.position.z);
       camera.updateMatrixWorld(true);
       window.MechanicCityCameraAttachedToPlayer=true;
     };
@@ -578,22 +578,30 @@ function animate(traffic=[]){ if(renderer?.setAnimationLoop && window.MechanicCi
  updateJob(); updateArticulatedCar(dt); car?.userData?.purgeVehicleStand?.(); updateMechanicCityDebug(); if(!car?.rotation||!car?.position)return; const moving=Math.abs(state.speed)>.25;
   // AUTHORITATIVE THIRD-PERSON FOLLOW CAMERA: derive every frame from the player root.
   if(camera&&car){
-    // Camera follows through the player hierarchy. Only the local orbit offset
-    // is changed here; the car's world position/rotation are inherited directly.
-    if(camera.parent!==car)car.add(camera);
+    // Stable world-space chase camera: follow the car without parenting the
+    // camera to it. Orbit input changes only the desired camera offset.
+    if(camera.parent!==scene)scene.add(camera);
     const distance=moving?9.2:8.6;
+    const carForward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();
     if(cameraMode===2){
-      camera.position.set(0,1.35,0.55);
+      const cockpitOffset=new THREE.Vector3(0,1.35,.55).applyQuaternion(car.quaternion);
+      camera.position.copy(car.position).add(cockpitOffset);
+      const look=car.position.clone().addScaledVector(carForward,4);
+      look.y+=1.25;
+      camera.lookAt(look);
     }else{
       const orbitDistance=Math.max(3,distance);
-      camera.position.set(
+      const localOffset=new THREE.Vector3(
         Math.sin(camOrbitYaw)*orbitDistance,
         (moving?5.9:5.6)+Math.sin(camOrbitPitch)*orbitDistance*.55,
         -Math.cos(camOrbitYaw)*orbitDistance
       );
+      const worldOffset=localOffset.applyQuaternion(car.quaternion);
+      camera.position.copy(car.position).add(worldOffset);
+      camera.lookAt(car.position.x,car.position.y+1.15,car.position.z);
     }
-    camera.lookAt(0,1.15,0);
     camera.updateMatrixWorld(true);
+    window.MechanicCityCameraAttachedToPlayer=true;
   }
  for(const npc of traffic){ if(!npc?.position)continue; const travel=dt*(Number(npc.userData?.trafficSpeed)||0)*8; npc.position.z+=travel; for(const w of(npc.userData?.wheels||[])){ if(w?.rotation)w.rotation.x-=travel/.39; } if(npc.position.z>120)npc.position.z=-120; } const cycle=(performance.now()/1000)%12; const green=cycle<6,yellow=cycle>=6&&cycle<7.5; for(const l of trafficLights){ if(!l?.red?.material?.color||!l?.yellow?.material?.color||!l?.green?.material?.color)continue; l.red.material.color.setHex(green?0x220000:yellow?0x220000:0xff0000); l.yellow.material.color.setHex(yellow?0xffb000:0x332600); l.green.material.color.setHex(green?0x00ff44:0x002200); } updateCarDamage(); stats(); }catch(err){ window.MechanicCityLastFrameError=String(err?.message||err); window.MechanicCityDebugLog?.({type:"frame",message:window.MechanicCityLastFrameError,stack:String(err?.stack||"")}); console.error("Mechanic City frame update failed",err);} finally{ try{renderer.render(scene,camera);}catch(err){ window.MechanicCityRenderError=String(err?.message||err); console.error("Mechanic City render failed",err); } }}
 function teleportToMapCenter(){
