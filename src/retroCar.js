@@ -371,7 +371,7 @@ function buildChallenger(){
   box(trunkPivot,M.paint2,"Trunk_Lip",1.48,.07,.16,0,.10,.77,.035);
 
   // Challenger front fascia.
-  box(root,M.paint2,"Front_Bumper",1.84,.26,.23,0,.43,2.28,.075);
+  box(root,M.paint2,"Front_Bumper",1.84,.26,.23,0,.43,1.91,.075);
   box(root,M.black,"Dodge_Grille",1.36,.20,.07,0,.72,2.405,.025);
   box(root,M.chrome,"Grille_UpperTrim",1.38,.035,.035,0,.83,2.45,.01);
   for(const x of [-.61,.61]){
@@ -381,7 +381,7 @@ function buildChallenger(){
   box(root,M.black,"FrontSplitter",1.70,.06,.20,0,.38,2.35,.025);
 
   // Rear fascia / full-width tail signature.
-  box(root,M.paint2,"Rear_Bumper",1.84,.26,.22,0,.43,-2.30,.075);
+  box(root,M.paint2,"Rear_Bumper",1.84,.26,.22,0,.43,-1.95,.075);
   box(root,M.red,"TailLightBar",1.46,.15,.045,0,.82,-2.42,.018);
   box(root,M.chrome,"RearTrim",1.52,.035,.035,0,.71,-2.45,.01);
   for(const x of [-.56,.56]) cylinder(root,M.chrome,"Exhaust_"+(x<0?"L":"R"),.078,.10,x,.43,-2.43,Math.PI/2,0,0,20);
