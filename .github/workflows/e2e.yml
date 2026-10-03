@@ -18,7 +18,15 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run build
       - run: npm run preview -- --host 0.0.0.0 > /tmp/mechanic-city.log 2>&1 &
-      - run: npx wait-on http://127.0.0.1:4173/?test=1
+      - run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/?test=1 >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/mechanic-city.log
+          exit 1
       - run: npm run test:e2e
         env:
           GAME_URL: http://127.0.0.1:4173/?test=1
