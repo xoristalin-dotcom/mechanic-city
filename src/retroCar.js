@@ -147,10 +147,10 @@ function makeDoor(root, side){
   pivot.add(door);
 
   // Sculpted outer door, window and lower crease. The door is one moving assembly.
-  box(door,M.paint,"Door_OuterPanel",.12,.53,1.48,-side*.025,0,-.38,.055);
-  box(door,M.paint2,"Door_LowerSculpt",.045,.22,1.30,-side*.088,-.09,-.38,.025);
-  box(door,M.glass,"Door_Window",.045,.34,1.28,-side*.074,.31,-.38,.035);
-  box(door,M.chrome,"Door_Belt",.035,.035,1.25,-side*.085,.49,-.38,.01);
+  box(door,M.paint,"Door_OuterPanel",.12,.53,1.78,-side*.025,0,-.30,.055);
+  box(door,M.paint2,"Door_LowerSculpt",.045,.22,1.64,-side*.088,-.09,-.30,.025);
+  box(door,M.glass,"Door_Window",.045,.34,1.58,-side*.074,.31,-.30,.035);
+  box(door,M.chrome,"Door_Belt",.035,.035,1.54,-side*.085,.49,-.30,.01);
   box(door,M.chrome,"Door_Handle",.035,.055,.28,-side*.088,.12,-.02,.012);
   const trim=new THREE.Mesh(new THREE.BoxGeometry(.035,.025,1.15),M.paint2);
   trim.position.set(-side*.091,.04,-.38); door.add(trim);
@@ -227,7 +227,7 @@ function makeDetailedMechanicalLayer(root){
     const s=side<0?"L":"R";
     const door=root.children.find(o=>o.name==="Door_"+s+"_Assembly");
     if(!door) continue;
-    box(door,M.interior,"Door_InnerSkin_"+s,.035,.46,1.31,-side*.105,.01,-.38,.035);
+    box(door,M.interior,"Door_InnerSkin_"+s,.035,.46,1.66,-side*.105,.01,-.30,.035);
     box(door,M.dash,"Door_Armrest_"+s,.045,.10,.70,-side*.13,-.03,-.34,.025);
     box(door,M.black,"Door_Speaker_"+s,.025,.16,.16,-side*.135,-.17,-.76,.06);
     box(door,M.chrome,"Door_Lock_"+s,.025,.055,.09,-side*.14,.32,-.02,.01);
@@ -289,8 +289,8 @@ function makeDetailedMechanicalLayer(root){
 
   // Fuel door, antenna, tow points and body fasteners.
   box(detail,M.paint2,"FuelDoor",.035,.18,.34,.93,.78,-.82,.055);
-  cylinder(detail,darkMetal,"AntennaBase",.055,.035,.58,1.42,-.78,Math.PI/2,0,0,16);
-  cylinder(detail,M.black,"Antenna",.018,.28,.58,1.57,-.78,0,0,0,12);
+  cylinder(detail,darkMetal,"AntennaBase",.055,.035,.58,1.40,-.78,Math.PI/2,0,0,16);
+  cylinder(detail,M.black,"Antenna",.018,.16,.58,1.50,-.78,0,0,0,12);
   for(const side of [-1,1]){
     box(detail,brushed,"TowPointFront_"+side,.10,.08,.16,side*.66,.43,2.46,.018);
     box(detail,brushed,"TowPointRear_"+side,.10,.08,.16,side*.66,.43,-2.48,.018);
@@ -479,6 +479,13 @@ function buildChallenger(){
     if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}
   });
   root.updateMatrixWorld(true);
+  const bounds=new THREE.Box3().setFromObject(root);
+  const actual=bounds.getSize(new THREE.Vector3());
+  root.userData.geometryAudit={
+    target:{length:5.027,width:1.923,height:1.465},
+    actual:{length:actual.z,width:actual.x,height:actual.y},
+    bounds:{min:{x:bounds.min.x,y:bounds.min.y,z:bounds.min.z},max:{x:bounds.max.x,y:bounds.max.y,z:bounds.max.z}}
+  };
   return root;
 }
 
