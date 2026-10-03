@@ -128,8 +128,8 @@ export function installOpenWorld(scene){
   return districts;
 }
 
-export function updateOpenWorld(state,car,msg){
-  const districts=car?.parent?.userData?.openWorldDistricts||car?.parent?.parent?.userData?.openWorldDistricts||[];
+export function updateOpenWorld(state,car,msg,scene){
+  const districts=scene?.userData?.openWorldDistricts||car?.parent?.userData?.openWorldDistricts||car?.parent?.parent?.userData?.openWorldDistricts||[];
   if(!car||!districts.length)return null;
   let nearest=null,best=Infinity;
   for(const d of districts){
