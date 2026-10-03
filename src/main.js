@@ -190,14 +190,31 @@ function physicsDrive(dt){
       chassisBody.setAngvel({x:0,y:0,z:0},true);
     }catch{}
   }
+  const wheelDiagnostics=[];
   for(const w of(car.userData?.wheels||[])){
-    // Only the front axle steers. Rear wheels stay aligned with the chassis.
-    if(w?.userData?.front && w?.rotation) w.rotation.y=(w.userData.baseSteerY||0)+steerAngle;
-    // Rolling is applied to a dedicated child so steering cannot tilt the
-    // wheel's spin axis and create the "figure-eight" wobble.
-    const spin=w?.userData?.spin;
+    if(!w) continue;
+    w.userData??={};
+    // Imported R2.1 pivots are authoritative. Bind them once from their names
+    // so steering can never accidentally rotate all four wheels.
+    if(!w.userData.wheelBound){
+      const n=String(w.name||"").toLowerCase();
+      w.userData.front=/wheelpivot_f[lr]|front|_fl|_fr/.test(n);
+      w.userData.baseSteerY=Number.isFinite(w.rotation?.y)?w.rotation.y:0;
+      if(!w.userData.spin && Array.isArray(w.children)){
+        const spin=w.children.find(ch=>ch?.isObject3D);
+        if(spin) w.userData.spin=spin;
+      }
+      w.userData.wheelBound=true;
+    }
+    const front=!!w.userData.front;
+    if(front && w.rotation) w.rotation.y=(w.userData.baseSteerY||0)+steerAngle;
+    // Spin a child only; steering stays on the pivot and cannot create the
+    // old figure-eight/sideways wheel motion.
+    const spin=w.userData.spin;
     if(spin?.rotation) spin.rotation.x-=state.speed*dt/.39;
+    wheelDiagnostics.push({name:w.name||"(unnamed)",front,hasSpin:!!spin});
   }
+  window.MechanicCityWheelDiagnostics=wheelDiagnostics;
 }
 
 function fallbackDrive(dt){const throttle=(input.gas||state.throttle)&&(state.gear==="D"||state.gear==="R"),reverse=state.gear==="R",steer=(input.left?1:0)+(input.right?-1:0);const accel=throttle?(reverse?10:10):2.5; state.speed=THREE.MathUtils.damp(state.speed,throttle?(reverse?-8:8):0,accel,dt); state.heading+=steer*dt*1.2; if(car){car.rotation.y=state.heading;const forward=new THREE.Vector3(0,0,1).applyQuaternion(car.quaternion).normalize();state.posX+=forward.x*state.speed*dt*2;state.posZ+=forward.z*state.speed*dt*2;car.position.set(state.posX,0,state.posZ);}} 
