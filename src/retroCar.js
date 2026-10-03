@@ -43,26 +43,37 @@ function cylinder(parent, material, name, radius, depth, x,y,z, rx=0,ry=0,rz=0,s
 }
 
 function makeWheel(parent, x, z, front, side){
+  const TIRE_RADIUS=.365;
+  const TIRE_WIDTH=.245;
   const wheel=new THREE.Group();
   wheel.name="Wheel_"+(side<0?"L":"R")+"_"+(front?"F":"R");
-  wheel.position.set(x,0.39,z);
+  wheel.position.set(x,.395,z);
+  wheel.userData.baseY=.395;
   parent.add(wheel);
 
+  // Steering pivot: the whole knuckle turns around Y. The rolling assembly
+  // stays local to that pivot and spins around the wheel axle (local X).
   const rolling=new THREE.Group();
   rolling.name="Wheel_RollingAssembly";
   wheel.add(rolling);
-  const tire=cylinder(rolling,M.tire,"Tire",0.405,0.235,0,0,0,0,0,Math.PI/2,28);
+
+  const tire=cylinder(rolling,M.tire,"Tire",TIRE_RADIUS,TIRE_WIDTH,0,0,0,0,0,Math.PI/2,32);
   tire.userData.isWheel=true;
-  cylinder(rolling,M.chrome,"Alloy_Rim",0.255,0.245,0,0,0,0,0,Math.PI/2,24);
-  cylinder(rolling,M.black,"Hub",0.085,0.255,0,0,0,0,0,Math.PI/2,20);
-  cylinder(rolling,M.chrome,"Brake_Disc",0.315,0.055,side<0?-0.125:0.125,0,0,0,Math.PI/2,28);
-  const caliper=box(wheel,M.brake,"Brake_Caliper",0.07,0.15,0.20,side<0?-0.16:0.16,0.05,0.0,0.025);
-  caliper.rotation.z=0.15;
+  cylinder(rolling,M.chrome,"Alloy_Rim",.255,.235,0,0,0,0,0,Math.PI/2,28);
+  cylinder(rolling,M.black,"Hub",.085,.255,0,0,0,0,0,Math.PI/2,20);
+  cylinder(rolling,M.chrome,"Brake_Disc",.305,.060,side<0?-.125:.125,0,0,0,Math.PI/2,28);
+
+  // Caliper is stationary relative to steering; only the disc/tire/rim roll.
+  const caliper=box(wheel,M.brake,"Brake_Caliper",.07,.15,.20,side<0?-.16:.16,.05,0,.025);
+  caliper.rotation.z=.15;
+
   wheel.userData.front=front;
   wheel.userData.side=side;
+  wheel.userData.trackSide=side;
   wheel.userData.rolling=rolling;
   wheel.userData.spin=rolling;
   wheel.userData.baseSteerY=0;
+  wheel.userData.tireRadius=TIRE_RADIUS;
   return wheel;
 }
 
@@ -128,7 +139,7 @@ function makeInterior(root){
 function makeDoor(root, side){
   const pivot=new THREE.Object3D();
   pivot.name="Door_"+(side<0?"L":"R")+"_Hinge";
-  pivot.position.set(side*.965,.76,.34);
+  pivot.position.set(side*.93,.76,.34);
   root.add(pivot);
 
   const door=new THREE.Group();
@@ -314,8 +325,8 @@ function makeDetailedMechanicalLayer(root){
   for(const side of [-1,1]){
     box(detail,brushed,"DoorStriker_"+side,.035,.08,.14,side*.91,.79,.49,.012);
   }
-  box(detail,brushed,"HoodLatch",.16,.06,.08,0,.50,1.99,.012);
-  box(detail,brushed,"TrunkLatch",.16,.06,.08,0,.69,-2.01,.012);
+  box(detail,brushed,"HoodLatch",.16,.06,.08,0,.50,1.98,.012);
+  box(detail,brushed,"TrunkLatch",.16,.06,.08,0,.69,-1.34,.012);
 
   detail.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
   root.userData.detailLayer=detail;
@@ -327,22 +338,22 @@ function buildChallenger(){
   root.userData.singleAuthoritativeModel=true;
   root.userData.modelSource="procedural-threejs";
   root.userData.modelLoading=false;
-  root.userData.vehicleSpec={lengthMeters:4.95,widthMeters:1.93,heightMeters:1.36,model:"Dodge Challenger"};
+  root.userData.vehicleSpec={lengthMeters:5.027,widthMeters:1.923,heightMeters:1.465,wheelbaseMeters:2.946,frontTrackMeters:1.610,rearTrackMeters:1.620,groundClearanceMeters:.131,model:"2023 Dodge Challenger"};
   root.userData.articulation={doors:[],hood:null,trunk:null,steering:null};
   root.userData.serviceParts={};
   root.userData.wheels=[];
 
   // Main muscle-car body: layered volumes produce the long hood, cabin and rear haunch.
-  box(root,M.paint,"Main_Body",1.82,.56,3.72,0,.64,-.02,.15);
-  box(root,M.paint,"Lower_Body_L",.18,.40,3.42,-.88,.57,-.02,.08);
-  box(root,M.paint,"Lower_Body_R",.18,.40,3.42,.88,.57,-.02,.08);
-  box(root,M.paint,"Front_Haunch_L",.30,.48,.92,-.80,.72,1.42,.10);
-  box(root,M.paint,"Front_Haunch_R",.30,.48,.92,.80,.72,1.42,.10);
-  box(root,M.paint,"Rear_Haunch_L",.32,.50,1.00,-.82,.72,-1.34,.11);
-  box(root,M.paint,"Rear_Haunch_R",.32,.50,1.00,.82,.72,-1.34,.11);
+  box(root,M.paint,"Main_Body",1.78,.58,4.05,0,.66,-.02,.15);
+  box(root,M.paint,"Lower_Body_L",.18,.38,4.00,-.88,.50,-.02,.08);
+  box(root,M.paint,"Lower_Body_R",.18,.38,4.00,.88,.50,-.02,.08);
+  box(root,M.paint,"Front_Haunch_L",.28,.48,.98,-.80,.72,1.47,.11);
+  box(root,M.paint,"Front_Haunch_R",.28,.48,.98,.80,.72,1.47,.11);
+  box(root,M.paint,"Rear_Haunch_L",.30,.50,1.00,-.81,.72,-1.47,.11);
+  box(root,M.paint,"Rear_Haunch_R",.30,.50,1.00,.81,.72,-1.47,.11);
 
   // Low roof and thick pillars — Challenger silhouette.
-  box(root,M.paint,"Roof",1.47,.20,1.88,0,1.30,-.08,.13);
+  box(root,M.paint,"Roof",1.50,.20,2.02,0,1.29,-.08,.13);
   box(root,M.paint2,"WindshieldFrame",1.50,.43,.11,0,1.14,.78,.04,Math.PI*.15);
   box(root,M.glass,"Windshield",1.38,.34,.035,0,1.15,.805,.02,Math.PI*.15);
   box(root,M.paint2,"RearGlassFrame",1.50,.36,.10,0,1.14,-1.00,.04,-Math.PI*.12);
@@ -356,46 +367,46 @@ function buildChallenger(){
   // Long sculpted hood with center bulge.
   const hoodPivot=new THREE.Object3D();
   hoodPivot.name="Hood_Hinge";
-  hoodPivot.position.set(0,.91,2.08);
+  hoodPivot.position.set(0,.91,.72);
   root.add(hoodPivot);
-  box(hoodPivot,M.paint,"Hood",1.70,.16,1.48,0,0,-.72,.07);
-  box(hoodPivot,M.paint2,"Hood_Scoop",.48,.055,.66,0,.105,-.72,.025);
-  box(hoodPivot,M.chrome,"Hood_LeadingTrim",1.45,.025,.035,0,.07,-1.43,.01);
+  box(hoodPivot,M.paint,"Hood",1.70,.16,1.72,0,0,.86,.07);
+  box(hoodPivot,M.paint2,"Hood_Scoop",.48,.055,.66,0,.105,.86,.025);
+  box(hoodPivot,M.chrome,"Hood_LeadingTrim",1.45,.025,.035,0,.07,1.70,.01);
 
   // Rear deck + subtle lip.
   const trunkPivot=new THREE.Object3D();
   trunkPivot.name="Trunk_Hinge";
-  trunkPivot.position.set(0,.92,-2.08);
+  trunkPivot.position.set(0,.92,-1.28);
   root.add(trunkPivot);
-  box(trunkPivot,M.paint,"Trunk",1.70,.15,.82,0,0,.41,.065);
-  box(trunkPivot,M.paint2,"Trunk_Lip",1.48,.07,.16,0,.10,.77,.035);
+  box(trunkPivot,M.paint,"Trunk",1.70,.15,1.08,0,0,-.60,.065);
+  box(trunkPivot,M.paint2,"Trunk_Lip",1.48,.07,.16,0,.10,-1.08,.035);
 
   // Challenger front fascia.
-  box(root,M.paint2,"Front_Bumper",1.84,.26,.23,0,.43,1.91,.075);
-  box(root,M.black,"Dodge_Grille",1.36,.20,.07,0,.72,2.405,.025);
-  box(root,M.chrome,"Grille_UpperTrim",1.38,.035,.035,0,.83,2.45,.01);
+  box(root,M.paint2,"Front_Bumper",1.88,.30,.17,0,.50,2.425,.06);
+  box(root,M.black,"Dodge_Grille",1.36,.20,.07,0,.72,2.43,.025);
+  box(root,M.chrome,"Grille_UpperTrim",1.38,.035,.035,0,.83,2.47,.01);
   for(const x of [-.61,.61]){
-    box(root,M.lamp,"Headlamp_"+(x<0?"L":"R"),.43,.15,.045,x,.88,2.43,.018);
-    box(root,M.chrome,"HeadlampTrim_"+(x<0?"L":"R"),.27,.025,.025,x,.88,2.46,.008);
+    box(root,M.lamp,"Headlamp_"+(x<0?"L":"R"),.43,.15,.045,x,.88,2.41,.018);
+    box(root,M.chrome,"HeadlampTrim_"+(x<0?"L":"R"),.27,.025,.025,x,.88,2.44,.008);
   }
-  box(root,M.black,"FrontSplitter",1.70,.06,.20,0,.38,2.35,.025);
+  box(root,M.black,"FrontSplitter",1.72,.06,.12,0,.34,2.455,.025);
 
   // Rear fascia / full-width tail signature.
-  box(root,M.paint2,"Rear_Bumper",1.84,.26,.22,0,.43,-1.95,.075);
-  box(root,M.red,"TailLightBar",1.46,.15,.045,0,.82,-2.42,.018);
-  box(root,M.chrome,"RearTrim",1.52,.035,.035,0,.71,-2.45,.01);
+  box(root,M.paint2,"Rear_Bumper",1.88,.30,.17,0,.50,-2.425,.06);
+  box(root,M.red,"TailLightBar",1.46,.15,.045,0,.82,-2.43,.018);
+  box(root,M.chrome,"RearTrim",1.52,.035,.035,0,.71,-2.47,.01);
   for(const x of [-.56,.56]) cylinder(root,M.chrome,"Exhaust_"+(x<0?"L":"R"),.078,.10,x,.43,-2.43,Math.PI/2,0,0,20);
 
   // Wheel arches: curved tubes follow the four wheel openings.
-  const wheelPositions=[[-.96,1.30,true], [.96,1.30,true], [-.96,-1.30,false], [.96,-1.30,false]];
+  const wheelPositions=[[-.805,1.473,true],[.805,1.473,true],[-.810,-1.473,false],[.810,-1.473,false]];
   for(const [x,z,front] of wheelPositions){
     const side=x<0?-1:1;
     const curve=new THREE.CatmullRomCurve3([
-      new THREE.Vector3(x,.43,z-.43),
-      new THREE.Vector3(x*1.01,.67,z-.32),
-      new THREE.Vector3(x*1.02,.79,z),
-      new THREE.Vector3(x*1.01,.67,z+.32),
-      new THREE.Vector3(x,.43,z+.43)
+      new THREE.Vector3(x,.48,z-.42),
+      new THREE.Vector3(x*1.01,.70,z-.34),
+      new THREE.Vector3(x*1.02,.82,z),
+      new THREE.Vector3(x*1.01,.70,z+.34),
+      new THREE.Vector3(x,.48,z+.42)
     ]);
     mesh(root,new THREE.TubeGeometry(curve,16,.045,8,false),M.paint2,"WheelArch_"+(side<0?"L":"R")+"_"+(front?"F":"R"));
     const w=makeWheel(root,x,z,front,side);
@@ -406,10 +417,10 @@ function buildChallenger(){
   box(root,M.paint2,"Rocker_L",.10,.22,3.25,-.96,.48,0,.035);
   box(root,M.paint2,"Rocker_R",.10,.22,3.25,.96,.48,0,.035);
   for(const side of [-1,1]){
-    box(root,M.paint,"Front_Fender_"+(side<0?"L":"R"),.12,.30,.88,side*.91,.76,1.18,.09);
-    box(root,M.paint,"Rear_Fender_"+(side<0?"L":"R"),.13,.32,.92,side*.92,.76,-1.22,.10);
-    box(root,M.chrome,"Side_Character_Line_"+(side<0?"L":"R"),.025,.035,2.55,side*.968,.82,-.05,.008);
-    box(root,M.black,"Lower_Door_Vent_"+(side<0?"L":"R"),.028,.10,.42,side*.974,.62,.76,.012);
+    box(root,M.paint,"Front_Fender_"+(side<0?"L":"R"),.18,.34,.98,side*.86,.76,1.47,.10);
+    box(root,M.paint,"Rear_Fender_"+(side<0?"L":"R"),.18,.36,.98,side*.86,.76,-1.47,.10);
+    box(root,M.chrome,"Side_Character_Line_"+(side<0?"L":"R"),.025,.035,2.55,side*.935,.82,-.05,.008);
+    box(root,M.black,"Lower_Door_Vent_"+(side<0?"L":"R"),.028,.10,.42,side*.94,.62,.76,.012);
   }
 
   // Hood details: recessed center channel and twin heat-extractor inserts.
@@ -422,16 +433,16 @@ function buildChallenger(){
   }
 
   // Front fascia detail: recessed intake, grille bars and separate fog lamps.
-  box(root,M.black,"Lower_Intake",1.18,.15,.06,0,.49,2.42,.018);
+  box(root,M.black,"Lower_Intake",1.18,.15,.06,0,.49,2.43,.018);
   for(let i=-5;i<=5;i++){
-    box(root,M.chrome,"Grille_Bar_"+i,.025,.12,.025,i*.105,.73,2.45,.008);
+    box(root,M.chrome,"Grille_Bar_"+i,.025,.12,.025,i*.105,.73,2.46,.008);
   }
   for(const x of [-.72,.72]){
-    cylinder(root,M.lamp,"FogLamp_"+(x<0?"L":"R"),.075,.035,x,.55,2.43,Math.PI/2,0,0,20);
+    cylinder(root,M.lamp,"FogLamp_"+(x<0?"L":"R"),.075,.035,x,.55,2.44,Math.PI/2,0,0,20);
   }
 
   // Rear detail: license recess, reverse lamps and quad exhaust finishers.
-  box(root,M.black,"Plate_Recess",.52,.18,.035,0,.66,-2.43,.012);
+  box(root,M.black,"Plate_Recess",.52,.18,.035,0,.66,-2.44,.012);
   for(const x of [-.30,.30]){
     box(root,M.lamp,"Reverse_Lamp_"+(x<0?"L":"R"),.17,.045,.025,x,.82,-2.455,.006);
   }
@@ -451,8 +462,8 @@ function buildChallenger(){
 
   const doors=[makeDoor(root,-1),makeDoor(root,1)];
   root.userData.articulation.doors=doors;
-  root.userData.articulation.hood={pivot:hoodPivot,open:0,openSign:-1,axis:"x",maxAngle:.78};
-  root.userData.articulation.trunk={pivot:trunkPivot,open:0,openSign:-1,axis:"x",maxAngle:.70};
+  root.userData.articulation.hood={pivot:hoodPivot,open:0,openSign:-1,axis:"x",maxAngle:.70};
+  root.userData.articulation.trunk={pivot:trunkPivot,open:0,openSign:-1,axis:"x",maxAngle:.48};
 
   makeInterior(root);
   makeEngineBay(root);
