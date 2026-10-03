@@ -572,7 +572,7 @@ export class RetroCarBuilder {
       };
       this.carGroup.userData.auditR2Meshes();
 
-      this.carGroup.add(model);
+      // Keep the source GLB detached: it is an extraction/reference asset, never a visible player layer.
         const articulationRoot = new THREE.Object3D();
         articulationRoot.name = "R18_ARTICULATION";
         model.add(articulationRoot);
@@ -961,7 +961,7 @@ export class RetroCarBuilder {
       // references remain valid; only replace its visual children.
       const oldChildren = [...this.carGroup.children];
       for (const child of oldChildren) this.carGroup.remove(child);
-      this.carGroup.add(model);
+      // Keep the source GLB detached: it is an extraction/reference asset, never a visible player layer.
 
       // R2.1 body meshes contain the wheel silhouettes as part of combined
       // geometry, so they cannot physically rotate. Add lightweight runtime
@@ -1703,7 +1703,7 @@ export class RetroCarBuilder {
         }
       };
 
-      await loadOriginalR18Interior();
+      // Do not load the legacy R18 interior during player startup; it causes the old car to flash before the rebuilt shell.\n      // await loadOriginalR18Interior();
 
       // Keep the real door assemblies authoritative; the marker/procedural
       // doors must never overwrite them after the GLB finishes loading.
