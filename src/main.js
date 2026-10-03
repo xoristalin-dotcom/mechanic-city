@@ -231,11 +231,7 @@ function createRetroPlayerCar(){
   root.userData.workshopMode=false;
   root.userData.visualOffsetY=0;
   root.userData.physicsBodyOffsetY=1.2;
-  // Do not create service parts from the retired procedural builder.
-  // The authoritative R18 GLB populates serviceParts/articulation asynchronously.
-  // If the GLB has not finished loading yet, keep these containers empty and let
-  // waitForPlayerModel() synchronize them after modelLoading becomes false.
-  if(!root.userData.serviceParts) root.userData.serviceParts={};
+  // The player is a complete single procedural Challenger from the first frame.\n  if(!root.userData.serviceParts) root.userData.serviceParts={};
   if(!root.userData.articulation) root.userData.articulation={
     doors:[],hood:null,trunk:null,steering:null
   };
@@ -285,9 +281,7 @@ function createRetroPlayerCar(){
     const savedPart=state.car.partState?.[key];
     part.condition=typeof savedPart?.condition==="number"?savedPart.condition:100;
     part.installed=savedPart?.installed!==false;
-    // Installed parts are part of the authoritative GLB and stay visible
-    // in city, garage and workshop. Removal alone hides the actual node.
-    if(part.mesh) part.mesh.visible=part.installed;
+    // Installed parts are part of the single procedural vehicle hierarchy.\n    if(part.mesh && part.mesh!==root) part.mesh.visible=part.installed;
   }
   root.updateWorldMatrix(true,true,true);
   return root;
