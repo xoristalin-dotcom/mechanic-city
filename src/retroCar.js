@@ -671,6 +671,11 @@ export class RetroCarBuilder {
         const indices = index ? Array.from(index.array) : Array.from({length: pos.count}, (_,i)=>i);
         model.updateWorldMatrix(true,true);
         const wheelPlane = bodyBox.min.y + 0.42;
+        // The imported car sometimes contains a very large flat authoring panel
+        // just above the wheel-contact area. Use a conservative cutoff only for
+        // triangles that are both broad and nearly horizontal, so real tires,
+        // suspension and lower body surfaces are preserved.
+        const panelPlane = bodyBox.min.y + 0.72;
         const keep = [];
         let removed = 0;
         const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
@@ -689,7 +694,14 @@ export class RetroCarBuilder {
           const spanX=Math.max(wa.x,wb.x,wc.x)-Math.min(wa.x,wb.x,wc.x);
           const spanZ=Math.max(wa.z,wb.z,wc.z)-Math.min(wa.z,wb.z,wc.z);
           const broadEnough=(spanX>0.12 || spanZ>0.12) && area2>=0.02;
-          if(low && horizontal && broadEnough){ removed++; continue; }
+          const carScaleX = Math.max(0.1, bodyBox.max.x-bodyBox.min.x);
+          const carScaleZ = Math.max(0.1, bodyBox.max.z-bodyBox.min.z);
+          const giantPanel =
+            Math.max(spanX / carScaleX, spanZ / carScaleZ) >= 0.68 &&
+            Math.min(spanX, spanZ) >= 0.55;
+          if((low && horizontal && broadEnough) || (giantPanel && horizontal && Math.max(wa.y,wb.y,wc.y) <= panelPlane)){
+            removed++; continue;
+          }
           keep.push(ia,ib,ic);
         }
         if(removed>0){
