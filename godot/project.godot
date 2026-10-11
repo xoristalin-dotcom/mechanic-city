@@ -19,9 +19,3 @@ window/handheld/orientation=2
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/default_filters/use_nearest_mipmap_filter=false
-
-[input]
-accelerate={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":87), Object(InputEventScreenTouch)]}
-brake={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":83)]}
-steer_left={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":65)]}
-steer_right={"deadzone":0.2,"events":[Object(InputEventKey,"physical_keycode":68)]}
